@@ -1,0 +1,40 @@
+.race-track {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--walnut);
+}
+
+.race-track canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.touch-zones {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .touch-zones {
+    display: flex;
+  }
+}
+
+.touch-zone {
+  flex: 1;
+  height: 100%;
+  touch-action: none;
+  background: rgba(255, 248, 231, 0.06);
+  border-right: 1px solid rgba(255, 248, 231, 0.15);
+}
+
+.touch-zone:last-child {
+  border-right: none;
+}
+
+.touch-zone:active {
+  background: rgba(255, 248, 231, 0.2);
+}

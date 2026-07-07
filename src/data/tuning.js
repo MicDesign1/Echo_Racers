@@ -1,5 +1,4 @@
-// Centralized game-feel constants. Placeholder values — not yet tuned against
-// the actual road-rendering engine. Adjust here rather than scattering magic
+// Centralized game-feel constants. Adjust here rather than scattering magic
 // numbers through engine/component code.
 
 export const ROAD = {
@@ -12,11 +11,16 @@ export const ROAD = {
   fov: 100,
 }
 
+// Speeds/accelerations are in world units/sec (and /sec^2) — scaled against
+// ROAD.segmentLength so "maxSpeed" means "segments crossed per second".
 export const RACE = {
-  maxSpeed: 300,
-  accel: 0.6,
-  decel: 0.9,
-  offRoadDecel: 0.3,
+  maxSpeed: 7200,
+  accel: 1800,
+  brakeDecel: 4800,
+  friction: 1200,
+  offRoadMaxSpeed: 2400,
+  offRoadDecel: 3600,
+  steerRate: 2.5,
   centrifugalStrength: 0.3,
 }
 

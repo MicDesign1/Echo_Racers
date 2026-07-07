@@ -14,8 +14,14 @@
   font-size: 2.5rem;
 }
 
-.home-page p {
+.home-page-link {
   font-family: var(--font-body);
   font-style: italic;
+  font-size: 1.25rem;
   color: var(--brass);
+  text-decoration: underline;
+}
+
+.home-page-link:hover {
+  color: var(--aged-gold);
 }
