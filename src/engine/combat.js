@@ -1,4 +1,4 @@
-import { RACE, COMBAT, OPPONENTS } from '../data/tuning.js'
+import { RACE, COMBAT, OPPONENTS, activeDifficulty } from '../data/tuning.js'
 import { wrapDelta } from './opponents.js'
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
@@ -70,6 +70,18 @@ function landHit(g, target) {
 export function updateCombat(g, dt, trackLength) {
   if (RACE.mode !== 'race') return
   if (!g.attacks) g.attacks = []
+  // Transient per-frame queue of combat sounds to play, drained by the
+  // caller (RaceTrack) — keeps combat logic free of any audio dependency.
+  if (!g.audioEvents) g.audioEvents = []
+
+  // Difficulty scales the shared combat tempo for EVERY racer equally
+  // (symmetry per CLAUDE.md COMBAT DESIGN): higher tiers reach a little
+  // further and re-fire sooner. Cadet's scales are 1.0, so the default is
+  // identical to the pre-difficulty values.
+  const diff = activeDifficulty()
+  const rangeWorld = COMBAT.attackRangeWorld * diff.combat.rangeScale
+  const rangeLane = COMBAT.attackRangeLane * diff.combat.rangeScale
+  const cooldown = COMBAT.cooldown * diff.combat.cooldownScale
 
   const combatants = buildCombatants(g)
 
@@ -100,15 +112,16 @@ export function updateCombat(g, dt, trackLength) {
       if (other === attacker) continue
       const gap = Math.abs(wrapDelta(other.pos, attacker.pos, trackLength))
       const laneGap = Math.abs(other.x - attacker.x)
-      if (gap < COMBAT.attackRangeWorld && laneGap < COMBAT.attackRangeLane && gap < bestGap) {
+      if (gap < rangeWorld && laneGap < rangeLane && gap < bestGap) {
         bestGap = gap
         target = other
       }
     }
     if (!target) continue
 
-    attacker.cooldown = COMBAT.cooldown
+    attacker.cooldown = cooldown
     landHit(g, target)
+    g.audioEvents.push({ fromPlayer: attacker.isPlayer, toPlayer: target.isPlayer })
     g.attacks.push({
       fromPlayer: attacker.isPlayer,
       fromRivalIndex: attacker.isPlayer ? -1 : attacker.o.rivalIndex,

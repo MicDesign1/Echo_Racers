@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ROAD, RACE, DRIFT, PARALLAX, TRACK_ID, RESULTS, OPPONENTS, COMBAT } from '../data/tuning.js'
+import { useNavigate } from 'react-router-dom'
+import { ROAD, RACE, DRIFT, PARALLAX, RESULTS, OPPONENTS, COMBAT, CONTROLS, DIFFICULTY, activeTrackId } from '../data/tuning.js'
 import { trackLength, seg } from '../engine/track.js'
 import { project, renderRoadSegment, renderLaneStripe } from '../engine/projection.js'
 import { drawParallax } from '../engine/background.js'
@@ -8,12 +9,54 @@ import { drawCar, drawOpponentCar, getCreatureAnchor } from '../engine/car.js'
 import { createOpponents, updateOpponents, getOpponentScreenPlacement, computePlayerDepth, computePlayerPlace, startGridSlot } from '../engine/opponents.js'
 import { updateCombat, wobbleAngle } from '../engine/combat.js'
 import { drawAttackBolt, drawPlayerHitEdge } from '../engine/combatfx.js'
+import * as audio from '../engine/audio.js'
 import { drawHud, formatTime, ordinal } from '../engine/hud.js'
 import { COLORS, OPPONENT_PALETTES, linearGradient } from '../engine/colors.js'
-import { getBestTimes, recordLapResult, recordRaceResult } from '../data/saves.js'
+import { getBestTimes, recordLapResult, recordRaceResult, getPracticeConfig } from '../data/saves.js'
 import './RaceTrack.css'
 
 const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('verify')
+
+// Opt-in audio inspection hook (?audiodebug=1). Audio is deliberately never
+// started in verify mode (keeps the render/combat regression scripts pure),
+// so this separate flag exposes the live audio graph for the audible/CDP
+// hand-test without shipping the hook in normal play.
+const audioDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('audiodebug')
+
+// Forces the on-screen touch controls on (and, for verification only,
+// exposes a read-only window.__ECHO_TOUCH__ view of the live input +
+// resulting speed). Real touch devices get the controls via auto-detection
+// WITHOUT this param, so this debug read never ships to normal play.
+const forceTouch = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('touch')
+
+// Difficulty/count/mode overrides for verification ONLY — no player UI yet.
+// Applied to the practice config at load so they survive the page reloads the
+// verify scripts perform (e.g. ?verify=1&rivals=8&difficulty=Ace). Gated on
+// verify mode so nothing here ships to normal play. Also see the setDifficulty
+// / setRivalCount / setRaceMode hooks on window.__ECHO_RACE_TEST__ below for
+// changing these live within a session.
+if (verifyMode && typeof window !== 'undefined') {
+  const q = new URLSearchParams(window.location.search)
+  const rc = q.get('rivals')
+  if (rc != null && Number.isFinite(+rc)) {
+    RACE.practice.rivalCount = Math.max(1, Math.min(RACE.maxRivalCount, Math.round(+rc)))
+  }
+  const d = q.get('difficulty')
+  if (d && DIFFICULTY[d]) RACE.practice.difficulty = d
+  const rm = q.get('racemode')
+  if (rm === 'practice' || rm === 'trial') RACE.raceMode = rm
+} else if (typeof window !== 'undefined') {
+  // Outside verify mode, hydrate RACE.practice from the player's last-used
+  // Practice choices so a direct load / refresh of /race (i.e. not arriving
+  // via the setup screen) still uses what they picked last time. Validated
+  // against the current tiers / rival bounds so a stale value can't launch an
+  // invalid race. Never runs in verify mode — the regression scripts keep
+  // their fixed Cadet / 3-rival defaults.
+  const saved = getPracticeConfig()
+  if (DIFFICULTY[saved.difficulty]) RACE.practice.difficulty = saved.difficulty
+  const n = Number(saved.rivalCount)
+  if (Number.isFinite(n)) RACE.practice.rivalCount = Math.max(1, Math.min(RACE.maxRivalCount, Math.round(n)))
+}
 
 // The countdown ceremony is a real-player affordance — verify mode drives
 // scenarios directly via position overrides and expects the race to be
@@ -73,16 +116,46 @@ function createInitialGameState() {
     combatEventCount: 0,
     playerHitCount: 0,
     attacks: [],
+    // Transient per-frame flags the audio bed reads (engine/audio.js):
+    // whether the player is currently drifting, and a queue of combat
+    // sounds updateCombat leaves for us to play. Both are advisory — the
+    // simulation never depends on them.
+    drifting: false,
+    audioEvents: [],
     opponents: createOpponents(),
   }
 }
 
 export default function RaceTrack() {
+  const navigate = useNavigate()
   const canvasRef = useRef(null)
-  const touchLeftRef = useRef(null)
-  const touchAccelRef = useRef(null)
-  const touchRightRef = useRef(null)
+  const joyBaseRef = useRef(null)
+  const joyNubRef = useRef(null)
+  const accelBtnRef = useRef(null)
+  const brakeBtnRef = useRef(null)
+  const driftBtnRef = useRef(null)
   const keysRef = useRef({ up: false, down: false, left: false, right: false, drift: false })
+  // Analog touch input, read alongside keysRef every frame. `steer` is a
+  // continuous -1..+1 from the joystick (steerActive gates it in so a
+  // centered/absent stick never fights the keyboard); up/down/drift mirror
+  // the keyboard flags for the throttle cluster. Mutated by pointer
+  // handlers, never triggers a re-render (same pattern as gameRef).
+  const touchRef = useRef({ steer: 0, steerActive: false, up: false, down: false, drift: false })
+  // Show on-screen controls only on touch/coarse-pointer devices (or when
+  // forced via ?touch=1 for hand-testing on desktop). Never in verify mode,
+  // so the render/combat regression scripts stay byte-identical. Desktop
+  // keyboard play renders nothing and is behaviorally unchanged.
+  const [showTouch] = useState(() => {
+    if (typeof window === 'undefined') return false
+    if (new URLSearchParams(window.location.search).has('touch')) return true
+    if (verifyMode) return false
+    // Gate on the PRIMARY pointer being coarse — true on phones/tablets, but
+    // NOT on a desktop/laptop with a mouse (even a touchscreen one, whose
+    // primary pointer is still fine). Keeps desktop keyboard play unchanged.
+    // Falls back to touch-point count only where matchMedia is unavailable.
+    if (typeof window.matchMedia === 'function') return window.matchMedia('(pointer: coarse)').matches
+    return navigator.maxTouchPoints > 0 || 'ontouchstart' in window
+  })
   const bannerTimeoutRef = useRef(null)
   const verifyMetricsRef = useRef(null)
   const resetRaceRef = useRef(null)
@@ -97,7 +170,7 @@ export default function RaceTrack() {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
-    gameRef.current.bestLapTime = getBestTimes(TRACK_ID).bestLap
+    gameRef.current.bestLapTime = getBestTimes(activeTrackId()).bestLap
 
     function showBanner(lapTime, bestTime, isRecord) {
       clearTimeout(bannerTimeoutRef.current)
@@ -113,9 +186,11 @@ export default function RaceTrack() {
       setBanner(null)
       setRaceResult(null)
       const fresh = createInitialGameState()
-      fresh.bestLapTime = getBestTimes(TRACK_ID).bestLap
+      fresh.bestLapTime = getBestTimes(activeTrackId()).bestLap
       gameRef.current = fresh
       setCountdownText(fresh.countdownRemaining > 0 ? RACE.countdown.beats[0] : null)
+      audio.raceRestart() // let the beds come back; music restarts at the new GO
+      audio.blip() // short UI note on Race Again
     }
     resetRaceRef.current = resetRace
 
@@ -143,6 +218,11 @@ export default function RaceTrack() {
       }
     }
     function onKeyDown(e) {
+      // Any key is a valid "first gesture" to unblock the AudioContext.
+      // Skipped in verify mode so the headless regression scripts never
+      // spin up audio (keeps them byte-for-byte as before).
+      if (!verifyMode) audio.ensureStarted()
+      if (e.code === 'KeyM') { audio.toggleMute(); e.preventDefault(); return }
       const k = keyFor(e)
       if (k) { keysRef.current[k] = true; e.preventDefault() }
     }
@@ -152,28 +232,6 @@ export default function RaceTrack() {
     }
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
-
-    const touchTargets = [
-      [touchLeftRef.current, 'left'],
-      [touchAccelRef.current, 'up'],
-      [touchRightRef.current, 'right'],
-    ]
-    const touchCleanups = []
-    for (const [el, key] of touchTargets) {
-      if (!el) continue
-      const down = (e) => { e.preventDefault(); keysRef.current[key] = true }
-      const up = (e) => { e.preventDefault(); keysRef.current[key] = false }
-      el.addEventListener('pointerdown', down)
-      el.addEventListener('pointerup', up)
-      el.addEventListener('pointerleave', up)
-      el.addEventListener('pointercancel', up)
-      touchCleanups.push(() => {
-        el.removeEventListener('pointerdown', down)
-        el.removeEventListener('pointerup', up)
-        el.removeEventListener('pointerleave', up)
-        el.removeEventListener('pointercancel', up)
-      })
-    }
 
     function applyVerifyOverride(g) {
       if (!verifyMode) return
@@ -202,6 +260,7 @@ export default function RaceTrack() {
       // Lap/race timers only start accumulating once we fall through to
       // normal physics below, so they naturally begin at GO, not at mount.
       if (g.countdownRemaining > 0) {
+        g.drifting = false
         g.countdownRemaining = Math.max(0, g.countdownRemaining - dt)
         const beats = RACE.countdown.beats
         const totalSec = (beats.length * RACE.countdown.beatDurationMs) / 1000
@@ -211,6 +270,10 @@ export default function RaceTrack() {
         if (beatIndex !== g.countdownBeatIndex) {
           g.countdownBeatIndex = beatIndex
           setCountdownText(beats[beatIndex])
+          // A warm beep on each number, a brighter chord on the final GO —
+          // and the race music kicks in on GO (fades/restarts while racing).
+          if (beats[beatIndex] === 'GO!') { audio.countdownGo(); audio.startRaceMusic() }
+          else audio.countdownBeep()
         }
         if (g.countdownRemaining <= 0) setCountdownText(null)
         return
@@ -220,6 +283,7 @@ export default function RaceTrack() {
       // own friction. Rivals are unaffected — updateOpponents still runs,
       // so anyone still racing keeps driving exactly as before.
       if (g.raceFinished) {
+        g.drifting = false
         g.speed = Math.max(0, g.speed - RACE.friction * dt)
         g.driftAngle += (0 - g.driftAngle) * Math.min(1, dt * DRIFT.settleEaseRate)
         g.pos = (g.pos + g.speed * dt) % trackLength
@@ -229,11 +293,17 @@ export default function RaceTrack() {
       }
 
       const keys = keysRef.current
+      const touch = touchRef.current
       const spct = g.speed / RACE.maxSpeed
 
-      if (keys.up) {
+      // Throttle: keyboard OR touch. The touch buttons set the same flags,
+      // so 'autoAccel' just holds touch.up true (its combined button drops
+      // it while braking). Keyboard order is preserved (accel wins ties).
+      const accelInput = keys.up || touch.up
+      const brakeInput = keys.down || touch.down
+      if (accelInput) {
         g.speed += RACE.accel * dt * (RACE.accelLowSpeedBoost - RACE.accelSpeedTaper * spct)
-      } else if (keys.down) {
+      } else if (brakeInput) {
         g.speed -= RACE.brakeDecel * dt
       } else {
         g.speed -= RACE.friction * dt
@@ -245,7 +315,13 @@ export default function RaceTrack() {
       }
       g.speed = Math.max(0, Math.min(RACE.maxSpeed, g.speed))
 
-      const steerTarget = (keys.left ? -1 : 0) + (keys.right ? 1 : 0)
+      // Steering feeds a single analog target. The joystick provides a
+      // proportional -1..+1 (half-tilt = gentle) and, while held, overrides
+      // the discrete keyboard value; released, it springs to 0 and hands
+      // control straight back to the keys. Same easing/physics either way.
+      const keySteer = (keys.left ? -1 : 0) + (keys.right ? 1 : 0)
+      let steerTarget = touch.steerActive ? touch.steer : keySteer
+      steerTarget = Math.max(-1, Math.min(1, steerTarget))
       g.steer += (steerTarget - g.steer) * Math.min(1, dt * RACE.steerEaseRate)
       g.playerX += g.steer * RACE.steerRate * dt * spct
 
@@ -253,7 +329,8 @@ export default function RaceTrack() {
       g.playerX -= curve * RACE.centrifugalStrength * spct * spct * dt
       g.playerX = Math.max(-RACE.playerXMax, Math.min(RACE.playerXMax, g.playerX))
 
-      const drifting = keys.drift && Math.abs(g.steer) > DRIFT.minSteer && spct > DRIFT.minSpeedPercent
+      const drifting = (keys.drift || touch.drift) && Math.abs(g.steer) > DRIFT.minSteer && spct > DRIFT.minSpeedPercent
+      g.drifting = drifting
       if (drifting) {
         g.driftAngle += (g.steer * DRIFT.angleTargetFactor - g.driftAngle) * Math.min(1, dt * DRIFT.angleEaseRate)
         g.playerX += g.steer * RACE.steerRate * DRIFT.lateralSteerFactor * dt * spct
@@ -261,6 +338,7 @@ export default function RaceTrack() {
       } else {
         if (Math.abs(g.driftAngle) > DRIFT.exitAngleThreshold && spct > DRIFT.exitMinSpeedPercent) {
           g.boost = DRIFT.boostDuration
+          audio.boost() // brief rising surge on a clean drift exit
         }
         g.driftAngle += (0 - g.driftAngle) * Math.min(1, dt * DRIFT.settleEaseRate)
       }
@@ -278,7 +356,7 @@ export default function RaceTrack() {
       // back to near 0) can't be confused with ordinary jitter.
       if (prevPos - g.pos > trackLength / 2) {
         g.lastLapTime = g.lapTime
-        const result = recordLapResult(TRACK_ID, g.lapTime)
+        const result = recordLapResult(activeTrackId(), g.lapTime)
         g.bestLapTime = result.bestLap
         if (g.raceBestLap == null || g.lapTime < g.raceBestLap) g.raceBestLap = g.lapTime
         if (result.isNewBestLap) g.raceHasNewBestLap = true
@@ -289,7 +367,7 @@ export default function RaceTrack() {
             g.playerFinished = true
             g.playerPlace = g.nextPlace++
             g.raceFinished = true
-            const raceRecord = recordRaceResult(TRACK_ID, g.raceTime)
+            const raceRecord = recordRaceResult(activeTrackId(), g.raceTime)
             setRaceResult({
               place: g.playerPlace,
               totalTime: g.raceTime,
@@ -297,6 +375,11 @@ export default function RaceTrack() {
               isNewBestLap: g.raceHasNewBestLap,
               isNewBestTotal: raceRecord.isNewBestTotal,
             })
+            // Fade engine/wind/music out over ~1.5s as the results appear.
+            audio.raceEndFade()
+            // Victory cheer for 1st place only — no stinger otherwise (synth
+            // flourish is only a fallback if the cheer clip is missing).
+            if (g.playerPlace === 1 && !audio.playWinCheer()) audio.results()
           } else {
             showBanner(g.lapTime, result.bestLap, result.isNewBestLap)
           }
@@ -490,6 +573,7 @@ export default function RaceTrack() {
         lap: Math.min(g.playerLaps + 1, RACE.lapCount),
         lapCount: RACE.lapCount,
         place: RACE.mode === 'race' ? computePlayerPlace(g, trackLength) : null,
+        muted: audio.isMuted(),
       }, COLORS)
 
       const vignette = ctx.createRadialGradient(
@@ -533,6 +617,35 @@ export default function RaceTrack() {
         const g = gameRef.current
         if (pauseArm === 'attack' && g.attacks.length) { paused = true; pauseArm = null }
         else if (pauseArm === 'playerhit' && g.playerHitEdgePulse > 0) { paused = true; pauseArm = null }
+
+        // Play any combat sounds updateCombat queued this frame, then clear
+        // the queue (drained even when audio is inactive so it can't grow).
+        // playAttack/playDamage pull a random clip from their pool (synth
+        // fallback). No combat sounds once the race is finished. All no-op
+        // before the first gesture and in time-trial (never queued there).
+        // FUTURE TYPED COMBAT: pass ev's attacker/target creature type into
+        // playAttack/playDamage so audio can pickForType instead of the full
+        // pool (swap points are marked in engine/audio.js).
+        for (const ev of g.audioEvents) {
+          if (g.raceFinished) continue
+          audio.playAttack(ev.fromPlayer)
+          audio.playDamage(ev.toPlayer)
+        }
+        g.audioEvents.length = 0
+
+        // Continuous bed: engine hum + wind track g.speed; drift sizzle
+        // tracks g.drifting; rival hums fade with proximity (shortest
+        // wrap-around gap). No-ops until the AudioContext is started.
+        audio.update({
+          speed: g.speed,
+          maxSpeed: RACE.maxSpeed,
+          drifting: g.drifting,
+          rivals: g.opponents.map((o) => {
+            let gap = ((o.pos - g.pos) % trackLength + trackLength) % trackLength
+            if (gap > trackLength / 2) gap -= trackLength
+            return { speed: o.speed, gap: Math.abs(gap) }
+          }),
+        })
       }
       render(W, H, now)
       rafId = requestAnimationFrame(frame)
@@ -607,10 +720,59 @@ export default function RaceTrack() {
             countdownRemaining: g.countdownRemaining,
             currentPlace: RACE.mode === 'race' ? computePlayerPlace(g, trackLength) : null,
             playerPos: g.pos,
+            playerX: g.playerX,
+            playerSpeed: g.speed,
+            rivalCount: RACE.rivalCount,
             opponents: g.opponents.map((o) => ({
-              rivalIndex: o.rivalIndex, pos: o.pos, laps: o.laps, finished: o.finished, place: o.place,
+              rivalIndex: o.rivalIndex, pos: o.pos, x: o.x, speed: o.speed, laps: o.laps, finished: o.finished, place: o.place,
             })),
           }
+        },
+        // Difficulty / rival-count / race-mode debug hooks (no player UI yet).
+        // Changing count or difficulty rebuilds the field via a full race
+        // reset so the new values apply from a clean grid, exactly as a fresh
+        // load would. getRaceConfig reports the resolved active config.
+        getRaceConfig: () => ({
+          raceMode: RACE.raceMode,
+          difficulty: (RACE.raceMode === 'trial' ? RACE.trial : RACE.practice).difficulty,
+          rivalCount: RACE.rivalCount,
+          trackId: activeTrackId(),
+          tiers: Object.keys(DIFFICULTY),
+        }),
+        setDifficulty(name) {
+          if (!DIFFICULTY[name]) return false
+          ;(RACE.raceMode === 'trial' ? RACE.trial : RACE.practice).difficulty = name
+          resetRaceRef.current?.()
+          return true
+        },
+        setRivalCount(n) {
+          const count = Math.max(1, Math.min(RACE.maxRivalCount, Math.round(n)))
+          ;(RACE.raceMode === 'trial' ? RACE.trial : RACE.practice).rivalCount = count
+          resetRaceRef.current?.()
+          return count
+        },
+        setRaceMode(mode) {
+          if (mode !== 'practice' && mode !== 'trial') return false
+          RACE.raceMode = mode
+          resetRaceRef.current?.()
+          return true
+        },
+      }
+    }
+
+    if (audioDebug) {
+      window.__ECHO_AUDIO__ = {
+        getState: () => audio.getDebugState(),
+        getPickLog: () => audio.getPickLog(),
+        playWinCheer: () => audio.playWinCheer(),
+        toggleMute: () => audio.toggleMute(),
+        setMode: (m) => { RACE.mode = m },
+        setLapCount: (n) => { RACE.lapCount = n },
+        hold: (k, on = true) => { keysRef.current[k] = on },
+        startCountdown: () => {
+          const g = gameRef.current
+          g.countdownRemaining = (RACE.countdown.beats.length * RACE.countdown.beatDurationMs) / 1000
+          g.countdownBeatIndex = -1
         },
       }
     }
@@ -620,14 +782,137 @@ export default function RaceTrack() {
         delete window.__ECHO_RACE_TEST__
         delete window.__ECHO_RACE_TEST_OVERRIDE__
       }
+      // NB: in audioDebug we intentionally KEEP window.__ECHO_AUDIO__ after
+      // unmount so verification can assert the graph is fully torn down
+      // (getState reads the module singleton, valid post-teardown).
       cancelAnimationFrame(rafId)
+      audio.teardown() // stop ALL sources + close the context: zero audio survives leaving the race
       window.removeEventListener('resize', resize)
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
-      for (const cleanup of touchCleanups) cleanup()
       clearTimeout(bannerTimeoutRef.current)
     }
   }, [])
+
+  // Touch-control wiring, mounted only when the on-screen controls render.
+  // Each control captures its own pointer id, so the steering joystick and
+  // a throttle/drift button work simultaneously (true multi-touch — no
+  // shared handler). All state lands in touchRef, drained by update().
+  useEffect(() => {
+    if (!showTouch) return
+    const touch = touchRef.current
+    const cleanups = []
+
+    // 'autoAccel' drives forward on its own; the combined button below drops
+    // this while held. 'manual' starts with nothing pressed.
+    touch.up = CONTROLS.touchScheme === 'autoAccel'
+    touch.down = false
+    touch.drift = false
+    touch.steer = 0
+    touch.steerActive = false
+
+    const base = joyBaseRef.current
+    const nub = joyNubRef.current
+    if (base && nub) {
+      const travel = (CONTROLS.joystick.baseSize - CONTROLS.joystick.nubSize) / 2
+      let steerId = null
+      const compute = (e) => {
+        const rect = base.getBoundingClientRect()
+        let dx = e.clientX - (rect.left + rect.width / 2)
+        let dy = e.clientY - (rect.top + rect.height / 2)
+        const dist = Math.hypot(dx, dy)
+        if (dist > travel && dist > 0) { dx = (dx / dist) * travel; dy = (dy / dist) * travel }
+        let axis = travel > 0 ? dx / travel : 0
+        if (Math.abs(axis) < CONTROLS.joystick.deadzone) axis = 0
+        touch.steer = axis
+        touch.steerActive = true
+        nub.style.transform = `translate(${dx}px, ${dy}px)`
+      }
+      const onDown = (e) => {
+        if (steerId !== null) return
+        steerId = e.pointerId
+        try { base.setPointerCapture(e.pointerId) } catch { /* no active pointer (e.g. synthetic) */ }
+        base.classList.add('is-pressed')
+        if (!verifyMode) audio.ensureStarted()
+        compute(e)
+        e.preventDefault()
+      }
+      const onMove = (e) => { if (e.pointerId === steerId) { compute(e); e.preventDefault() } }
+      const onUp = (e) => {
+        if (e.pointerId !== steerId) return
+        steerId = null
+        touch.steer = 0
+        touch.steerActive = false
+        base.classList.remove('is-pressed')
+        nub.style.transform = 'translate(0px, 0px)'
+        e.preventDefault()
+      }
+      base.addEventListener('pointerdown', onDown)
+      base.addEventListener('pointermove', onMove)
+      base.addEventListener('pointerup', onUp)
+      base.addEventListener('pointercancel', onUp)
+      cleanups.push(() => {
+        base.removeEventListener('pointerdown', onDown)
+        base.removeEventListener('pointermove', onMove)
+        base.removeEventListener('pointerup', onUp)
+        base.removeEventListener('pointercancel', onUp)
+      })
+    }
+
+    // A press/release button that captures its own pointer so it survives a
+    // finger sliding slightly off it, and never steals the joystick's touch.
+    function wireButton(el, onPress, onRelease) {
+      if (!el) return
+      const down = (e) => {
+        el.classList.add('is-pressed')
+        try { el.setPointerCapture(e.pointerId) } catch { /* no active pointer (e.g. synthetic) */ }
+        if (!verifyMode) audio.ensureStarted()
+        onPress()
+        e.preventDefault()
+      }
+      const up = (e) => { el.classList.remove('is-pressed'); onRelease(); e.preventDefault() }
+      el.addEventListener('pointerdown', down)
+      el.addEventListener('pointerup', up)
+      el.addEventListener('pointercancel', up)
+      el.addEventListener('lostpointercapture', up)
+      cleanups.push(() => {
+        el.removeEventListener('pointerdown', down)
+        el.removeEventListener('pointerup', up)
+        el.removeEventListener('pointercancel', up)
+        el.removeEventListener('lostpointercapture', up)
+      })
+    }
+
+    if (CONTROLS.touchScheme === 'autoAccel') {
+      // One combined brake+drift button; releasing resumes auto-accelerate.
+      wireButton(brakeBtnRef.current,
+        () => { touch.down = true; touch.drift = true; touch.up = false },
+        () => { touch.down = false; touch.drift = false; touch.up = true })
+    } else {
+      wireButton(accelBtnRef.current, () => { touch.up = true }, () => { touch.up = false })
+      wireButton(brakeBtnRef.current, () => { touch.down = true }, () => { touch.down = false })
+      wireButton(driftBtnRef.current, () => { touch.drift = true }, () => { touch.drift = false })
+    }
+
+    if (forceTouch) {
+      window.__ECHO_TOUCH__ = () => ({
+        scheme: CONTROLS.touchScheme,
+        ...touchRef.current,
+        steer_g: gameRef.current.steer,
+        speed: gameRef.current.speed,
+        playerX: gameRef.current.playerX,
+        countdownRemaining: gameRef.current.countdownRemaining,
+        nub: joyNubRef.current ? joyNubRef.current.style.transform : null,
+      })
+    }
+
+    return () => {
+      for (const c of cleanups) c()
+      if (forceTouch) delete window.__ECHO_TOUCH__
+      // Leave no input latched if the controls unmount mid-press.
+      touchRef.current = { steer: 0, steerActive: false, up: false, down: false, drift: false }
+    }
+  }, [showTouch])
 
   return (
     <div className="race-track">
@@ -643,11 +928,77 @@ export default function RaceTrack() {
           </span>
         </div>
       )}
-      <div className="touch-zones">
-        <div ref={touchLeftRef} className="touch-zone touch-left" />
-        <div ref={touchAccelRef} className="touch-zone touch-accel" />
-        <div ref={touchRightRef} className="touch-zone touch-right" />
-      </div>
+      {showTouch && (
+        <div
+          className="touch-controls"
+          style={{
+            '--ctrl-rest': CONTROLS.restOpacity,
+            '--ctrl-press': CONTROLS.pressedOpacity,
+          }}
+        >
+          <div
+            ref={joyBaseRef}
+            className="touch-joy-base"
+            style={{
+              left: `${CONTROLS.joystick.marginX}px`,
+              bottom: `${CONTROLS.joystick.marginY}px`,
+              width: `${CONTROLS.joystick.baseSize}px`,
+              height: `${CONTROLS.joystick.baseSize}px`,
+            }}
+          >
+            <div
+              ref={joyNubRef}
+              className="touch-joy-nub"
+              style={{
+                width: `${CONTROLS.joystick.nubSize}px`,
+                height: `${CONTROLS.joystick.nubSize}px`,
+              }}
+            />
+          </div>
+          <div
+            className="touch-throttle"
+            style={{
+              right: `${CONTROLS.buttons.marginX}px`,
+              bottom: `${CONTROLS.buttons.marginY}px`,
+              gap: `${CONTROLS.buttons.gap}px`,
+            }}
+          >
+            {CONTROLS.touchScheme === 'autoAccel' ? (
+              <div
+                ref={brakeBtnRef}
+                className="touch-btn touch-btn-brake"
+                style={{ width: `${CONTROLS.buttons.brakeSize}px`, height: `${CONTROLS.buttons.brakeSize}px` }}
+              >
+                Brake
+              </div>
+            ) : (
+              <>
+                <div
+                  ref={driftBtnRef}
+                  className="touch-btn touch-btn-drift"
+                  style={{ width: `${CONTROLS.buttons.driftSize}px`, height: `${CONTROLS.buttons.driftSize}px` }}
+                >
+                  Drift
+                </div>
+                <div
+                  ref={brakeBtnRef}
+                  className="touch-btn touch-btn-brake"
+                  style={{ width: `${CONTROLS.buttons.brakeSize}px`, height: `${CONTROLS.buttons.brakeSize}px` }}
+                >
+                  Brake
+                </div>
+                <div
+                  ref={accelBtnRef}
+                  className="touch-btn touch-btn-accel"
+                  style={{ width: `${CONTROLS.buttons.accelSize}px`, height: `${CONTROLS.buttons.accelSize}px` }}
+                >
+                  Go
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {countdownText && (
         <div className="countdown-overlay">
           <span
@@ -682,7 +1033,7 @@ export default function RaceTrack() {
             <button
               type="button"
               className="results-again-btn"
-              onClick={() => resetRaceRef.current?.()}
+              onClick={() => navigate('/practice')}
             >
               Race Again
             </button>

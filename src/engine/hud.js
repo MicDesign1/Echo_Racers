@@ -99,6 +99,47 @@ function drawRaceHierarchy(ctx, width, game, colors) {
   ctx.fillText('Best  ' + formatTime(game.bestLapTime), rightX + bestOff.x, t.y + bestOff.y)
 }
 
+// Small speaker glyph below the speed panel — a persistent audio state
+// indicator. Sound waves when live, a slash when muted (see audio.js /
+// the M-key toggle). Sized/positioned from HUD.mute.
+function drawMuteIndicator(ctx, colors, muted) {
+  const { x, y, size } = HUD.mute
+  const s = size
+  ctx.save()
+  ctx.strokeStyle = colors.hudTextDim
+  ctx.fillStyle = colors.hudTextDim
+  ctx.lineWidth = 1.5
+  ctx.lineJoin = 'round'
+
+  // Speaker body: a small square magnet + triangular cone.
+  ctx.beginPath()
+  ctx.moveTo(x, y + s * 0.35)
+  ctx.lineTo(x + s * 0.22, y + s * 0.35)
+  ctx.lineTo(x + s * 0.5, y + s * 0.12)
+  ctx.lineTo(x + s * 0.5, y + s * 0.88)
+  ctx.lineTo(x + s * 0.22, y + s * 0.65)
+  ctx.lineTo(x, y + s * 0.65)
+  ctx.closePath()
+  ctx.fill()
+
+  if (muted) {
+    ctx.strokeStyle = colors.hudText
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(x + s * 0.62, y + s * 0.18)
+    ctx.lineTo(x + s * 1.02, y + s * 0.82)
+    ctx.stroke()
+  } else {
+    ctx.beginPath()
+    ctx.arc(x + s * 0.58, y + s * 0.5, s * 0.2, -Math.PI / 3, Math.PI / 3)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(x + s * 0.58, y + s * 0.5, s * 0.42, -Math.PI / 3, Math.PI / 3)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
 export function drawHud(ctx, width, game, colors) {
   drawSpeedPanel(ctx, colors, game)
   if (game.mode === 'race') {
@@ -106,4 +147,5 @@ export function drawHud(ctx, width, game, colors) {
   } else {
     drawTimeTrialPanel(ctx, width, colors, game)
   }
+  drawMuteIndicator(ctx, colors, game.muted)
 }

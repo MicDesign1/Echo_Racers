@@ -1,5 +1,5 @@
 {
-  "port": "5175",
+  "port": "5173",
   "zPlayer": 981.995164779234,
   "nearPlane": 100,
   "segmentLength": 200,
@@ -1768,11 +1768,11 @@
   },
   "shimmer": {
     "frames": 120,
-    "visibleCount": 120
+    "visibleCount": 77
   },
   "natural": {
-    "catching": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-catching.png",
     "bump": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-bump.png",
+    "catching": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-catching.png",
     "passed": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-passed.png"
   }
 }

@@ -109,6 +109,10 @@ async function playerVsRivalPass(page) {
 // lane gap 0.6; the player is thousands of units back so it's out of range
 // of both — any attack fired must be rival-vs-rival.
 async function rivalVsRivalPass(page) {
+  // Rivals 0 and 1 sit ahead of the player (delta 1000 / 1400 => 400 apart
+  // at lane gap 0.6: inside attack range, outside collision range) so they
+  // stay on-screen for the screenshot. The player is >700 units behind both,
+  // out of attack range of either, so any event fired must be rival-vs-rival.
   await page.evaluate(() => {
     window.__ECHO_RACE_TEST__.setMode('race')
     window.__ECHO_RACE_TEST__.freeze()
@@ -117,22 +121,28 @@ async function rivalVsRivalPass(page) {
       playerX: 0,
       speed: 0,
       rivals: [
-        { rivalIndex: 0, delta: 5000, x: 0.0, speed: 6000 },
-        { rivalIndex: 1, delta: 5400, x: 0.6, speed: 6000 },
+        { rivalIndex: 0, delta: 1000, x: -0.3, speed: 6000 },
+        { rivalIndex: 1, delta: 1400, x: 0.3, speed: 6000 },
         { rivalIndex: 2, delta: 90000, x: 0 },
       ],
     })
   })
 
+  // Settle a few frames so the baseline is read AFTER any frame-0 exchange
+  // that fired the instant the scenario applied; then measure across a full
+  // 3s cooldown so a fresh exchange lands inside the window.
+  for (let i = 0; i < 10; i++) await raf(page)
   const baseline = await combatState(page)
   let shot = false
   let exchange = 0
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 260; i++) {
     await raf(page)
     const s = await combatState(page)
     // rival0 and rival1 both on cooldown => they've fired at each other
     if (s.opponents[0].attackCooldown > 0 && s.opponents[1].attackCooldown > 0) exchange += 1
     if (!shot && s.activeAttacks > 0) {
+      // advance a few frames so the bolt is mid-flight, not still on the rider
+      for (let k = 0; k < 4; k++) await raf(page)
       await page.locator('canvas').screenshot({ path: path.join(OUT_DIR, 'combat-rival-vs-rival.png') })
       shot = true
     }

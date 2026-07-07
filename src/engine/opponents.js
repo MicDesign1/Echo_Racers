@@ -1,4 +1,4 @@
-import { ROAD, RACE, OPPONENTS } from '../data/tuning.js'
+import { ROAD, RACE, OPPONENTS, activeDifficulty } from '../data/tuning.js'
 import { seg } from './track.js'
 import { getPlayerAnchor } from './car.js'
 
@@ -39,7 +39,14 @@ export function startGridSlot(racerIndex) {
 }
 
 export function createOpponents() {
-  return OPPONENTS.baseSpeedFractions.map((speedFraction, i) => {
+  // Count is the single resolved RACE.rivalCount (1..maxRivalCount); each
+  // rival's starting speed comes from the active difficulty's per-index
+  // top-speed fraction. Modulo keeps it safe if a config ever exceeds the
+  // fraction table length.
+  const diff = activeDifficulty()
+  const count = RACE.rivalCount
+  return Array.from({ length: count }, (_, i) => {
+    const speedFraction = diff.speedFractions[i % diff.speedFractions.length]
     const slot = startGridSlot(i + 1) // racer 0 is the player
     return {
       rivalIndex: i,
@@ -62,18 +69,20 @@ export function createOpponents() {
 }
 
 function targetSpeedFor(o, playerPos, trackLength) {
-  const baseSpeed = RACE.maxSpeed * OPPONENTS.baseSpeedFractions[o.rivalIndex]
+  const diff = activeDifficulty()
+  const baseSpeed = RACE.maxSpeed * diff.speedFractions[o.rivalIndex % diff.speedFractions.length]
   const segIndex = Math.floor(o.pos / ROAD.segmentLength)
   const curveSeverity = clamp(Math.abs(seg(segIndex).curve) / OPPONENTS.curveEaseThreshold, 0, 1)
-  const target = baseSpeed * (1 - curveSeverity * OPPONENTS.curveEaseStrength)
+  const target = baseSpeed * (1 - curveSeverity * diff.curveEaseStrength)
 
   const gap = wrapDelta(o.pos, playerPos, trackLength)
-  const rb = OPPONENTS.rubberBand
+  const gaps = OPPONENTS.rubberBand // engage distances (shared)
+  const rb = diff.rubberBand // strengths (per-difficulty)
   let adjust = 0
-  if (gap > rb.backOffGap) {
-    adjust = -rb.backOffStrength * clamp((gap - rb.backOffGap) / rb.backOffGap, 0, 1)
-  } else if (gap < -rb.catchUpGap) {
-    adjust = rb.catchUpStrength * clamp((-gap - rb.catchUpGap) / rb.catchUpGap, 0, 1)
+  if (gap > gaps.backOffGap) {
+    adjust = -rb.backOffStrength * clamp((gap - gaps.backOffGap) / gaps.backOffGap, 0, 1)
+  } else if (gap < -gaps.catchUpGap) {
+    adjust = rb.catchUpStrength * clamp((-gap - gaps.catchUpGap) / gaps.catchUpGap, 0, 1)
   }
   adjust = clamp(adjust, -rb.maxAdjustFraction, rb.maxAdjustFraction)
   return target * (1 + adjust)
@@ -87,7 +96,8 @@ export function updateOpponents(g, dt, trackLength) {
 
     o.wanderPhase += dt
     const wander = Math.sin(o.wanderPhase * OPPONENTS.laneWanderRate * Math.PI * 2 + o.rivalIndex * 2.4) * OPPONENTS.laneWanderAmplitude
-    const laneTarget = clamp(OPPONENTS.laneOffsets[o.rivalIndex] + wander, -OPPONENTS.laneBound, OPPONENTS.laneBound)
+    const baseLane = OPPONENTS.laneOffsets[o.rivalIndex % OPPONENTS.laneOffsets.length]
+    const laneTarget = clamp(baseLane + wander, -OPPONENTS.laneBound, OPPONENTS.laneBound)
     const prevX = o.x
     o.x += (laneTarget - o.x) * Math.min(1, dt * OPPONENTS.steerEaseRate)
     o.x = clamp(o.x, -OPPONENTS.laneBound, OPPONENTS.laneBound)

@@ -61,32 +61,93 @@
   100% { opacity: 0; }
 }
 
-.touch-zones {
+/* On-screen touch controls (tablet/phone only — rendered conditionally in
+   RaceTrack.jsx, never present for desktop keyboard play). Sizes/positions/
+   opacity come from CONTROLS in tuning.js via inline styles; palette + feel
+   live here. The layer itself is click-through; only the controls take
+   input. --ctrl-rest / --ctrl-press are the resting/pressed opacities. */
+.touch-controls {
   position: absolute;
   inset: 0;
-  display: none;
-}
-
-@media (pointer: coarse) {
-  .touch-zones {
-    display: flex;
-  }
-}
-
-.touch-zone {
-  flex: 1;
-  height: 100%;
+  z-index: 8;
+  pointer-events: none;
   touch-action: none;
-  background: rgba(255, 248, 231, 0.06);
-  border-right: 1px solid rgba(255, 248, 231, 0.15);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.touch-zone:last-child {
-  border-right: none;
+.touch-joy-base {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: var(--ctrl-rest, 0.42);
+  background: radial-gradient(circle at 50% 45%, rgba(92, 58, 30, 0.55), rgba(44, 24, 16, 0.55));
+  border: 2px solid var(--brass);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.45);
+  transition: opacity 0.12s ease;
 }
 
-.touch-zone:active {
-  background: rgba(255, 248, 231, 0.2);
+.touch-joy-base.is-pressed {
+  opacity: var(--ctrl-press, 0.88);
+  border-color: var(--resonance-glow);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.4), 0 0 20px rgba(242, 200, 121, 0.5);
+}
+
+.touch-joy-nub {
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, var(--aged-gold), var(--brass));
+  border: 2px solid var(--cream);
+  box-shadow: 0 0 12px rgba(242, 200, 121, 0.55);
+  will-change: transform;
+}
+
+.touch-throttle {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.touch-btn {
+  pointer-events: auto;
+  touch-action: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--cream);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  opacity: var(--ctrl-rest, 0.42);
+  border: 2px solid var(--brass);
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.12s ease, transform 0.08s ease;
+}
+
+.touch-btn.is-pressed {
+  opacity: var(--ctrl-press, 0.88);
+  transform: scale(0.95);
+  border-color: var(--resonance-glow);
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.3), 0 0 20px rgba(242, 200, 121, 0.55);
+}
+
+.touch-btn-accel {
+  background: radial-gradient(circle at 50% 40%, var(--aged-gold), var(--brass));
+}
+
+.touch-btn-brake {
+  background: radial-gradient(circle at 50% 40%, rgba(140, 70, 40, 0.9), rgba(92, 58, 30, 0.9));
+}
+
+.touch-btn-drift {
+  background: radial-gradient(circle at 50% 40%, rgba(92, 58, 30, 0.85), rgba(44, 24, 16, 0.85));
+  font-size: 0.85rem;
 }
 
 .countdown-overlay {

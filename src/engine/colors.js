@@ -55,6 +55,10 @@ export const COLORS = {
 // as the same craft type as the player, just a different finish. Canopy and
 // creature silhouette are shared with the player (COLORS.canopy/creature)
 // since there's no real rider/creature art yet.
+// One palette per rival index, up to RACE.maxRivalCount (8). All stay in the
+// all-metal Warden material family (brushed silver, brass, verdigris copper,
+// pewter, gunmetal, rose copper) so a full field still reads as the same
+// craft type, just different finishes. First three are unchanged.
 export const OPPONENT_PALETTES = [
   { // brushed silver
     hull: ['#5f6469', '#C7CDD3', '#4a4e52'],
@@ -70,6 +74,31 @@ export const OPPONENT_PALETTES = [
     hull: ['#5a3d14', '#B57F3C', '#4a3110'],
     fin: '#8a5f28',
     intakeGlowRGB: '255, 214, 150',
+  },
+  { // aged brass
+    hull: ['#6b5411', '#C9A63E', '#54410d'],
+    fin: '#9c7c1e',
+    intakeGlowRGB: '246, 220, 150',
+  },
+  { // pewter / steel blue-grey
+    hull: ['#464e57', '#95a1af', '#363d45'],
+    fin: '#6c7986',
+    intakeGlowRGB: '206, 218, 232',
+  },
+  { // rose copper
+    hull: ['#5c3327', '#c07a5e', '#47261d'],
+    fin: '#8f513c',
+    intakeGlowRGB: '244, 196, 172',
+  },
+  { // patina teal (darker verdigris)
+    hull: ['#1f4144', '#5f9ea0', '#173033'],
+    fin: '#3d7377',
+    intakeGlowRGB: '176, 220, 222',
+  },
+  { // gunmetal
+    hull: ['#3a3d42', '#787f88', '#2c2e33'],
+    fin: '#565c64',
+    intakeGlowRGB: '198, 204, 212',
   },
 ].map((palette) => ({ ...palette, canopy: COLORS.canopy, creature: COLORS.creature }))
 

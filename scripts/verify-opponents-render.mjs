@@ -18,6 +18,13 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const OUT_DIR = path.join(__dirname, 'verify-screenshots')
 
+// Optional full-field run: RIVALS=8 node scripts/verify-opponents-render.mjs
+// loads the game with that many rivals (via the verify-gated ?rivals= param,
+// which survives the reloads this script performs) and adds a grid-spawn
+// overlap check + a full-field draw-order screenshot on top of the normal
+// single-rival sweep. Unset => the original 3-rival default, unchanged.
+const RIVALS = process.env.RIVALS != null ? Math.max(1, Math.min(8, parseInt(process.env.RIVALS, 10))) : null
+
 const FLAT_POS = 6000
 const HILL_POS = 40000
 // Just past the hilltop (dy=+8 over 90 segments, nearly flat) into the steep
@@ -411,10 +418,56 @@ async function naturalCatchBumpPass(page) {
   return shots
 }
 
+// Full field on the starting grid: no two racers (player + all rivals) may
+// share both a near-identical track position AND lane — that would be a
+// literal overlap on the grid. Read straight from a clean load before any
+// scenario override is applied.
+async function gridSpawnCheck(page, expectedCount) {
+  await page.goto(page.baseURL, { waitUntil: 'networkidle' })
+  await waitFrames(page, 2)
+  const st = await page.evaluate(() => window.__ECHO_RACE_TEST__.getRaceState())
+  if (st.opponents.length !== expectedCount) {
+    throw new Error(`grid spawn: expected ${expectedCount} rivals, got ${st.opponents.length}`)
+  }
+  const racers = [
+    { id: 'player', pos: st.playerPos, x: st.playerX },
+    ...st.opponents.map((o) => ({ id: `r${o.rivalIndex}`, pos: o.pos, x: o.x })),
+  ]
+  for (let i = 0; i < racers.length; i++) {
+    for (let j = i + 1; j < racers.length; j++) {
+      const dp = Math.abs(racers[i].pos - racers[j].pos)
+      const dx = Math.abs(racers[i].x - racers[j].x)
+      if (dp < 100 && dx < 0.2) {
+        throw new Error(`grid overlap: ${racers[i].id} & ${racers[j].id} (dpos=${dp.toFixed(1)}, dlane=${dx.toFixed(2)})`)
+      }
+    }
+  }
+  return { count: st.opponents.length, racers }
+}
+
+// Draw-order/full-field smoke: bunch the entire field ahead of the player at
+// staggered depths (multiple beforePlayer draws in one frame) and confirm
+// every rival is present and a frame renders without error. Screenshot kept
+// for the record.
+async function fullFieldShot(page, count) {
+  const lanes = [-0.7, 0.7, 0, -0.4, 0.4, -0.85, 0.85, 0.2]
+  const rivals = Array.from({ length: count }, (_, i) => ({
+    rivalIndex: i, delta: 300 + i * 460, x: lanes[i % lanes.length],
+  }))
+  await page.evaluate((rivals) => {
+    window.__ECHO_RACE_TEST__.freeze()
+    window.__ECHO_RACE_TEST__.setScenario({ playerPos: 8000, speed: 0, rivals })
+  }, rivals)
+  await waitFrames(page, 3)
+  const st = await page.evaluate(() => window.__ECHO_RACE_TEST__.getRaceState())
+  await page.locator('canvas').screenshot({ path: path.join(OUT_DIR, `field-${count}.png`) })
+  return st.opponents.length
+}
+
 async function main() {
   const PORT = await discoverPort()
-  const BASE_URL = `http://localhost:${PORT}/race?verify=1`
-  console.log(`Using dev server at ${BASE_URL}`)
+  const BASE_URL = `http://localhost:${PORT}/race?verify=1${RIVALS != null ? `&rivals=${RIVALS}` : ''}`
+  console.log(`Using dev server at ${BASE_URL}${RIVALS != null ? ` (full-field: ${RIVALS} rivals)` : ''}`)
 
   const hasVerify = await (async () => {
     const browser = await chromium.launch()
@@ -438,6 +491,16 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
   page.baseURL = BASE_URL
   await page.goto(BASE_URL, { waitUntil: 'networkidle' })
+
+  // Full-field checks first (they navigate a clean page), before the sweep
+  // starts applying scenario overrides.
+  let gridInfo = null
+  let fieldCount = null
+  if (RIVALS != null) {
+    gridInfo = await gridSpawnCheck(page, RIVALS)
+    fieldCount = await fullFieldShot(page, RIVALS)
+    if (fieldCount !== RIVALS) throw new Error(`full field: expected ${RIVALS} rivals rendered, got ${fieldCount}`)
+  }
 
   // Probe once to read zPlayer/nearPlane/segmentLength — these only depend
   // on canvas size, not on playerPos or track elevation.
@@ -501,6 +564,10 @@ async function main() {
   console.log(`  dynamic flicker: ${dynamic.length} frames OK`)
   console.log(`  crest shimmer: ${shimmerFrames.length} frames, no isolated flicker (visible ${shimmerFrames.filter((f) => f.visible).length}/${shimmerFrames.length})`)
   console.log(`  natural drive: ${Object.keys(natural).join(', ')}`)
+  if (RIVALS != null) {
+    console.log(`  grid spawn: ${gridInfo.count} rivals + player, no overlap (${gridInfo.racers.length} racers checked)`)
+    console.log(`  full field: ${fieldCount} rivals rendered ahead, draw-order OK (field-${fieldCount}.png)`)
+  }
 
   await browser.close()
 }

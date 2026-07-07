@@ -1,0 +1,230 @@
+/* Practice setup — parchment/brass menu aesthetic, matching the home and
+   results screens (Cinzel headings, Crimson Text body, cream/gold/walnut/
+   brass, resonance-glow accents). Tap targets are sized for thumbs since
+   kids play on tablets. Scrolls on short viewports rather than clipping. */
+.practice-setup {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(242, 200, 121, 0.18), transparent 60%),
+    var(--cream);
+}
+
+.practice-card {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  border-radius: 18px;
+  border: 2px solid var(--brass);
+  background: rgba(255, 248, 231, 0.96);
+  box-shadow: 0 12px 40px rgba(44, 24, 16, 0.28);
+}
+
+.practice-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.4rem;
+  color: var(--walnut);
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+.practice-subtitle {
+  margin-top: calc(-1 * var(--space-md));
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--brass);
+  text-align: center;
+}
+
+.setup-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.setup-label {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--walnut);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.setup-hint {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--river-stone);
+}
+
+/* Rival count — a wrap-friendly row of thumb-sized number buttons. */
+.count-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: var(--space-sm);
+}
+
+.count-btn {
+  min-height: 52px;
+  border-radius: 10px;
+  border: 2px solid var(--brass);
+  background: rgba(196, 154, 60, 0.12);
+  color: var(--walnut);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+}
+
+.count-btn:hover {
+  background: rgba(196, 154, 60, 0.28);
+}
+
+.count-btn:active {
+  transform: scale(0.94);
+}
+
+.count-btn.is-selected {
+  background: var(--brass);
+  color: var(--cream);
+  border-color: var(--resonance-glow);
+  box-shadow: 0 0 16px rgba(242, 200, 121, 0.6);
+}
+
+/* Difficulty — stacked cards, each a full tap target with name + blurb. */
+.tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.tier-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: var(--space-md);
+  min-height: 64px;
+  border-radius: 12px;
+  border: 2px solid var(--brass);
+  background: rgba(196, 154, 60, 0.1);
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+}
+
+.tier-card:hover {
+  background: rgba(196, 154, 60, 0.22);
+}
+
+.tier-card:active {
+  transform: scale(0.99);
+}
+
+.tier-card.is-selected {
+  background: rgba(139, 105, 20, 0.9);
+  border-color: var(--resonance-glow);
+  box-shadow: 0 0 18px rgba(242, 200, 121, 0.55);
+}
+
+.tier-name {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--walnut);
+}
+
+.tier-blurb {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--brass);
+}
+
+.tier-card.is-selected .tier-name,
+.tier-card.is-selected .tier-blurb {
+  color: var(--cream);
+}
+
+/* Track placeholder — visibly present but disabled until themed tracks land. */
+.track-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-md);
+  border-radius: 12px;
+  border: 2px dashed var(--river-stone);
+  background: rgba(138, 131, 120, 0.1);
+}
+
+.track-slot.is-disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.track-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--walnut);
+}
+
+.track-note {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--river-stone);
+}
+
+.setup-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.start-btn {
+  width: 100%;
+  min-height: 60px;
+  border-radius: 12px;
+  border: 2px solid var(--brass);
+  background: var(--brass);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.start-btn:hover {
+  background: var(--aged-gold);
+  box-shadow: 0 0 22px rgba(242, 200, 121, 0.55);
+}
+
+.start-btn:active {
+  transform: scale(0.98);
+}
+
+.setup-back {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--brass);
+  text-decoration: underline;
+}
+
+.setup-back:hover {
+  color: var(--aged-gold);
+}

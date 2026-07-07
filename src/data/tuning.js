@@ -30,14 +30,44 @@ export const ROAD = {
   },
 }
 
+// Identifies this course in localStorage best-time records. Bump/rename
+// when a genuinely different course is added so its records don't collide.
+// Defined above RACE so the practice/trial configs can reference it.
+export const TRACK_ID = 'trial-circuit-1'
+
 // Speeds/accelerations are in world units/sec (and /sec^2) — scaled against
 // ROAD.segmentLength so "maxSpeed" means "segments crossed per second".
 export const RACE = {
-  // 'race': a lapCount-lap competition against the 3 AI rivals, ending in a
+  // 'race': a lapCount-lap competition against the AI rivals, ending in a
   // results screen with placement. 'timetrial': the original endless-lap
   // mode (no finish, no placement) — flip this to fall back to it without
   // deleting any race-mode code.
   mode: 'race',
+
+  // Session framing (structural only — no narrative content lives in code):
+  //  'practice' — player-selectable difficulty / rival count / track, read
+  //               from the RACE.practice config below. This is the single
+  //               place the upcoming Practice setup screen will write choices.
+  //  'trial'    — fixed per-circuit settings for the future story path, read
+  //               from RACE.trial. A placeholder only; Trial Circuit content
+  //               (which circuits, their settings, their story) is resolved
+  //               separately from the Story Bible, never invented here.
+  raceMode: 'practice',
+  maxRivalCount: 8, // hard ceiling the grid + palettes + lane offsets support
+  // Practice-mode player choices. difficulty keys into DIFFICULTY; rivalCount
+  // is clamped to [1, maxRivalCount]; trackId keys the save records.
+  practice: { difficulty: 'Cadet', rivalCount: 3, trackId: TRACK_ID },
+  // Trial-mode fixed settings (placeholder — same baseline as practice until
+  // real circuits are authored). Structure matches practice so the resolver
+  // treats them identically.
+  trial: { difficulty: 'Cadet', rivalCount: 3, trackId: TRACK_ID },
+  // Effective rival count, resolved from whichever config raceMode selects —
+  // the SINGLE source createOpponents and the starting grid both read. Never
+  // hardcode a rival count anywhere else.
+  get rivalCount() {
+    return Math.max(1, Math.min(RACE.maxRivalCount, activeRaceConfig().rivalCount))
+  },
+
   lapCount: 3,
   maxSpeed: 220 * 60,
   accel: 2600,
@@ -96,33 +126,35 @@ export const DRIFT = {
 // correctly. Speed AI, lane wander, and a light player-opponent bump here;
 // their creatures also auto-attack via the shared rules in COMBAT (see
 // engine/combat.js) — every rival carries the same combat state fields the
-// player does, so combat is symmetric. Racer count is
-// always derived from these arrays' lengths (baseSpeedFractions.length),
-// never hardcoded — adding an 8th racer is a tuning-data change (add an
-// entry here, a lane offset, a palette in colors.js), not a refactor.
+// player does, so combat is symmetric.
+//
+// Rival COUNT comes from RACE.rivalCount (a single resolved source, 1–8),
+// and each rival's top-speed fraction / corner-easing / rubber-band /
+// combat aggression come from the active DIFFICULTY tier — NOT from here.
+// This block holds only the count-independent, difficulty-independent
+// physics shared by every tier and field size. laneOffsets and
+// colors.js OPPONENT_PALETTES both provide RACE.maxRivalCount (8) entries.
 export const OPPONENTS = {
-  // Base speed as a fraction of RACE.maxSpeed, spread so each rival feels
-  // distinct without being unbeatable (fastest) or trivial (slowest).
-  baseSpeedFractions: [0.82, 0.88, 0.94],
-  laneOffsets: [-0.55, 0, 0.55], // distinct base racing lines, same units as playerX
+  // Distinct base racing lines (same units as playerX), one per rival index
+  // up to maxRivalCount. First three preserved from the original 3-rival
+  // field so nothing regresses.
+  laneOffsets: [-0.55, 0, 0.55, -0.82, 0.82, -0.3, 0.3, -0.68],
   laneWanderAmplitude: 0.18, // how far an opponent drifts off its base line
   laneWanderRate: 0.15, // wander cycles/sec; per-rival phase offset keeps them from syncing
   laneBound: 0.95, // opponents never steer past this |x| — keeps them on-road
   steerEaseRate: 3, // how fast an opponent's lateral position eases toward its lane target
   leanNormalizer: 1.5, // divides lateral velocity to derive the visual lean angle
   leanEaseRate: 6,
-  curveEaseThreshold: 1.2, // |curve| beyond which opponents ease off speed
-  curveEaseStrength: 0.35, // fraction of speed shed at max curve severity
+  curveEaseThreshold: 1.2, // |curve| beyond which opponents ease off speed (severity is per-difficulty)
   accel: 2200,
   brake: 2600,
-  // Gentle rubber-banding: nudges an opponent's target speed based on the
-  // gap to the player so races stay close without feeling magnetic.
+  // Gentle rubber-banding geometry (the GAPS at which it engages). The
+  // STRENGTHS live per-difficulty (DIFFICULTY[*].rubberBand) so higher tiers
+  // can stop leading rivals from easing up — a main reason lower tiers feel
+  // easy. Nudges an opponent's target speed based on its gap to the player.
   rubberBand: {
     catchUpGap: 1800, // world units behind the player before a trailing opponent speeds up
     backOffGap: 1800, // world units ahead of the player before a leading opponent eases off
-    catchUpStrength: 0.18,
-    backOffStrength: 0.12,
-    maxAdjustFraction: 0.22,
   },
   collision: {
     rangeWorld: 260, // pos gap (world units) within which player-opponent contact can trigger
@@ -135,6 +167,71 @@ export const OPPONENTS = {
   // not drawn at or behind this z. Kept well below a full segment so the
   // near-zone direct-projection branch only engages right at the camera.
   cameraNearPlane: ROAD.segmentLength * 0.5,
+}
+
+// Difficulty as pure data, ahead of any selection UI. Three named tiers; the
+// active one is chosen by the race config (see activeDifficulty). Each tier
+// bundles the four levers that make a field easy or hard:
+//
+//   speedFractions   — per-rival top speed as a fraction of RACE.maxSpeed,
+//                      indexed by rivalIndex (maxRivalCount entries; fewer
+//                      rivals use the first N). Values >= 1.0 let a rival
+//                      out-run a player who is merely holding full throttle.
+//   curveEaseStrength— fraction of speed a rival sheds at max corner
+//                      severity (with OPPONENTS.curveEaseThreshold). LOWER =
+//                      carries more speed through corners = harder.
+//   rubberBand       — catch-up / back-off strengths (gaps live in
+//                      OPPONENTS.rubberBand). Higher tiers cut backOff toward
+//                      0 so a LEADING rival never eases up for the player —
+//                      the single biggest reason low tiers feel easy.
+//   combat           — range/cooldown SCALES on the shared COMBAT values.
+//                      Applied symmetrically to every racer (player included,
+//                      per CLAUDE.md COMBAT DESIGN) so a tier sets the whole
+//                      field's attack tempo, never a one-sided handicap.
+//
+// Cadet reproduces the pre-difficulty values EXACTLY, so the default
+// (practice / Cadet) is a no-op relative to the old game.
+export const DIFFICULTY = {
+  Cadet: {
+    label: 'Cadet',
+    speedFractions: [0.82, 0.88, 0.94, 0.80, 0.86, 0.92, 0.84, 0.90],
+    curveEaseStrength: 0.35,
+    rubberBand: { catchUpStrength: 0.18, backOffStrength: 0.12, maxAdjustFraction: 0.22 },
+    combat: { rangeScale: 1.0, cooldownScale: 1.0 },
+  },
+  Racer: {
+    label: 'Racer',
+    speedFractions: [0.90, 0.96, 1.00, 0.88, 0.94, 0.98, 0.91, 0.97],
+    curveEaseStrength: 0.26,
+    rubberBand: { catchUpStrength: 0.14, backOffStrength: 0.06, maxAdjustFraction: 0.18 },
+    combat: { rangeScale: 1.12, cooldownScale: 0.82 },
+  },
+  Ace: {
+    label: 'Ace',
+    // Several rivals at/above player max (1.0): a passive player is beaten,
+    // an active one is genuinely pressured.
+    speedFractions: [0.99, 1.03, 1.06, 0.98, 1.02, 1.05, 1.00, 1.04],
+    curveEaseStrength: 0.18,
+    // backOff 0: leading Ace rivals never slow down to let the player back in.
+    rubberBand: { catchUpStrength: 0.10, backOffStrength: 0.0, maxAdjustFraction: 0.14 },
+    combat: { rangeScale: 1.25, cooldownScale: 0.65 },
+  },
+}
+
+// --- Active-config resolvers: the single read path for count/difficulty/track.
+// raceMode picks the practice or trial config; everything downstream reads
+// through these so the future setup screen only has to write RACE.practice.
+
+export function activeRaceConfig() {
+  return RACE.raceMode === 'trial' ? RACE.trial : RACE.practice
+}
+
+export function activeDifficulty() {
+  return DIFFICULTY[activeRaceConfig().difficulty] || DIFFICULTY.Cadet
+}
+
+export function activeTrackId() {
+  return activeRaceConfig().trackId
 }
 
 // Minimal auto-attack combat — the "feel pass" of CLAUDE.md's COMBAT
@@ -178,10 +275,6 @@ export const CURVE = {
   HILLTOP_RIGHT: 4.6,
   HAIRPIN_LEFT: -3.0,
 }
-
-// Identifies this course in localStorage best-time records. Bump/rename
-// when a genuinely different course is added so its records don't collide.
-export const TRACK_ID = 'trial-circuit-1'
 
 // The course layout: each entry is one addRoad() call in track.js — segment
 // counts for the ease-in/hold/ease-out phases, the curve strength, and the
@@ -311,10 +404,57 @@ export const HUD = {
     font: '11px Georgia',
     lineOffsets: [{ x: 10, y: 20 }, { x: 10, y: 34 }, { x: 10, y: 48 }],
   },
+
+  // Small always-on audio indicator (speaker glyph, with a slash when
+  // muted), tucked below the speed panel. Toggled with the M key.
+  mute: { x: 20, y: 84, size: 15 },
 }
 
 export const RESULTS = {
   bannerDurationMs: 2200, // how long the post-lap banner stays on screen
+}
+
+// On-screen touch controls for tablet/phone (see screens/RaceTrack.jsx).
+// Shown ONLY on touch/coarse-pointer devices — desktop keyboard play draws
+// nothing and behaves identically. The left thumbstick feeds the SAME
+// analog steerTarget the keyboard sets (so it reuses the existing easing +
+// physics), and the right-hand buttons map onto the same up/down/drift
+// flags. Everything sizes/positions in CSS px; opacity keeps the road
+// readable underneath. All layout lives here — no magic numbers in the
+// component/CSS.
+export const CONTROLS = {
+  // Which right-thumb layout to present. Both kids can try each:
+  //  'manual'   — steering joystick + separate accelerate/brake + drift button.
+  //  'autoAccel'— car accelerates on its own; joystick steers; ONE combined
+  //               brake+drift button (release = resume accelerating).
+  touchScheme: 'manual',
+
+  // The whole control layer is semi-transparent at rest and brightens the
+  // element being pressed, so it never obscures the road mid-race.
+  restOpacity: 0.42,
+  pressedOpacity: 0.88,
+
+  // Left-thumb steering joystick, anchored bottom-left. The nub travels up
+  // to (baseSize-nubSize)/2 px from center; that full travel maps to ±1.
+  joystick: {
+    marginX: 26, // px in from the left edge
+    marginY: 30, // px up from the bottom edge
+    baseSize: 138, // outer ring diameter (px) — sized for a real thumb
+    nubSize: 66, // draggable nub diameter (px)
+    deadzone: 0.1, // |axis| below this reads as centered (no twitch at rest)
+  },
+
+  // Right-thumb throttle + drift cluster, anchored bottom-right. In 'manual'
+  // all three buttons show (accel is the largest, reached by the resting
+  // thumb); in 'autoAccel' only the combined brake+drift button shows.
+  buttons: {
+    marginX: 26, // px in from the right edge
+    marginY: 30, // px up from the bottom edge
+    gap: 16, // px between adjacent buttons
+    accelSize: 100, // accelerate button diameter (manual)
+    brakeSize: 84, // brake button diameter (manual) / combined button (autoAccel)
+    driftSize: 84, // drift button diameter (manual)
+  },
 }
 
 export const CREATURE_STAT_RANGES = {
@@ -322,4 +462,103 @@ export const CREATURE_STAT_RANGES = {
   atk: [10, 100],
   def: [10, 100],
   hp: [50, 200],
+}
+
+// Synthesized audio (see engine/audio.js). Warm and musical, wholesome —
+// the hovercraft read as tuned resonance machines, never harsh engines.
+// Every level, frequency, and envelope time lives here so the whole sound
+// palette can be tuned without touching the audio engine. Levels are linear
+// gains (0..1); frequencies in Hz; times in seconds.
+export const AUDIO = {
+  master: 0.45, // overall output level (before mute)
+  sfxGain: 0.9, // one-shots + drift channel
+  ambientGain: 0.8, // continuous beds (engine hum, wind, rival hums)
+  paramGlide: 0.08, // time constant (s) for continuous params easing toward their target
+  muteGlide: 0.05, // time constant (s) for the master mute fade
+  raceEndFadeSec: 1.5, // engine/wind/rival/music fade-out as the results screen appears
+
+  // Player hover-engine hum: two slightly-detuned oscillators (a slow
+  // "resonance" beat) plus a sub an octave down for body. Pitch and gain
+  // ride g.speed continuously — idle purr on the grid up to a musical
+  // high-speed whine (never a screech).
+  engine: {
+    waveform: 'triangle',
+    idleFreq: 66, // grid-idle purr
+    maxFreq: 176, // top-speed whine (~1.4 octaves up — still musical)
+    detuneCents: 7, // between the two main oscillators
+    subRatio: 0.5, // sub oscillator an octave below
+    subMix: 0.5, // sub level relative to the main pair
+    idleGain: 0.05,
+    maxGain: 0.15,
+    freqCurve: 0.8, // pitch = idle..max by speedPct^curve (<1 ramps in early)
+  },
+  // Rival hums: same character, quieter, and faded by proximity so a
+  // rival alongside you is audible but never drowns your own machine.
+  rivalEngine: {
+    waveform: 'triangle',
+    idleFreq: 70,
+    maxFreq: 168,
+    detuneCents: 9,
+    maxGain: 0.05, // at closest approach; scales to 0 by rangeWorld
+    rangeWorld: 2600, // world-unit gap beyond which a rival hum is silent
+  },
+  // Wind rush: lowpass-filtered noise whose cutoff and gain rise with
+  // speed. Quiet at a crawl, present but soft at speed.
+  wind: {
+    minCutoff: 240,
+    maxCutoff: 2400,
+    q: 0.6,
+    minGain: 0.0,
+    maxGain: 0.11,
+    gainCurve: 1.5, // stays low until genuinely fast (speedPct^curve)
+  },
+  // Drift sizzle: bandpassed noise gated on while drifting, with a soft
+  // attack/release so it swells and fades rather than clicking.
+  drift: {
+    cutoff: 1600,
+    q: 1.8,
+    gain: 0.09,
+    attack: 0.04,
+    release: 0.18,
+  },
+  // Boost surge: a brief rising tone on a successful drift-exit boost.
+  boost: {
+    waveform: 'sine',
+    freqStart: 300,
+    freqEnd: 720,
+    duration: 0.3,
+    gain: 0.12,
+  },
+  // Combat one-shots. A resonance "zap" as a creature fires, and a softer
+  // impact thump on the target — deeper and a touch longer when the player
+  // is the one hit, so it feels personal without being punishing.
+  combat: {
+    // Sampled attack/damage pools are primary (see src/data/sounds.js); these
+    // flags keep the synth as a fallback (empty pool / clip not yet loaded)
+    // without deleting it. Flip false to force pure synth.
+    useSampledAttack: true,
+    useSampledDamage: true,
+    zap: { waveform: 'triangle', freqStart: 680, freqEnd: 240, duration: 0.2, gain: 0.13, detuneCents: 12 },
+    hit: { waveform: 'sine', freqStart: 160, freqEnd: 90, duration: 0.16, gain: 0.14 },
+    playerHit: { waveform: 'sine', freqStart: 130, freqEnd: 66, duration: 0.28, gain: 0.18 },
+  },
+  // Race music (sample layer). Independent volume; the clip isn't seamlessly
+  // loopable, so audio.js fades it out `fadeOut` seconds before its end and
+  // starts a fresh instance (fading in over `fadeIn`) so the fades overlap
+  // with no dead gap.
+  music: { volume: 0.32, fadeIn: 1.2, fadeOut: 2.0 },
+  // Countdown: three warm beeps, then a brighter major chord on GO.
+  countdown: {
+    beep: { waveform: 'triangle', freq: 430, duration: 0.14, gain: 0.16 },
+    go: { waveform: 'triangle', freqs: [523.25, 659.25, 783.99], duration: 0.55, gain: 0.14 }, // C-E-G
+  },
+  // UI blips: a rising two-note flourish on the results screen, a short
+  // single note on Race Again.
+  ui: {
+    results: { waveform: 'triangle', freqs: [523.25, 783.99], noteGap: 0.12, duration: 0.3, gain: 0.13 },
+    blip: { waveform: 'triangle', freq: 620, duration: 0.09, gain: 0.12 },
+  },
+  // Sample layer (scaffold — see src/data/sounds.js). Each played sample
+  // gets a small random pitch shift so repeats don't sound mechanical.
+  sample: { pitchVariation: 0.1, gain: 0.9 },
 }
