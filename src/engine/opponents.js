@@ -49,6 +49,11 @@ export function createOpponents() {
       wanderPhase: i * 2.1,
       lean: 0,
       collideCooldown: 0,
+      // Combat state (see engine/combat.js) — identical fields to the
+      // player's, so the same auto-attack rules drive rivals symmetrically.
+      attackCooldown: 0, // seconds until this creature can attack again
+      wobble: 0, // seconds of steering wobble left after being hit
+      hitFlash: 0, // seconds of victim flash left
       laps: 0,
       finished: false,
       place: null,

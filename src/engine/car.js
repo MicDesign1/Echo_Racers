@@ -1,4 +1,16 @@
-import { CAR } from '../data/tuning.js'
+import { CAR, COMBAT } from '../data/tuning.js'
+
+// The screen point of a vehicle's creature-silhouette rider, given that
+// vehicle's ground-contact point (sx, groundY) and its rendered width. Used
+// as the endpoint for combat attack telegraphs (see combatfx.js) so a
+// resonance bolt travels between the two bonded creatures, not the hulls.
+// Mirrors where drawChassis places the creature (centered, at
+// -carHeight*0.34 above the pivot, which itself sits chassisBottomFraction
+// above the ground row).
+export function getCreatureAnchor(sx, groundY, carWidth) {
+  const carHeight = carWidth * CAR.heightFraction
+  return { x: sx, y: groundY - carHeight * (CAR.chassisBottomFraction + 0.34) }
+}
 
 // The player's chassis width and its true ground-contact screen row (the
 // hull/fin bottom edge, not the rotation pivot) — the one anchor every
@@ -32,12 +44,52 @@ function drawGroundShadow(ctx, sx, sy, carWidth) {
   ctx.restore()
 }
 
+// A vehicle's combat feedback overlay, drawn in the same translated/rotated
+// frame as its chassis so it tracks the creature: a hit-flash burst
+// (fx.flash 0..1) and a subtle "cooldown ready" charge aura (fx.charged
+// 0..1). Both use the racer's own resonance-glow color, composited additive
+// so they read as light rather than paint. Shared by player and rivals.
+function drawCombatAura(ctx, carWidth, carHeight, fx, glowRGB, time) {
+  if (!fx) return
+  const cy = -carHeight * 0.34 // creature-silhouette center, matching drawChassis
+  if (fx.charged > 0) {
+    const pulse = 0.5 + 0.5 * Math.sin(time * COMBAT.chargePulseRate)
+    const a = COMBAT.chargeAlpha * fx.charged * pulse
+    const r = carWidth * COMBAT.chargeGlowFraction
+    const grad = ctx.createRadialGradient(0, cy, 0, 0, cy, r)
+    grad.addColorStop(0, `rgba(${glowRGB}, ${a})`)
+    grad.addColorStop(1, `rgba(${glowRGB}, 0)`)
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(0, cy, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+  if (fx.flash > 0) {
+    const r = carWidth * COMBAT.flashGlowFraction
+    const grad = ctx.createRadialGradient(0, cy, 0, 0, cy, r)
+    grad.addColorStop(0, `rgba(${glowRGB}, ${0.85 * fx.flash})`)
+    grad.addColorStop(0.5, `rgba(${glowRGB}, ${0.4 * fx.flash})`)
+    grad.addColorStop(1, `rgba(${glowRGB}, 0)`)
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(0, cy, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
 // Placeholder vector-drawn chassis. This is the seam for real art: once
 // sprite frames exist (4 per side, for the lean/drift angle), replace this
 // function's body with a frame lookup keyed on `driftAngle`/`steer` and
 // draw an image instead — the call site (RaceTrack.jsx) already passes
 // everything a sprite-based version would need and shouldn't need to change.
-export function drawCar(ctx, width, height, state, colors) {
+// `fx` (optional) carries combat feedback: { flash, charged, wobbleAngle }.
+export function drawCar(ctx, width, height, state, colors, fx) {
   const { steer, driftAngle, speedPercent, boosting, time } = state
   const { groundY, chassisWidth: carWidth } = getPlayerAnchor(width, height)
   const carHeight = carWidth * CAR.heightFraction
@@ -51,6 +103,7 @@ export function drawCar(ctx, width, height, state, colors) {
   ctx.rotate(
     steer * CAR.steerRotationFactor +
     driftAngle +
+    (fx ? fx.wobbleAngle : 0) +
     Math.sin(time * CAR.idleSwayRate) * CAR.idleSwayAmplitude * speedPercent
   )
   ctx.translate(steer * carWidth * CAR.steerLateralShiftFraction, 0)
@@ -88,6 +141,7 @@ export function drawCar(ctx, width, height, state, colors) {
     creature: colors.creature,
     intakeGlowRGB: colors.intakeGlowRGB,
   })
+  drawCombatAura(ctx, carWidth, carHeight, fx, colors.intakeGlowRGB, time)
 
   ctx.restore()
 }
@@ -157,7 +211,9 @@ export function drawChassis(ctx, carWidth, carHeight, time, palette) {
 // roadside sprites use (sx/sy = ground contact point, sw = projected road
 // half-width at that depth) rather than the player's fixed screen-center
 // placement. `lean` is a steer-like -1..1 value for a bit of banking motion.
-export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth) {
+// `fx` (optional) carries combat feedback: { flash, charged, wobbleAngle } —
+// identical to the player's, so a rival's hits/charge read the same way.
+export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth, fx) {
   const carHeight = carWidth * CAR.heightFraction
   if (carWidth < 2 || sy - carHeight > clipY || sy < 0) return
 
@@ -170,7 +226,8 @@ export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clip
 
   const pivotY = sy - carHeight * CAR.chassisBottomFraction
   ctx.translate(sx, pivotY)
-  ctx.rotate(lean * CAR.steerRotationFactor)
+  ctx.rotate(lean * CAR.steerRotationFactor + (fx ? fx.wobbleAngle : 0))
   drawChassis(ctx, carWidth, carHeight, time, palette)
+  drawCombatAura(ctx, carWidth, carHeight, fx, palette.intakeGlowRGB, time)
   ctx.restore()
 }

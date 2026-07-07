@@ -25,7 +25,7 @@ reach Uncle Argon, who is stranded there by an ancient artefact.
 
 ## Current Status
 
-STATUS: Playable racing game with full competitive loop — starting grid with 3-2-1-GO countdown, 3-lap races vs AI rivals (count data-driven, 8-racer support planned), live place tracking verified at overtake moments, place-first HUD, start/finish line marker, results screen, Race Again, per-track best-time persistence; time-trial mode behind RACE.mode flag. Opponent rendering uses player-relative depth with unified anchor and hover shadows, regression-tested by scripts/verify-opponents-render.mjs — run after ANY projection, draw-order, or car-layout change. Chassis are placeholder vector art awaiting sprites. Not yet built: combat (see COMBAT DESIGN), vehicle/creature selection, multi-track/themed environments, menus beyond home page, hub world.
+STATUS: Playable racing game with full competitive loop — grid start with countdown, 3-lap races vs AI rivals (roster data-driven, 8-racer support planned), verified live placement, place-first HUD, finish-line marker, results screen, per-track persistence; time-trial behind RACE.mode flag. Minimal auto-attack combat live: proximity/bump-triggered creature attacks with cooldown, symmetric for all racers, speed-penalty + wobble effects with full visual telegraphing — no types/stats/HP yet (next). Opponent rendering regression-tested by scripts/verify-opponents-render.mjs — run after ANY projection, draw-order, or car-layout change. Chassis are placeholder vector art awaiting sprites. Not yet built: typed attacks + HP/spinout, once-per-race special perk, vehicle/creature selection, multi-track themes, roadside allies (blocked on lore), menus, hub world.
 
 ## Narrative Rules — CRITICAL
 

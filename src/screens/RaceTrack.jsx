@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { ROAD, RACE, DRIFT, PARALLAX, TRACK_ID, RESULTS, OPPONENTS } from '../data/tuning.js'
+import { ROAD, RACE, DRIFT, PARALLAX, TRACK_ID, RESULTS, OPPONENTS, COMBAT } from '../data/tuning.js'
 import { trackLength, seg } from '../engine/track.js'
 import { project, renderRoadSegment, renderLaneStripe } from '../engine/projection.js'
 import { drawParallax } from '../engine/background.js'
 import { drawRoadsideSprite } from '../engine/roadside.js'
-import { drawCar, drawOpponentCar } from '../engine/car.js'
+import { drawCar, drawOpponentCar, getCreatureAnchor } from '../engine/car.js'
 import { createOpponents, updateOpponents, getOpponentScreenPlacement, computePlayerDepth, computePlayerPlace, startGridSlot } from '../engine/opponents.js'
+import { updateCombat, wobbleAngle } from '../engine/combat.js'
+import { drawAttackBolt, drawPlayerHitEdge } from '../engine/combatfx.js'
 import { drawHud, formatTime, ordinal } from '../engine/hud.js'
 import { COLORS, OPPONENT_PALETTES, linearGradient } from '../engine/colors.js'
 import { getBestTimes, recordLapResult, recordRaceResult } from '../data/saves.js'
@@ -20,6 +22,19 @@ const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.l
 function initialCountdownRemaining() {
   if (verifyMode || RACE.mode !== 'race') return 0
   return (RACE.countdown.beats.length * RACE.countdown.beatDurationMs) / 1000
+}
+
+// The combat feedback bundle a car draw needs (see car.js drawCombatAura):
+// hit-flash intensity, a "cooldown ready" charge flag, and the current
+// wobble roll. Null outside race mode so combat visuals never show in
+// time-trial. Shared by the player and every rival so all read identically.
+function combatFx(attackCooldown, wobble, hitFlash) {
+  if (RACE.mode !== 'race') return null
+  return {
+    flash: hitFlash > 0 ? hitFlash / COMBAT.hitFlashDuration : 0,
+    charged: attackCooldown <= 0 ? 1 : 0,
+    wobbleAngle: wobbleAngle(wobble),
+  }
 }
 
 // Fresh per-race state — used both for the initial mount and for "Race
@@ -49,6 +64,15 @@ function createInitialGameState() {
     nextPlace: 1,
     countdownRemaining: initialCountdownRemaining(),
     countdownBeatIndex: -1,
+    // Minimal auto-attack combat state (see engine/combat.js). The player's
+    // creature obeys the same fields every rival carries on its own object.
+    playerAttackCooldown: 0,
+    playerWobble: 0,
+    playerHitFlash: 0,
+    playerHitEdgePulse: 0,
+    combatEventCount: 0,
+    playerHitCount: 0,
+    attacks: [],
     opponents: createOpponents(),
   }
 }
@@ -159,11 +183,12 @@ export default function RaceTrack() {
       if (o.playerX != null) g.playerX = o.playerX
       if (o.speed != null) g.speed = o.speed
       if (o.rivals) {
-        for (const { rivalIndex, delta, x } of o.rivals) {
+        for (const { rivalIndex, delta, x, speed } of o.rivals) {
           const rival = g.opponents[rivalIndex]
           if (!rival) continue
           rival.pos = ((g.pos + delta) % trackLength + trackLength) % trackLength
           if (x != null) rival.x = x
+          if (speed != null) rival.speed = speed
         }
       }
     }
@@ -199,6 +224,7 @@ export default function RaceTrack() {
         g.driftAngle += (0 - g.driftAngle) * Math.min(1, dt * DRIFT.settleEaseRate)
         g.pos = (g.pos + g.speed * dt) % trackLength
         updateOpponents(g, dt, trackLength)
+        updateCombat(g, dt, trackLength)
         return
       }
 
@@ -281,6 +307,11 @@ export default function RaceTrack() {
       }
 
       updateOpponents(g, dt, trackLength)
+      // Combat runs only here (race mode, post-GO): the countdown branch
+      // returns before reaching this, and updateCombat itself no-ops in
+      // time-trial. It's the last word each frame, so its wobble nudge sits
+      // on top of the frame's steering/lane easing.
+      updateCombat(g, dt, trackLength)
     }
 
     const P1 = { wx: 0, wy: 0, wz: 0, sx: 0, sy: 0, sw: 0, scale: 0 }
@@ -370,6 +401,7 @@ export default function RaceTrack() {
             time,
             place.clip,
             width,
+            combatFx(o.attackCooldown, o.wobble, o.hitFlash),
           )
         }
       }
@@ -380,7 +412,7 @@ export default function RaceTrack() {
         speedPercent: spct,
         boosting: g.boost > 0,
         time,
-      }, COLORS)
+      }, COLORS, combatFx(g.playerAttackCooldown, g.playerWobble, g.playerHitFlash))
 
       for (const { o, place } of afterPlayer.sort((a, b) => b.place.cameraZ - a.place.cameraZ)) {
         drawOpponentCar(
@@ -393,7 +425,36 @@ export default function RaceTrack() {
           time,
           place.clip,
           width,
+          combatFx(o.attackCooldown, o.wobble, o.hitFlash),
         )
+      }
+
+      // Attack telegraphs — the resonance bolts traveling between bonded
+      // creatures. Drawn after the cars (glowing light reads fine over the
+      // hulls) but before the HUD/vignette. Each endpoint is a creature
+      // anchor: the player's fixed screen center, or a rival's projected
+      // placement; a bolt whose attacker or target is currently culled
+      // (offscreen) is simply skipped for that frame.
+      if (RACE.mode === 'race' && g.attacks.length) {
+        const playerPt = getCreatureAnchor(width / 2, playerGroundY, chassisWidth)
+        const rivalById = {}
+        for (const { o, place } of opponentPlacements) {
+          rivalById[o.rivalIndex] = {
+            pt: getCreatureAnchor(place.sx, place.sy, place.carWidth),
+            carWidth: place.carWidth,
+          }
+        }
+        for (const a of g.attacks) {
+          const from = a.fromPlayer ? playerPt : rivalById[a.fromRivalIndex]?.pt
+          const toEntry = a.toPlayer
+            ? { pt: playerPt, carWidth: chassisWidth }
+            : rivalById[a.toRivalIndex]
+          if (!from || !toEntry) continue
+          const glowRGB = a.fromPlayer
+            ? COLORS.intakeGlowRGB
+            : OPPONENT_PALETTES[a.fromRivalIndex].intakeGlowRGB
+          drawAttackBolt(ctx, from, toEntry.pt, Math.min(1, a.elapsed / a.duration), glowRGB, toEntry.carWidth)
+        }
       }
 
       if (verifyMode) {
@@ -439,7 +500,24 @@ export default function RaceTrack() {
       vignette.addColorStop(1, COLORS.vignetteOuter)
       ctx.fillStyle = vignette
       ctx.fillRect(0, 0, width, height)
+
+      // Player-only "I just got hit" screen-edge glow, over everything so
+      // it's unmissable mid-drift. Only fires when the player was the
+      // victim (see combat.js landHit arming playerHitEdgePulse).
+      if (RACE.mode === 'race' && g.playerHitEdgePulse > 0) {
+        drawPlayerHitEdge(ctx, width, height, g.playerHitEdgePulse / COMBAT.edgePulseDuration, COLORS.resonanceGlowRGB)
+      }
     }
+
+    // Verify-only capture pause: lets the combat verification freeze the
+    // loop on the first frame that shows a telegraph (or a player-hit edge
+    // pulse) so those brief, timing-sensitive cues can be screenshotted
+    // deterministically. Update is skipped while paused (state frozen) but
+    // render keeps running, so the frozen frame stays on screen. Never
+    // engaged outside verify mode — the arming flags are only reachable
+    // through the verify API below.
+    let paused = false
+    let pauseArm = null
 
     let rafId
     let lastTime = performance.now()
@@ -450,7 +528,12 @@ export default function RaceTrack() {
       // which would otherwise produce a momentary negative dt.
       const dt = Math.max(0, Math.min((now - lastTime) / 1000, 0.05))
       lastTime = now
-      update(dt)
+      if (!paused) {
+        update(dt)
+        const g = gameRef.current
+        if (pauseArm === 'attack' && g.attacks.length) { paused = true; pauseArm = null }
+        else if (pauseArm === 'playerhit' && g.playerHitEdgePulse > 0) { paused = true; pauseArm = null }
+      }
       render(W, H, now)
       rafId = requestAnimationFrame(frame)
     }
@@ -465,6 +548,47 @@ export default function RaceTrack() {
         freeze() { keysRef.current = { up: false, down: false, left: false, right: false, drift: false } },
         holdUp(on = true) { keysRef.current.up = on },
         holdDown(on = true) { keysRef.current.down = on },
+        // Combat verification hooks. setOverride pins positions WITHOUT
+        // forcing speed (unlike setScenario, which defaults speed to 0), so
+        // a combat speed penalty actually persists and can be measured.
+        // setMode flips RACE.mode at runtime (it's a mutable object prop) so
+        // the "no combat in time-trial" gate can be exercised. startCountdown
+        // re-arms the countdown so the "no combat during countdown" gate can
+        // be exercised even though verify mode normally skips it.
+        setOverride(override) { window.__ECHO_RACE_TEST_OVERRIDE__ = override },
+        setMode(mode) { RACE.mode = mode },
+        // Freeze the loop on the next frame showing a telegraph ('attack')
+        // or a player-hit edge pulse ('playerhit'), for deterministic
+        // screenshots of those brief cues; resumeLoop() releases it.
+        armPause(kind = 'attack') { pauseArm = kind; paused = false },
+        pause() { paused = true; pauseArm = null },
+        resumeLoop() { paused = false; pauseArm = null },
+        isPaused: () => paused,
+        startCountdown() {
+          const g = gameRef.current
+          g.countdownRemaining = (RACE.countdown.beats.length * RACE.countdown.beatDurationMs) / 1000
+          g.countdownBeatIndex = -1
+        },
+        getCombatState: () => {
+          const g = gameRef.current
+          return {
+            mode: RACE.mode,
+            countdownRemaining: g.countdownRemaining,
+            events: g.combatEventCount || 0,
+            playerHits: g.playerHitCount || 0,
+            activeAttacks: g.attacks.length,
+            playerSpeed: g.speed,
+            playerX: g.playerX,
+            playerAttackCooldown: g.playerAttackCooldown,
+            playerWobble: g.playerWobble,
+            playerHitFlash: g.playerHitFlash,
+            playerHitEdgePulse: g.playerHitEdgePulse,
+            opponents: g.opponents.map((o) => ({
+              rivalIndex: o.rivalIndex, pos: o.pos, x: o.x, speed: o.speed,
+              attackCooldown: o.attackCooldown, wobble: o.wobble, hitFlash: o.hitFlash,
+            })),
+          }
+        },
         getMetrics: () => verifyMetricsRef.current,
         // Read-only race-state accessor for verifying the race/placement
         // feature end-to-end without parsing the DOM overlay.

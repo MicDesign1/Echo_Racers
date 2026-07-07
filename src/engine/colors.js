@@ -25,6 +25,7 @@ export const COLORS = {
   // another surface-noise tint (see track.js finishLine handling).
   finishLine: '#D9A94F',
   resonanceGlow: '#F2C879', // canvas-side twin of the --resonance-glow CSS var, for HUD/results accents
+  resonanceGlowRGB: '242, 200, 121', // same color as `resonanceGlow`, as an rgb triple for alpha-composited combat glows (player hit edge pulse)
 
   pillar: ['#5C3A1E', '#8B6914', '#4a2f16'],
   pillarCap: '#3d2812',

@@ -93,8 +93,10 @@ export const DRIFT = {
 
 // AI rival racers, drawn with the same placeholder chassis as the player,
 // projected like roadside sprites so they scale/clip against hills
-// correctly. Speed AI, lane wander, and a light player-opponent bump only —
-// no combat yet (see CLAUDE.md's COMBAT DESIGN section). Racer count is
+// correctly. Speed AI, lane wander, and a light player-opponent bump here;
+// their creatures also auto-attack via the shared rules in COMBAT (see
+// engine/combat.js) — every rival carries the same combat state fields the
+// player does, so combat is symmetric. Racer count is
 // always derived from these arrays' lengths (baseSpeedFractions.length),
 // never hardcoded — adding an 8th racer is a tuning-data change (add an
 // entry here, a lane offset, a palette in colors.js), not a refactor.
@@ -133,6 +135,40 @@ export const OPPONENTS = {
   // not drawn at or behind this z. Kept well below a full segment so the
   // near-zone direct-projection branch only engages right at the camera.
   cameraNearPlane: ROAD.segmentLength * 0.5,
+}
+
+// Minimal auto-attack combat — the "feel pass" of CLAUDE.md's COMBAT
+// DESIGN. ONE generic attack: no creature types, no HP, no stat
+// multipliers yet (those layer on next). Every racer's bonded creature
+// auto-fires at the nearest racer within range (ahead OR behind within
+// attackRangeWorld AND within attackRangeLane laterally), or on a bump,
+// then waits out a per-creature cooldown. Identical rules for the player
+// and every rival, including rival-vs-rival when bunched. Race mode only,
+// after GO — never during the countdown, never in time-trial.
+export const COMBAT = {
+  attackRangeWorld: 700, // |pos gap| (world units) within which a target can be attacked
+  attackRangeLane: 0.7, // |lane gap| within which a target can be attacked; wider than collision.rangeLane so a bump is always inside attack range too
+  cooldown: 3.0, // seconds a creature must wait between its own attacks
+  // Effect on the victim: a firm-but-recoverable dip, never a spinout or
+  // stop (wholesome — no elimination, no explosions-as-destruction).
+  hitSpeedPenalty: 0.15, // fraction of speed the target sheds when hit
+  hitWobbleDuration: 0.6, // seconds of steering wobble inflicted on the target
+  wobbleFrequency: 6, // wobble oscillations/sec
+  wobbleLateralAmp: 3.2, // peak lateral velocity (lane units/sec) the wobble injects
+  wobbleAngleAmp: 0.28, // peak chassis roll (radians) the wobble shows
+  // Readability cues — the whole point, since nobody presses a button.
+  hitFlashDuration: 0.4, // seconds the victim chassis flashes
+  edgePulseDuration: 0.7, // seconds the player-only screen-edge glow lasts (only when the PLAYER is the victim)
+  edgePulseAlpha: 0.85, // peak alpha of the player-hit screen-edge glow (kept high so it's unmissable against the warm palette)
+  edgePulseInnerFraction: 0.26, // transparent core radius, fraction of the smaller screen dimension (keeps road/HUD readable)
+  edgePulseOuterFraction: 0.7, // glow reaches full strength by this fraction of the larger screen dimension
+  telegraphDuration: 0.3, // seconds the resonance bolt takes to travel attacker -> target
+  telegraphCoreFraction: 0.16, // bolt head radius, as a fraction of the target car width
+  telegraphMinCorePx: 5, // ...floored to this many px so a distant bolt still reads
+  flashGlowFraction: 0.62, // hit-flash glow radius, fraction of car width
+  chargeGlowFraction: 0.34, // "cooldown ready" aura radius, fraction of car width
+  chargePulseRate: 0.004, // rad/ms breathing rate of the ready aura
+  chargeAlpha: 0.22, // peak alpha of the subtle ready aura
 }
 
 // Named curve strengths reused across track sections; sign convention:
