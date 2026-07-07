@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { ROAD, RACE, DRIFT, PARALLAX, TRACK_ID, RESULTS } from '../data/tuning.js'
+import { ROAD, RACE, DRIFT, PARALLAX, TRACK_ID, RESULTS, OPPONENTS } from '../data/tuning.js'
 import { trackLength, seg } from '../engine/track.js'
 import { project, renderRoadSegment, renderLaneStripe } from '../engine/projection.js'
 import { drawParallax } from '../engine/background.js'
 import { drawRoadsideSprite } from '../engine/roadside.js'
-import { drawCar } from '../engine/car.js'
+import { drawCar, drawOpponentCar } from '../engine/car.js'
+import { createOpponents, updateOpponents, getOpponentRenderSlot } from '../engine/opponents.js'
 import { drawHud, formatTime } from '../engine/hud.js'
-import { COLORS, linearGradient } from '../engine/colors.js'
+import { COLORS, OPPONENT_PALETTES, linearGradient } from '../engine/colors.js'
 import { getBestTimes, recordLapResult } from '../data/saves.js'
 import './RaceTrack.css'
 
@@ -29,6 +30,7 @@ export default function RaceTrack() {
     lapTime: 0,
     lastLapTime: null,
     bestLapTime: null,
+    opponents: createOpponents(trackLength),
   })
 
   useEffect(() => {
@@ -166,6 +168,8 @@ export default function RaceTrack() {
         showBanner(g.lapTime, result.bestLap, result.isNewBestLap)
         g.lapTime = 0
       }
+
+      updateOpponents(g, dt, trackLength)
     }
 
     // Reused every frame/segment to avoid per-frame allocation.
@@ -225,17 +229,27 @@ export default function RaceTrack() {
         clip = Math.min(clip, P2.sy)
       }
 
+      const opponentSlots = g.opponents.map((o) => ({ o, slot: getOpponentRenderSlot(o, g, frameSlots, trackLength) }))
+
       // Sprites drawn far-to-near so closer objects paint over farther
       // ones; each uses the hill-crest clip captured when its segment was
       // processed, so objects behind a hill are cut off at the same plane
-      // the road itself is.
+      // the road itself is. Opponents are bucketed into the same pass by
+      // their clamped segment slot so they interleave with roadside
+      // sprites at similar depth instead of all painting on top.
       for (let n = ROAD.drawDistance - 1; n >= 1; n--) {
         const slot = frameSlots[n]
         const s = seg(slot.segIndex)
-        if (!s.sprites.length) continue
-        for (const sprite of s.sprites) {
-          const sx = slot.s1x + slot.s1w * sprite.offset
-          drawRoadsideSprite(ctx, sx, slot.s1y, slot.s1w, slot.clip, width, height, sprite, COLORS, time)
+        if (s.sprites.length) {
+          for (const sprite of s.sprites) {
+            const sx = slot.s1x + slot.s1w * sprite.offset
+            drawRoadsideSprite(ctx, sx, slot.s1y, slot.s1w, slot.clip, width, height, sprite, COLORS, time)
+          }
+        }
+        for (const { o, slot: oSlot } of opponentSlots) {
+          if (!oSlot || oSlot.n0 !== n) continue
+          const carWidth = Math.min(oSlot.sw * OPPONENTS.chassisWidthFraction, OPPONENTS.maxChassisWidthPx)
+          drawOpponentCar(ctx, oSlot.sx, oSlot.sy, carWidth, o.lean, OPPONENT_PALETTES[o.rivalIndex], time, oSlot.clip, width, oSlot.alpha)
         }
       }
 

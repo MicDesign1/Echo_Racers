@@ -47,16 +47,34 @@ export function drawCar(ctx, width, height, state, colors) {
     ctx.fill()
   }
 
+  drawChassis(ctx, carWidth, carHeight, time, {
+    hull: colors.carHull,
+    fin: colors.carFin,
+    canopy: colors.canopy,
+    creature: colors.creature,
+    intakeGlowRGB: colors.intakeGlowRGB,
+  })
+
+  ctx.restore()
+}
+
+// The hull/fin/canopy/creature/intake silhouette, shared by the player's
+// own chassis and every AI opponent. Assumes the caller has already
+// translated/rotated ctx so (0,0) is the car's pivot; `palette` supplies the
+// per-racer tint (see COLORS.carHull/... for the player, OPPONENT_PALETTES
+// for rivals) while canopy/creature stay a shared default until real
+// rider/creature art lands.
+export function drawChassis(ctx, carWidth, carHeight, time, palette) {
   let hull = ctx.createLinearGradient(-carWidth / 2, 0, carWidth / 2, 0)
-  hull.addColorStop(0, colors.carHull[0])
-  hull.addColorStop(0.5, colors.carHull[1])
-  hull.addColorStop(1, colors.carHull[2])
+  hull.addColorStop(0, palette.hull[0])
+  hull.addColorStop(0.5, palette.hull[1])
+  hull.addColorStop(1, palette.hull[2])
   ctx.fillStyle = hull
   ctx.beginPath()
   ctx.roundRect(-carWidth * 0.42, -carHeight * 0.28, carWidth * 0.84, carHeight * 0.62, carHeight * 0.24)
   ctx.fill()
 
-  ctx.fillStyle = colors.carFin
+  ctx.fillStyle = palette.fin
   ctx.beginPath()
   ctx.moveTo(-carWidth * 0.42, carHeight * 0.1)
   ctx.lineTo(-carWidth * 0.58, carHeight * 0.34)
@@ -71,15 +89,15 @@ export function drawCar(ctx, width, height, state, colors) {
   ctx.fill()
 
   const canopy = ctx.createLinearGradient(0, -carHeight * 0.55, 0, -carHeight * 0.05)
-  canopy.addColorStop(0, colors.canopy[0])
-  canopy.addColorStop(1, colors.canopy[1])
+  canopy.addColorStop(0, palette.canopy[0])
+  canopy.addColorStop(1, palette.canopy[1])
   ctx.fillStyle = canopy
   ctx.beginPath()
   ctx.roundRect(-carWidth * 0.16, -carHeight * 0.52, carWidth * 0.32, carHeight * 0.34, carHeight * 0.16)
   ctx.fill()
 
   // Creature silhouette — the rider bonded to the resonance chassis.
-  ctx.fillStyle = colors.creature
+  ctx.fillStyle = palette.creature
   ctx.beginPath()
   ctx.arc(0, -carHeight * 0.34, carHeight * 0.10, 0, Math.PI * 2)
   ctx.fill()
@@ -92,12 +110,29 @@ export function drawCar(ctx, width, height, state, colors) {
 
   const pulse = CAR.intakePulseBase + CAR.intakePulseAmplitude * Math.sin(time * CAR.intakePulseRate)
   const intake = ctx.createRadialGradient(0, -carHeight * 0.02, 0, 0, -carHeight * 0.02, carWidth * 0.16)
-  intake.addColorStop(0, `rgba(${colors.intakeGlowRGB}, ${0.85 * pulse})`)
-  intake.addColorStop(1, `rgba(${colors.intakeGlowRGB}, 0)`)
+  intake.addColorStop(0, `rgba(${palette.intakeGlowRGB}, ${0.85 * pulse})`)
+  intake.addColorStop(1, `rgba(${palette.intakeGlowRGB}, 0)`)
   ctx.fillStyle = intake
   ctx.beginPath()
   ctx.arc(0, -carHeight * 0.02, carWidth * 0.16, 0, Math.PI * 2)
   ctx.fill()
+}
 
+// An AI opponent's chassis, placed via the same projected screen position
+// roadside sprites use (sx/sy = ground contact point, sw = projected road
+// half-width at that depth) rather than the player's fixed screen-center
+// placement. `lean` is a steer-like -1..1 value for a bit of banking motion.
+export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth, alpha) {
+  const carHeight = carWidth * CAR.heightFraction
+  if (carWidth < 2 || sy - carHeight > clipY || sy < 0) return
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(0, 0, canvasWidth, clipY)
+  ctx.clip()
+  ctx.globalAlpha = alpha
+  ctx.translate(sx, sy)
+  ctx.rotate(lean * CAR.steerRotationFactor)
+  drawChassis(ctx, carWidth, carHeight, time, palette)
   ctx.restore()
 }

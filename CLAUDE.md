@@ -106,3 +106,6 @@ Six types: Ember, Tide, Thorn, Storm, Phantom, Iron.
 - Use `git add -A` for commits.
 - Keep tuning constants centralized in `src/data/tuning.js` so game feel can be
   iterated easily. No magic numbers scattered in components.
+
+## COMBAT DESIGN: 
+Attacks are automatic — the bonded creature attacks rival racers within range or on bump, governed by a per-creature cooldown. No attack button. All racers' creatures follow the same auto-attack rules. Exception: a once-per-race special move, triggered manually, available as an equippable car perk (future customization system). Roadside wild animalians are allied to one specific rival racer and attack other racers (including NPCs) near their stretch of track — sometimes, not always. Who that rival is = narrative decision, resolve from the Story Bible before naming.

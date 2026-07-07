@@ -43,6 +43,29 @@ export const COLORS = {
   hudTextDim: '#C49A3C',
 }
 
+// AI rival hull tints — stay within the art direction's all-metal Warden
+// material family (brushed silver, brass, verdigris copper) so rivals read
+// as the same craft type as the player, just a different finish. Canopy and
+// creature silhouette are shared with the player (COLORS.canopy/creature)
+// since there's no real rider/creature art yet.
+export const OPPONENT_PALETTES = [
+  { // brushed silver
+    hull: ['#5f6469', '#C7CDD3', '#4a4e52'],
+    fin: '#8a9196',
+    intakeGlowRGB: '220, 226, 232',
+  },
+  { // verdigris copper
+    hull: ['#2c4a3c', '#7fae8f', '#20362c'],
+    fin: '#4f7d68',
+    intakeGlowRGB: '180, 224, 200',
+  },
+  { // antique bronze
+    hull: ['#5a3d14', '#B57F3C', '#4a3110'],
+    fin: '#8a5f28',
+    intakeGlowRGB: '255, 214, 150',
+  },
+].map((palette) => ({ ...palette, canopy: COLORS.canopy, creature: COLORS.creature }))
+
 // Road surface base color + per-channel tint weights. `tone` is the
 // segment's tiny signed drift value; the result is one consistent brown
 // family with a barely-perceptible shift — never an alternating band.

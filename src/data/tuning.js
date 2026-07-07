@@ -55,6 +55,48 @@ export const DRIFT = {
   settleEaseRate: 6, // how fast driftAngle relaxes back to 0 off-drift
 }
 
+// AI rival racers: 3 opponents drawn with the same placeholder chassis as
+// the player, projected like roadside sprites so they scale/clip against
+// hills correctly. Speed AI, lane wander, and a light player-opponent bump
+// only — no combat yet (see CLAUDE.md's COMBAT DESIGN section).
+export const OPPONENTS = {
+  count: 3,
+  // Base speed as a fraction of RACE.maxSpeed, spread so each rival feels
+  // distinct without being unbeatable (fastest) or trivial (slowest).
+  baseSpeedFractions: [0.82, 0.88, 0.94],
+  startGapSegments: 6, // spacing (in segments) staggering opponents' start positions behind the player
+  laneOffsets: [-0.55, 0, 0.55], // distinct base racing lines, same units as playerX
+  laneWanderAmplitude: 0.18, // how far an opponent drifts off its base line
+  laneWanderRate: 0.15, // wander cycles/sec; per-rival phase offset keeps them from syncing
+  laneBound: 0.95, // opponents never steer past this |x| — keeps them on-road
+  steerEaseRate: 3, // how fast an opponent's lateral position eases toward its lane target
+  leanNormalizer: 1.5, // divides lateral velocity to derive the visual lean angle
+  leanEaseRate: 6,
+  curveEaseThreshold: 1.2, // |curve| beyond which opponents ease off speed
+  curveEaseStrength: 0.35, // fraction of speed shed at max curve severity
+  accel: 2200,
+  brake: 2600,
+  // Gentle rubber-banding: nudges an opponent's target speed based on the
+  // gap to the player so races stay close without feeling magnetic.
+  rubberBand: {
+    catchUpGap: 1800, // world units behind the player before a trailing opponent speeds up
+    backOffGap: 1800, // world units ahead of the player before a leading opponent eases off
+    catchUpStrength: 0.18,
+    backOffStrength: 0.12,
+    maxAdjustFraction: 0.22,
+  },
+  collision: {
+    rangeWorld: 260, // pos gap (world units) within which player-opponent contact can trigger
+    rangeLane: 0.5, // lane gap within which contact can trigger
+    speedPenalty: 0.35, // fraction of speed shed by both parties on hit
+    nudgeLane: 0.35, // total lateral push-apart, split between the two
+    cooldown: 0.4, // seconds before the same opponent can trigger another hit
+  },
+  rearVisibleWorld: 500, // how far behind the player a just-passed opponent stays rendered
+  chassisWidthFraction: 0.62, // of the projected road half-width at the opponent's depth
+  maxChassisWidthPx: 130,
+}
+
 // Named curve strengths reused across track sections; sign convention:
 // negative = left, positive = right (see track.js).
 export const CURVE = {
