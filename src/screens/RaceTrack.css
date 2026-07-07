@@ -88,3 +88,125 @@
 .touch-zone:active {
   background: rgba(255, 248, 231, 0.2);
 }
+
+.countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.countdown-text {
+  font-family: var(--font-display);
+  font-size: 5.5rem;
+  font-weight: 700;
+  color: var(--cream);
+  text-shadow: 0 0 28px rgba(242, 200, 121, 0.75), 0 2px 6px rgba(0, 0, 0, 0.6);
+  animation: countdown-beat 1s ease-out;
+}
+
+.countdown-go {
+  color: var(--resonance-glow);
+}
+
+@keyframes countdown-beat {
+  0% { opacity: 0; transform: scale(0.7); }
+  15% { opacity: 1; transform: scale(1.08); }
+  30% { transform: scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.results-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 15, 5, 0.6);
+  z-index: 10;
+}
+
+.results-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 48px;
+  max-width: 90vw;
+  border-radius: 16px;
+  background: rgba(44, 24, 16, 0.92);
+  border: 2px solid var(--brass);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  color: var(--cream);
+  text-align: center;
+  font-family: var(--font-body);
+}
+
+/* Placement is the headline, not a separate ordinal + tagline — one big
+   line carries the result ("You won the Trial Circuit!" / "Finished 3rd —
+   race again?"), with times demoted below it. */
+.results-headline {
+  margin: 0 0 4px;
+  max-width: 32ch;
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  line-height: 1.15;
+  color: var(--resonance-glow);
+}
+
+.results-stats {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 4px;
+}
+
+.results-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.results-stat-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--aged-gold);
+}
+
+.results-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--cream);
+}
+
+.results-stat-badge {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--resonance-glow);
+}
+
+.results-again-btn {
+  margin-top: 6px;
+  padding: 10px 28px;
+  border-radius: 10px;
+  border: 1.5px solid var(--brass);
+  background: var(--brass);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.results-again-btn:hover {
+  background: var(--aged-gold);
+}
+
+.results-again-btn:active {
+  transform: scale(0.97);
+}

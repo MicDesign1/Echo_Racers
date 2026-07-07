@@ -1,5 +1,5 @@
 import { ROAD, ROADSIDE, TRACK_LAYOUT } from '../data/tuning.js'
-import { roadTone } from './colors.js'
+import { roadTone, COLORS } from './colors.js'
 
 const { segmentLength } = ROAD
 
@@ -38,7 +38,25 @@ function buildTrack() {
       sprites.push({ offset: ROADSIDE.stoneOffsetB, type: 'stone', seed: i * 7 })
     }
 
-    segments.push({ index: i, curve, y, roadColor: roadTone(tone), sprites })
+    // Start/finish marker: segment 0 only, drawn via the exact same
+    // sprite/road mechanisms as everything else above, so it projects and
+    // clips correctly on approach. A wide contrasting band replaces the
+    // normal surface tint for the first `widthSegments`; the pillar pair
+    // (with its built-in resonance orb, same as any roadside pillar) marks
+    // both edges right at the line itself.
+    const isFinishLine = i < ROAD.finishLine.widthSegments
+    if (i === 0) {
+      sprites.push({ offset: ROAD.finishLine.pillarOffsetLeft, type: 'pillar', seed: 0 })
+      sprites.push({ offset: ROAD.finishLine.pillarOffsetRight, type: 'pillar', seed: 1 })
+    }
+
+    segments.push({
+      index: i,
+      curve,
+      y,
+      roadColor: isFinishLine ? COLORS.finishLine : roadTone(tone),
+      sprites,
+    })
   }
 
   // Curve eases in from 0, holds, then eases back to 0 across the section;

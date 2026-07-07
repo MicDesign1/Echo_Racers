@@ -26,16 +26,34 @@ export function computePlayerDepth(canvasWidth, canvasHeight) {
   return { groundY, zPlayer, chassisWidth }
 }
 
-export function createOpponents(trackLength) {
-  return OPPONENTS.baseSpeedFractions.map((speedFraction, i) => ({
-    rivalIndex: i,
-    pos: (((-(i + 1) * OPPONENTS.startGapSegments * ROAD.segmentLength) % trackLength) + trackLength) % trackLength,
-    x: OPPONENTS.laneOffsets[i],
-    speed: RACE.maxSpeed * speedFraction,
-    wanderPhase: i * 2.1,
-    lean: 0,
-    collideCooldown: 0,
-  }))
+// Starting-grid slot for a racer index (0 = player, 1..N = opponents in
+// rivalIndex order) — see RACE.startGrid. Fills lanesPerRow at a time,
+// front-to-back, so racer 0 always lands in the rearmost row: everyone
+// spawns ahead of the line at a small positive position, never a wrapped
+// one, and the grid scales to any racer count with no code change.
+export function startGridSlot(racerIndex) {
+  const { basePos, rowSpacing, lanesPerRow, laneOffsets } = RACE.startGrid
+  const row = Math.floor(racerIndex / lanesPerRow)
+  const lane = racerIndex % lanesPerRow
+  return { pos: basePos + row * rowSpacing, x: laneOffsets[lane % laneOffsets.length] }
+}
+
+export function createOpponents() {
+  return OPPONENTS.baseSpeedFractions.map((speedFraction, i) => {
+    const slot = startGridSlot(i + 1) // racer 0 is the player
+    return {
+      rivalIndex: i,
+      pos: slot.pos,
+      x: slot.x,
+      speed: RACE.maxSpeed * speedFraction,
+      wanderPhase: i * 2.1,
+      lean: 0,
+      collideCooldown: 0,
+      laps: 0,
+      finished: false,
+      place: null,
+    }
+  })
 }
 
 function targetSpeedFor(o, playerPos, trackLength) {
@@ -72,11 +90,45 @@ export function updateOpponents(g, dt, trackLength) {
     const leanTarget = dt > 0 ? clamp((o.x - prevX) / (dt * OPPONENTS.leanNormalizer), -1, 1) : 0
     o.lean += (leanTarget - o.lean) * Math.min(1, dt * OPPONENTS.leanEaseRate)
 
+    const prevPos = o.pos
     o.pos = ((o.pos + o.speed * dt) % trackLength + trackLength) % trackLength
+    // A genuine wrap jumps from near trackLength back to near 0 — an
+    // apparent decrease of nearly a full trackLength. Requiring the drop to
+    // be at least half the track rules out misreading ordinary jitter
+    // (e.g. a stray sub-frame dt) as a lap, which matters here since
+    // opponents start only a few hundred units from the line already.
+    if (RACE.mode === 'race' && !o.finished && prevPos - o.pos > trackLength / 2) {
+      o.laps += 1
+      if (o.laps >= RACE.lapCount) {
+        // Locks this rival's finish order — it keeps driving after this
+        // (see updateOpponents' caller), but its placement never changes.
+        o.finished = true
+        o.place = g.nextPlace++
+      }
+    }
     if (o.collideCooldown > 0) o.collideCooldown -= dt
   }
 
   resolveCollisions(g, trackLength)
+}
+
+// Live "current place" for the HUD while the player is still racing — once
+// finished the player's place is already locked (g.playerPlace). A
+// finished rival always outranks an unfinished player (it already
+// completed the race); among still-racing rivals, more progress wins.
+// Progress is laps completed * trackLength + position within the current
+// lap — an absolute, monotonically increasing distance, so it's already
+// unambiguous mid-lap without needing wrapDelta's shortest-signed-distance
+// semantics (which would reintroduce the exact wraparound ambiguity this
+// avoids).
+export function computePlayerPlace(g, trackLength) {
+  if (g.playerFinished) return g.playerPlace
+  const playerProgress = g.playerLaps * trackLength + g.pos
+  let place = 1
+  for (const o of g.opponents) {
+    if (o.finished || o.laps * trackLength + o.pos > playerProgress) place += 1
+  }
+  return place
 }
 
 function resolveCollisions(g, trackLength) {

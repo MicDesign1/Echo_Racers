@@ -20,6 +20,12 @@ export const COLORS = {
   shoulder: 'rgba(139, 105, 20, 0.55)',
   laneStripe: 'rgba(196, 154, 60, 0.8)',
 
+  // Start/finish road band — a flat, saturated gold that reads as a
+  // deliberate marker against the road's warm-brown surface, not just
+  // another surface-noise tint (see track.js finishLine handling).
+  finishLine: '#D9A94F',
+  resonanceGlow: '#F2C879', // canvas-side twin of the --resonance-glow CSS var, for HUD/results accents
+
   pillar: ['#5C3A1E', '#8B6914', '#4a2f16'],
   pillarCap: '#3d2812',
   orbGlow: ['rgba(255, 226, 150, 0.95)', 'rgba(230, 180, 80, 0.45)', 'rgba(230, 180, 80, 0)'],

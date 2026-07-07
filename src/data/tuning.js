@@ -19,11 +19,26 @@ export const ROAD = {
   surfaceNoiseFreq2: 2.3,
   surfaceNoiseWeight1: 0.5,
   surfaceNoiseAmplitude: 0.8,
+  // Start/finish marker at segment 0: a solid gold/brass road band (see
+  // COLORS.finishLine) plus a pillar-and-orb pair at each edge, built the
+  // same way as track.js's other deterministic roadside sprites so it
+  // projects/clips through the existing mechanism — no new draw path.
+  finishLine: {
+    widthSegments: 2,
+    pillarOffsetLeft: -1.6,
+    pillarOffsetRight: 1.6,
+  },
 }
 
 // Speeds/accelerations are in world units/sec (and /sec^2) — scaled against
 // ROAD.segmentLength so "maxSpeed" means "segments crossed per second".
 export const RACE = {
+  // 'race': a lapCount-lap competition against the 3 AI rivals, ending in a
+  // results screen with placement. 'timetrial': the original endless-lap
+  // mode (no finish, no placement) — flip this to fall back to it without
+  // deleting any race-mode code.
+  mode: 'race',
+  lapCount: 3,
   maxSpeed: 220 * 60,
   accel: 2600,
   accelLowSpeedBoost: 1.35, // accel multiplier at a standstill
@@ -37,6 +52,27 @@ export const RACE = {
   steerRate: 2.1,
   steerEaseRate: 8, // how fast steer input eases toward the key target
   playerXMax: 2.6,
+  // Starting grid: every racer (player + however many are in OPPONENTS)
+  // spawns AHEAD of the line at a small positive position — never a
+  // wrapped negative one — so the laps*trackLength+pos progress metric
+  // starts near zero for everyone and rubber-banding has no artificial
+  // gap to "catch up" across at the start. Slots fill front-to-back,
+  // lanesPerRow at a time; racer index 0 (the player) lands in the first
+  // (rearmost) row. Scales automatically to however many entries
+  // OPPONENTS ends up with — no hardcoded racer count.
+  startGrid: {
+    basePos: 120, // world units ahead of the line for the rearmost row
+    rowSpacing: 220, // extra world units ahead, per row further forward
+    lanesPerRow: 2,
+    laneOffsets: [-0.4, 0.4], // same units as playerX/opponent x
+  },
+  // Countdown shown on every race start and every Race Again (race mode
+  // only — time-trial keeps its instant start). All input and all racers
+  // freeze until the last beat elapses, then everyone releases together.
+  countdown: {
+    beats: ['3', '2', '1', 'GO!'],
+    beatDurationMs: 1000,
+  },
 }
 
 // Hold-to-drift: rotate into a slide, scrub a little speed, and get a small
@@ -55,16 +91,17 @@ export const DRIFT = {
   settleEaseRate: 6, // how fast driftAngle relaxes back to 0 off-drift
 }
 
-// AI rival racers: 3 opponents drawn with the same placeholder chassis as
-// the player, projected like roadside sprites so they scale/clip against
-// hills correctly. Speed AI, lane wander, and a light player-opponent bump
-// only — no combat yet (see CLAUDE.md's COMBAT DESIGN section).
+// AI rival racers, drawn with the same placeholder chassis as the player,
+// projected like roadside sprites so they scale/clip against hills
+// correctly. Speed AI, lane wander, and a light player-opponent bump only —
+// no combat yet (see CLAUDE.md's COMBAT DESIGN section). Racer count is
+// always derived from these arrays' lengths (baseSpeedFractions.length),
+// never hardcoded — adding an 8th racer is a tuning-data change (add an
+// entry here, a lane offset, a palette in colors.js), not a refactor.
 export const OPPONENTS = {
-  count: 3,
   // Base speed as a fraction of RACE.maxSpeed, spread so each rival feels
   // distinct without being unbeatable (fastest) or trivial (slowest).
   baseSpeedFractions: [0.82, 0.88, 0.94],
-  startGapSegments: 6, // spacing (in segments) staggering opponents' start positions behind the player
   laneOffsets: [-0.55, 0, 0.55], // distinct base racing lines, same units as playerX
   laneWanderAmplitude: 0.18, // how far an opponent drifts off its base line
   laneWanderRate: 0.15, // wander cycles/sec; per-rival phase offset keeps them from syncing
@@ -204,16 +241,40 @@ export const CAR = {
 }
 
 export const HUD = {
+  // Speed gauge — shown in both modes, unchanged position.
   panelLeft: { x: 12, y: 12, w: 150, h: 58, r: 10 },
-  panelRight: { marginRight: 192, y: 12, w: 180, h: 74, r: 10 },
   speedFont: 'bold 26px Georgia',
   labelFont: '13px Georgia',
-  lapFont: '15px Georgia',
   speedTextOffset: { x: 14, y: 36 },
   labelTextOffset: { x: 70, y: 36 },
-  lapLineOffsets: [{ x: 14, y: 24 }, { x: 14, y: 44 }, { x: 14, y: 64 }],
   speedDivisor1: 60,
   speedDivisor2: 2.2,
+
+  // Time-trial only: the original time-focused panel (current/last/best
+  // lap time), unchanged from before race mode existed.
+  panelRight: { marginRight: 192, y: 12, w: 180, h: 74, r: 10 },
+  lapFont: '15px Georgia',
+  lapLineOffsets: [{ x: 14, y: 24 }, { x: 14, y: 44 }, { x: 14, y: 64 }],
+
+  // Race mode: place-first hierarchy — the opposite emphasis of
+  // time-trial's HUD. Current place is the largest element on screen (a
+  // glance mid-drift should be enough to read it), lap count sits directly
+  // beneath it at secondary size, and lap/total times shrink to a small
+  // corner readout since they matter far less turn-to-turn than "am I
+  // winning right now."
+  racePlace: {
+    y: 84, // baseline, horizontally centered
+    font: "bold 72px 'Cinzel', Georgia, serif",
+  },
+  raceLapCount: {
+    offsetY: 32, // below the place baseline
+    font: 'bold 22px Georgia',
+  },
+  raceTimes: {
+    marginRight: 138, y: 12, w: 126, h: 58, r: 8,
+    font: '11px Georgia',
+    lineOffsets: [{ x: 10, y: 20 }, { x: 10, y: 34 }, { x: 10, y: 48 }],
+  },
 }
 
 export const RESULTS = {

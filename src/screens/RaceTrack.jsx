@@ -5,13 +5,53 @@ import { project, renderRoadSegment, renderLaneStripe } from '../engine/projecti
 import { drawParallax } from '../engine/background.js'
 import { drawRoadsideSprite } from '../engine/roadside.js'
 import { drawCar, drawOpponentCar } from '../engine/car.js'
-import { createOpponents, updateOpponents, getOpponentScreenPlacement, computePlayerDepth } from '../engine/opponents.js'
-import { drawHud, formatTime } from '../engine/hud.js'
+import { createOpponents, updateOpponents, getOpponentScreenPlacement, computePlayerDepth, computePlayerPlace, startGridSlot } from '../engine/opponents.js'
+import { drawHud, formatTime, ordinal } from '../engine/hud.js'
 import { COLORS, OPPONENT_PALETTES, linearGradient } from '../engine/colors.js'
-import { getBestTimes, recordLapResult } from '../data/saves.js'
+import { getBestTimes, recordLapResult, recordRaceResult } from '../data/saves.js'
 import './RaceTrack.css'
 
 const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('verify')
+
+// The countdown ceremony is a real-player affordance — verify mode drives
+// scenarios directly via position overrides and expects the race to be
+// live immediately, so it skips straight past it (countdownRemaining: 0).
+// Time-trial keeps its instant start regardless of mode, per spec.
+function initialCountdownRemaining() {
+  if (verifyMode || RACE.mode !== 'race') return 0
+  return (RACE.countdown.beats.length * RACE.countdown.beatDurationMs) / 1000
+}
+
+// Fresh per-race state — used both for the initial mount and for "Race
+// Again" (which must reset positions, opponents, and timers as cleanly as
+// a first load). bestLapTime is populated separately from persisted saves
+// right after creation, since that record outlives any single race.
+function createInitialGameState() {
+  const playerSlot = startGridSlot(0)
+  return {
+    pos: playerSlot.pos,
+    speed: 0,
+    playerX: playerSlot.x,
+    steer: 0,
+    driftAngle: 0,
+    boost: 0,
+    bgSkew: 0,
+    lapTime: 0,
+    lastLapTime: null,
+    bestLapTime: null,
+    raceTime: 0,
+    raceBestLap: null,
+    raceHasNewBestLap: false,
+    playerLaps: 0,
+    playerFinished: false,
+    playerPlace: null,
+    raceFinished: false,
+    nextPlace: 1,
+    countdownRemaining: initialCountdownRemaining(),
+    countdownBeatIndex: -1,
+    opponents: createOpponents(),
+  }
+}
 
 export default function RaceTrack() {
   const canvasRef = useRef(null)
@@ -21,20 +61,13 @@ export default function RaceTrack() {
   const keysRef = useRef({ up: false, down: false, left: false, right: false, drift: false })
   const bannerTimeoutRef = useRef(null)
   const verifyMetricsRef = useRef(null)
+  const resetRaceRef = useRef(null)
   const [banner, setBanner] = useState(null)
-  const gameRef = useRef({
-    pos: 0,
-    speed: 0,
-    playerX: 0,
-    steer: 0,
-    driftAngle: 0,
-    boost: 0,
-    bgSkew: 0,
-    lapTime: 0,
-    lastLapTime: null,
-    bestLapTime: null,
-    opponents: createOpponents(trackLength),
-  })
+  const [raceResult, setRaceResult] = useState(null)
+  const [countdownText, setCountdownText] = useState(() => (
+    RACE.mode === 'race' && !verifyMode ? RACE.countdown.beats[0] : null
+  ))
+  const gameRef = useRef(createInitialGameState())
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -47,6 +80,20 @@ export default function RaceTrack() {
       setBanner({ lapText: formatTime(lapTime), bestText: formatTime(bestTime), isRecord })
       bannerTimeoutRef.current = setTimeout(() => setBanner(null), RESULTS.bannerDurationMs)
     }
+
+    // "Race Again": a full reset (positions, opponents, timers) rather than
+    // patching individual fields, so it can never leave a stray field from
+    // the finished race behind.
+    function resetRace() {
+      clearTimeout(bannerTimeoutRef.current)
+      setBanner(null)
+      setRaceResult(null)
+      const fresh = createInitialGameState()
+      fresh.bestLapTime = getBestTimes(TRACK_ID).bestLap
+      gameRef.current = fresh
+      setCountdownText(fresh.countdownRemaining > 0 ? RACE.countdown.beats[0] : null)
+    }
+    resetRaceRef.current = resetRace
 
     let W = 0
     let H = 0
@@ -124,6 +171,37 @@ export default function RaceTrack() {
     function update(dt) {
       const g = gameRef.current
       applyVerifyOverride(g)
+
+      // Countdown: every racer (player and AI alike) is completely frozen
+      // — updateOpponents isn't even called — until the last beat elapses.
+      // Lap/race timers only start accumulating once we fall through to
+      // normal physics below, so they naturally begin at GO, not at mount.
+      if (g.countdownRemaining > 0) {
+        g.countdownRemaining = Math.max(0, g.countdownRemaining - dt)
+        const beats = RACE.countdown.beats
+        const totalSec = (beats.length * RACE.countdown.beatDurationMs) / 1000
+        const beatSec = RACE.countdown.beatDurationMs / 1000
+        const elapsed = totalSec - g.countdownRemaining
+        const beatIndex = Math.min(beats.length - 1, Math.floor(elapsed / beatSec))
+        if (beatIndex !== g.countdownBeatIndex) {
+          g.countdownBeatIndex = beatIndex
+          setCountdownText(beats[beatIndex])
+        }
+        if (g.countdownRemaining <= 0) setCountdownText(null)
+        return
+      }
+
+      // Race finished: freeze input, let the car coast to a stop under its
+      // own friction. Rivals are unaffected — updateOpponents still runs,
+      // so anyone still racing keeps driving exactly as before.
+      if (g.raceFinished) {
+        g.speed = Math.max(0, g.speed - RACE.friction * dt)
+        g.driftAngle += (0 - g.driftAngle) * Math.min(1, dt * DRIFT.settleEaseRate)
+        g.pos = (g.pos + g.speed * dt) % trackLength
+        updateOpponents(g, dt, trackLength)
+        return
+      }
+
       const keys = keysRef.current
       const spct = g.speed / RACE.maxSpeed
 
@@ -168,11 +246,37 @@ export default function RaceTrack() {
       const prevPos = g.pos
       g.pos = (g.pos + g.speed * dt) % trackLength
       g.lapTime += dt
-      if (g.pos < prevPos && g.speed > 0) {
+      g.raceTime += dt
+      // See opponents.js's identical guard: require the apparent decrease
+      // to be at least half the track, so a genuine wrap (near trackLength
+      // back to near 0) can't be confused with ordinary jitter.
+      if (prevPos - g.pos > trackLength / 2) {
         g.lastLapTime = g.lapTime
         const result = recordLapResult(TRACK_ID, g.lapTime)
         g.bestLapTime = result.bestLap
-        showBanner(g.lapTime, result.bestLap, result.isNewBestLap)
+        if (g.raceBestLap == null || g.lapTime < g.raceBestLap) g.raceBestLap = g.lapTime
+        if (result.isNewBestLap) g.raceHasNewBestLap = true
+
+        if (RACE.mode === 'race') {
+          g.playerLaps += 1
+          if (g.playerLaps >= RACE.lapCount) {
+            g.playerFinished = true
+            g.playerPlace = g.nextPlace++
+            g.raceFinished = true
+            const raceRecord = recordRaceResult(TRACK_ID, g.raceTime)
+            setRaceResult({
+              place: g.playerPlace,
+              totalTime: g.raceTime,
+              bestLap: g.raceBestLap,
+              isNewBestLap: g.raceHasNewBestLap,
+              isNewBestTotal: raceRecord.isNewBestTotal,
+            })
+          } else {
+            showBanner(g.lapTime, result.bestLap, result.isNewBestLap)
+          }
+        } else {
+          showBanner(g.lapTime, result.bestLap, result.isNewBestLap)
+        }
         g.lapTime = 0
       }
 
@@ -296,6 +400,8 @@ export default function RaceTrack() {
         const rival = opponentPlacements.find(({ o }) => o.rivalIndex === 0)
         verifyMetricsRef.current = {
           playerPos: g.pos,
+          playerX: g.playerX,
+          curve: baseSegment.curve,
           canvasH: height,
           playerWidth: chassisWidth,
           playerGroundY,
@@ -318,6 +424,11 @@ export default function RaceTrack() {
         lapTime: g.lapTime,
         lastLapTime: g.lastLapTime,
         bestLapTime: g.bestLapTime,
+        raceTime: g.raceTime,
+        mode: RACE.mode,
+        lap: Math.min(g.playerLaps + 1, RACE.lapCount),
+        lapCount: RACE.lapCount,
+        place: RACE.mode === 'race' ? computePlayerPlace(g, trackLength) : null,
       }, COLORS)
 
       const vignette = ctx.createRadialGradient(
@@ -333,7 +444,11 @@ export default function RaceTrack() {
     let rafId
     let lastTime = performance.now()
     function frame(now) {
-      const dt = Math.min((now - lastTime) / 1000, 0.05)
+      // Clamp to [0, 0.05]: a stray early frame's `now` can land at or
+      // slightly before `lastTime` (a known requestAnimationFrame quirk,
+      // most visible right after mount under StrictMode's double-effect),
+      // which would otherwise produce a momentary negative dt.
+      const dt = Math.max(0, Math.min((now - lastTime) / 1000, 0.05))
       lastTime = now
       update(dt)
       render(W, H, now)
@@ -351,6 +466,28 @@ export default function RaceTrack() {
         holdUp(on = true) { keysRef.current.up = on },
         holdDown(on = true) { keysRef.current.down = on },
         getMetrics: () => verifyMetricsRef.current,
+        // Read-only race-state accessor for verifying the race/placement
+        // feature end-to-end without parsing the DOM overlay.
+        getRaceState: () => {
+          const g = gameRef.current
+          return {
+            mode: RACE.mode,
+            lapCount: RACE.lapCount,
+            trackLength,
+            playerLaps: g.playerLaps,
+            playerFinished: g.playerFinished,
+            playerPlace: g.playerPlace,
+            raceFinished: g.raceFinished,
+            raceTime: g.raceTime,
+            raceBestLap: g.raceBestLap,
+            countdownRemaining: g.countdownRemaining,
+            currentPlace: RACE.mode === 'race' ? computePlayerPlace(g, trackLength) : null,
+            playerPos: g.pos,
+            opponents: g.opponents.map((o) => ({
+              rivalIndex: o.rivalIndex, pos: o.pos, laps: o.laps, finished: o.finished, place: o.place,
+            })),
+          }
+        },
       }
     }
 
@@ -387,6 +524,47 @@ export default function RaceTrack() {
         <div ref={touchAccelRef} className="touch-zone touch-accel" />
         <div ref={touchRightRef} className="touch-zone touch-right" />
       </div>
+      {countdownText && (
+        <div className="countdown-overlay">
+          <span
+            key={countdownText}
+            className={`countdown-text${countdownText === 'GO!' ? ' countdown-go' : ''}`}
+          >
+            {countdownText}
+          </span>
+        </div>
+      )}
+      {raceResult && (
+        <div className="results-screen">
+          <div className="results-card">
+            <h2 className="results-headline">
+              {raceResult.place === 1
+                ? 'You won the Trial Circuit!'
+                : `Finished ${ordinal(raceResult.place)} — race again?`}
+            </h2>
+            <div className="results-stats">
+              <div className="results-stat">
+                <span className="results-stat-label">Total Time</span>
+                <span className="results-stat-value">{formatTime(raceResult.totalTime)}</span>
+              </div>
+              <div className="results-stat">
+                <span className="results-stat-label">Best Lap</span>
+                <span className="results-stat-value">
+                  {formatTime(raceResult.bestLap)}
+                  {raceResult.isNewBestLap && <span className="results-stat-badge"> New Best!</span>}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="results-again-btn"
+              onClick={() => resetRaceRef.current?.()}
+            >
+              Race Again
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

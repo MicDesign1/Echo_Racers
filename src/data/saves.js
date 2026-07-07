@@ -27,20 +27,29 @@ export function getBestTimes(trackId, profile = PROFILE_ID) {
   return loadBestTimes(profile)[trackId] || { bestLap: null, bestTotal: null }
 }
 
-// A full lap of the current track is also the whole race for now (there's
-// no multi-lap race yet), so bestLap and bestTotal move together here — but
-// they're stored as separate fields so a future multi-lap race can update
-// them independently without a save-data migration.
+// bestLap and bestTotal are independent fields on the same record: bestLap
+// updates on every single lap (both modes), bestTotal only on completing a
+// full race (recordRaceResult, below) — so a lap time never overwrites the
+// best full-race total. Same storage shape as before, so previously saved
+// { bestLap, bestTotal } records still load unchanged.
 export function recordLapResult(trackId, lapTime, profile = PROFILE_ID) {
   const times = loadBestTimes(profile)
   const prev = times[trackId] || { bestLap: null, bestTotal: null }
   const isNewBestLap = prev.bestLap == null || lapTime < prev.bestLap
-  const isNewBestTotal = prev.bestTotal == null || lapTime < prev.bestTotal
-  const next = {
-    bestLap: isNewBestLap ? lapTime : prev.bestLap,
-    bestTotal: isNewBestTotal ? lapTime : prev.bestTotal,
-  }
+  const next = { ...prev, bestLap: isNewBestLap ? lapTime : prev.bestLap }
   times[trackId] = next
   saveBestTimes(times, profile)
-  return { ...next, isNewBestLap, isNewBestTotal }
+  return { ...next, isNewBestLap }
+}
+
+// Called once, when a full lapCount-lap race is completed (RACE.mode ===
+// 'race') — updates bestTotal only, independently of any lap's bestLap.
+export function recordRaceResult(trackId, totalTime, profile = PROFILE_ID) {
+  const times = loadBestTimes(profile)
+  const prev = times[trackId] || { bestLap: null, bestTotal: null }
+  const isNewBestTotal = prev.bestTotal == null || totalTime < prev.bestTotal
+  const next = { ...prev, bestTotal: isNewBestTotal ? totalTime : prev.bestTotal }
+  times[trackId] = next
+  saveBestTimes(times, profile)
+  return { ...next, isNewBestTotal }
 }
