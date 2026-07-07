@@ -1,0 +1,23 @@
+---
+pid: 3828
+cwd: "E:\KID GAME\Echo_Racers"
+command: "cd \"E:\\KID GAME\\Echo_Racers\" && node scripts/verify-opponents-render.mjs"
+started_at: 2026-07-07T16:37:36.084Z
+running_for_ms: 264997   
+---
+Using dev server at http://localhost:5173/race?verify=1
+PASS opponent render regression
+  flat-far: d=6000 w=82 visPx=42
+  hill-far: d=6000 w=82 visPx=42
+  flat-mid: d=2000 w=210 visPx=105
+  hill-mid: d=2000 w=210 visPx=105
+  flat-d400: d=400 w=210 visPx=1
+  hill-d400: d=400 w=210 visPx=1
+  flat-d100: d=100 w=210 visPx=105
+  hill-d100: d=100 w=210 visPx=105
+  flat-alongside: d=0 w=210 visPx=105
+  hill-alongside: d=0 w=210 visPx=105
+  flat-dneg80: d=-80 w=210 visPx=1
+  hill-dneg80: d=-80 w=210 visPx=1
+  dynamic flicker: 120 frames OK
+  natural drive: catching, passed

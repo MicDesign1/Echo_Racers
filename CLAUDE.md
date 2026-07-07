@@ -25,7 +25,7 @@ reach Uncle Argon, who is stranded there by an ancient artefact.
 
 ## Current Status
 
-Playable single-player driving engine complete (projected-segment rendering, drift with exit boost, HUD lap timers, keyboard + touch input). Vehicle is a placeholder vector chassis awaiting sprites. Not yet built: AI opponents, lap-count/race-completion logic, vehicle/creature selection, localStorage saves, menus.
+STATUS: Playable single-player driving engine complete — projected-segment rendering, drift with exit boost, HUD lap timers, keyboard + touch input, localStorage best-time persistence with new-best banner flourish. Three AI rivals: rubber-banding, lane wander, collision slow-and-nudge; opponent rendering uses player-relative depth (z = delta + zPlayer) with unified ground anchor and hover shadows, regression-tested by scripts/verify-opponents-render.mjs — run it after ANY projection, draw-order, or car-layout change. Mode is time-trial: endless laps, no race-end yet. Chassis are placeholder vector art awaiting sprites. Not yet built: race finish/placement, combat (see COMBAT DESIGN), vehicle/creature selection, multi-track, menus beyond home page, hub world.
 
 ## Narrative Rules — CRITICAL
 

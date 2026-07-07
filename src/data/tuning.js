@@ -92,9 +92,10 @@ export const OPPONENTS = {
     nudgeLane: 0.35, // total lateral push-apart, split between the two
     cooldown: 0.4, // seconds before the same opponent can trigger another hit
   },
-  rearVisibleWorld: 500, // how far behind the player a just-passed opponent stays rendered
-  chassisWidthFraction: 0.62, // of the projected road half-width at the opponent's depth
-  maxChassisWidthPx: 130,
+  // Camera-space depth (see opponents.js computePlayerDepth); opponents are
+  // not drawn at or behind this z. Kept well below a full segment so the
+  // near-zone direct-projection branch only engages right at the camera.
+  cameraNearPlane: ROAD.segmentLength * 0.5,
 }
 
 // Named curve strengths reused across track sections; sign convention:
@@ -168,7 +169,18 @@ export const CAR = {
   widthFraction: 0.22, // of canvas width
   maxWidthPx: 210,
   heightFraction: 0.5, // of car width
-  groundYFraction: 0.7, // cy = height - carHeight * this
+  groundYFraction: 0.7, // pivotY = height - carHeight * this
+  // Hull/fin bottom edge, of carHeight below the pivot (see drawChassis's
+  // hull rect and fin points, which both land here) — this is the chassis's
+  // true ground-contact row, used as the shared anchor for the player's own
+  // placement and for zPlayer (see car.js getPlayerAnchor).
+  chassisBottomFraction: 0.34,
+  // A hill-crest clip boundary is recomputed every frame from projected
+  // segment heights, so it can sit a sub-pixel's width above a car's own
+  // ground row — without slack the bottom row of the chassis flickers in
+  // and out as that boundary jitters. 2px of slack absorbs the jitter
+  // without hiding genuine crest occlusion (which clips well above the car).
+  groundClipEpsilonPx: 2,
   steerRotationFactor: 0.10, // body rotation = steer * this + driftAngle
   steerLateralShiftFraction: 0.10, // body x-shift = steer * carWidth * this
   idleSwayAmplitude: 0.004,
@@ -181,6 +193,14 @@ export const CAR = {
   intakePulseBase: 0.7,
   intakePulseAmplitude: 0.3,
   intakePulseRate: 0.004, // rad/ms
+  // Soft ground shadow drawn under every vehicle at its ground-contact
+  // point, before the chassis, so hovercraft still read as touching the
+  // road. Kept low-alpha — a hint of contact, not a night scene.
+  shadow: {
+    widthFraction: 0.62, // of the car's own rendered width
+    heightFraction: 0.32, // ellipse squash, of the shadow's own width
+    alpha: 0.22,
+  },
 }
 
 export const HUD = {

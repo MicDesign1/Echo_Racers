@@ -1,0 +1,14 @@
+---
+pid: 38028
+cwd: "E:\KID GAME\Echo_Racers"
+command: "cd \"E:\\KID GAME\\Echo_Racers\" && node scripts/verify-opponents-render.mjs"
+started_at: 2026-07-07T15:24:29.234Z
+running_for_ms: 4649998  
+---
+PASS opponent render regression
+  flat-far: d=6000 visPx=42 layer=road sy=401
+  flat-mid: d=2000 visPx=65 layer=road sy=504
+  flat-near: d=400 visPx=86 layer=player-ahead sy=642
+  flat-alongside: d=30 visPx=98 layer=player-ahead sy=632
+  flat-just-passed: d=-80 visPx=99 layer=player-behind sy=631
+  natural catch-pass: visPx=89

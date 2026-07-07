@@ -1,12 +1,9 @@
 import { ROAD, RACE, OPPONENTS } from '../data/tuning.js'
 import { seg } from './track.js'
+import { getPlayerAnchor } from './car.js'
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
-// Shortest signed distance from `from` to `to` around a looping track of
-// length `trackLength` — positive means `to` is ahead of `from`, negative
-// means behind. Used both for AI gap-sensing and for placing opponents on
-// screen relative to the camera.
 export function wrapDelta(to, from, trackLength) {
   let d = (to - from) % trackLength
   if (d > trackLength / 2) d -= trackLength
@@ -14,8 +11,21 @@ export function wrapDelta(to, from, trackLength) {
   return d
 }
 
-// Staggers opponents behind the player's start line, each on its own base
-// racing line, so the opening seconds don't look like a dead heat.
+// zPlayer is the camera-space depth (in the same wz units project() uses)
+// at which a flat-ground point would project onto the player's own screen
+// ground-contact row (groundY, from the same anchor drawCar draws from —
+// see car.js getPlayerAnchor). Inverts
+// sy = H/2 + (cameraDepth/z)*cameraHeight*(H/2). Every opponent's depth is
+// then measured in this same space: z = delta + zPlayer, so an opponent
+// exactly at the player's position (delta = 0) lands at z = zPlayer and
+// projects to groundY with carWidth = the player's own width — no separate
+// pinning needed.
+export function computePlayerDepth(canvasWidth, canvasHeight) {
+  const { groundY, chassisWidth } = getPlayerAnchor(canvasWidth, canvasHeight)
+  const zPlayer = ROAD.cameraDepth * ROAD.cameraHeight * (canvasHeight / 2) / (groundY - canvasHeight / 2)
+  return { groundY, zPlayer, chassisWidth }
+}
+
 export function createOpponents(trackLength) {
   return OPPONENTS.baseSpeedFractions.map((speedFraction, i) => ({
     rivalIndex: i,
@@ -28,10 +38,6 @@ export function createOpponents(trackLength) {
   }))
 }
 
-// Target speed for one opponent this frame: its base pace, eased off for
-// sharp curves, then nudged by light rubber-banding based on the gap to the
-// player (trailing rivals catch up a little, a rival that's pulled too far
-// ahead backs off a little) so races stay close without feeling magnetic.
 function targetSpeedFor(o, playerPos, trackLength) {
   const baseSpeed = RACE.maxSpeed * OPPONENTS.baseSpeedFractions[o.rivalIndex]
   const segIndex = Math.floor(o.pos / ROAD.segmentLength)
@@ -50,17 +56,12 @@ function targetSpeedFor(o, playerPos, trackLength) {
   return target * (1 + adjust)
 }
 
-// Advances every opponent's speed/position/lane wander, then resolves
-// player-opponent contact. Mutates `g` (the shared game-state ref) directly,
-// matching how the player's own update() already works.
 export function updateOpponents(g, dt, trackLength) {
   for (const o of g.opponents) {
     const targetSpeed = targetSpeedFor(o, g.pos, trackLength)
     if (o.speed < targetSpeed) o.speed = Math.min(targetSpeed, o.speed + OPPONENTS.accel * dt)
     else o.speed = Math.max(targetSpeed, o.speed - OPPONENTS.brake * dt)
 
-    // Each rival wanders around its own base line on a phase-shifted sine so
-    // they drift apart rather than stacking three-wide.
     o.wanderPhase += dt
     const wander = Math.sin(o.wanderPhase * OPPONENTS.laneWanderRate * Math.PI * 2 + o.rivalIndex * 2.4) * OPPONENTS.laneWanderAmplitude
     const laneTarget = clamp(OPPONENTS.laneOffsets[o.rivalIndex] + wander, -OPPONENTS.laneBound, OPPONENTS.laneBound)
@@ -78,9 +79,6 @@ export function updateOpponents(g, dt, trackLength) {
   resolveCollisions(g, trackLength)
 }
 
-// Basic player-opponent contact: no damage, just a shared speed penalty and
-// a lateral shove apart so the two racers don't overlap. Cooldown per
-// opponent prevents the penalty re-triggering every frame while touching.
 function resolveCollisions(g, trackLength) {
   const c = OPPONENTS.collision
   for (const o of g.opponents) {
@@ -98,37 +96,79 @@ function resolveCollisions(g, trackLength) {
   }
 }
 
-// Resolves an opponent's on-screen placement for the current frame from the
-// same per-segment projected data the road/roadside sprites use
-// (`frameSlots`, indexed relative to the camera's current segment), so
-// opponents scale and clip against hills exactly like everything else on
-// the road.
+// All opponent depths are measured in the same camera-space z as the
+// player's own visual depth (zPlayer, from computePlayerDepth): z = delta +
+// zPlayer, used for the perspective scale (and hence carWidth) everywhere.
+// WHERE the opponent's road geometry (elevation, curve-accumulated x) comes
+// from is a separate concern, keyed on the opponent's true world position
+// (delta), not on z — sampling geometry at the shifted depth would fetch a
+// different, wrong segment (~zPlayer/segmentLength segments off) whenever
+// the road isn't flat there, since z and real world offset only coincide
+// when zPlayer happens to be 0.
 //
-// Segment 0 is excluded (its near edge can sit right at/behind the camera
-// plane and projects unreliably), so any opponent within one segment of the
-// camera — whether just ahead or just passed — is clamped to segment 1's
-// well-behaved projection. That reads as "very close, large, at the bottom
-// of the screen" either way, which is the same thing a player actually sees
-// during a pass. `rearVisibleWorld` controls how long a just-passed
-// opponent lingers there (fading out) before it's dropped from view — this
-// engine has no rear-view mirror, so that brief glimpse is the whole of
-// "visible behind the player."
-export function getOpponentRenderSlot(o, g, frameSlots, trackLength) {
+// Ahead (delta >= 0): interpolate the raw world x/y already captured in
+// frameSlots (s1wx/s1wy, alongside their existing projected sx/sy — see
+// RaceTrack.jsx's render loop) at the opponent's real position, then
+// project that through the shifted z ourselves. Behind (delta < 0): no
+// frameSlot data exists for negative offsets, so fall back to a direct
+// seg() lookup, same as before — the lateral (x) term skips curve
+// accumulation here since it's only ever a short distance behind camera,
+// where curve drift is negligible.
+export function getOpponentScreenPlacement(o, g, frameSlots, trackLength, canvasWidth, canvasHeight, zPlayer, camY, chassisWidth) {
   const delta = wrapDelta(o.pos, g.pos, trackLength)
-  const maxSlotIndex = frameSlots.length - 2
-  if (delta < -OPPONENTS.rearVisibleWorld || delta >= maxSlotIndex * ROAD.segmentLength) return null
+  const z = delta + zPlayer
+  const nearPlane = OPPONENTS.cameraNearPlane
+  if (z <= nearPlane) return null
 
-  const nClamped = clamp(delta / ROAD.segmentLength, 1, maxSlotIndex)
-  const n0 = Math.floor(nClamped)
-  const frac = nClamped - n0
-  const slotA = frameSlots[n0]
-  const slotB = frameSlots[n0 + 1]
+  const carWidth = chassisWidth * zPlayer / z
+  const scale = ROAD.cameraDepth / z
 
-  const sw = slotA.s1w + (slotB.s1w - slotA.s1w) * frac
-  const sx = slotA.s1x + (slotB.s1x - slotA.s1x) * frac + sw * o.x
-  const sy = slotA.s1y + (slotB.s1y - slotA.s1y) * frac
-  const clip = Math.min(slotA.clip, slotB.clip)
-  const alpha = delta < 0 ? clamp(1 + delta / OPPONENTS.rearVisibleWorld, 0, 1) : 1
+  if (delta >= 0) {
+    const remainder = ((g.pos % ROAD.segmentLength) + ROAD.segmentLength) % ROAD.segmentLength
+    const maxSlotIndex = frameSlots.length - 2
+    const nFloat = (delta + remainder) / ROAD.segmentLength
+    if (nFloat >= maxSlotIndex + 1) return null
 
-  return { n0, sx, sy, sw, clip, alpha }
+    const n0 = Math.floor(nFloat)
+    const frac = nFloat - n0
+    const slotA = frameSlots[n0]
+    const slotB = frameSlots[n0 + 1]
+
+    const oppWx = slotA.s1wx + (slotB.s1wx - slotA.s1wx) * frac
+    const oppWy = slotA.s1wy + (slotB.s1wy - slotA.s1wy) * frac
+    const camX = g.playerX * ROAD.roadWidth
+
+    const sw = scale * ROAD.roadWidth * (canvasWidth / 2)
+    const sx = canvasWidth / 2 + scale * (oppWx - camX) * (canvasWidth / 2) + sw * o.x
+    const sy = canvasHeight / 2 - scale * (oppWy - camY) * (canvasHeight / 2)
+
+    return {
+      n0,
+      sx,
+      sy,
+      carWidth,
+      clip: slotA.clip,
+      cameraZ: z,
+      delta,
+      drawBeforePlayer: delta > 0,
+    }
+  }
+
+  const oppSegIndex = Math.floor(o.pos / ROAD.segmentLength)
+  const oppProgress = (o.pos % ROAD.segmentLength) / ROAD.segmentLength
+  const oppRoadY = seg(oppSegIndex).y + (seg(oppSegIndex + 1).y - seg(oppSegIndex).y) * oppProgress
+  const relY = oppRoadY - camY
+  const sy = canvasHeight / 2 - scale * relY * (canvasHeight / 2)
+  const sx = canvasWidth / 2 + scale * ROAD.roadWidth * (o.x - g.playerX) * (canvasWidth / 2)
+
+  return {
+    n0: 0,
+    sx,
+    sy,
+    carWidth,
+    clip: canvasHeight,
+    cameraZ: z,
+    delta,
+    drawBeforePlayer: false,
+  }
 }

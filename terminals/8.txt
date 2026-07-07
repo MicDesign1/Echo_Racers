@@ -1,0 +1,12 @@
+---
+pid: 25364
+cwd: "E:\KID GAME\Echo_Racers"
+command: "cd \"E:\\KID GAME\\Echo_Racers\" && node scripts/verify-opponents-render.mjs"
+started_at: 2026-07-07T16:00:31.382Z
+running_for_ms: 2485023  
+---
+Using dev server at http://localhost:5173/race?verify=1
+FAIL page.evaluate: ReferenceError: FLAT_POS is not defined
+    at eval (eval at evaluate (:303:30), <anonymous>:4:18)
+    at UtilityScript.evaluate (<anonymous>:305:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)

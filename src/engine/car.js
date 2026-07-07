@@ -1,5 +1,37 @@
 import { CAR } from '../data/tuning.js'
 
+// The player's chassis width and its true ground-contact screen row (the
+// hull/fin bottom edge, not the rotation pivot) — the one anchor every
+// opponent placement is measured against (see opponents.js
+// computePlayerDepth) so the player's own fixed-screen sprite and every
+// projected rival agree on where "on the ground" is.
+export function getPlayerAnchor(width, height) {
+  const chassisWidth = Math.min(width * CAR.widthFraction, CAR.maxWidthPx)
+  const carHeight = chassisWidth * CAR.heightFraction
+  const pivotY = height - carHeight * CAR.groundYFraction
+  const groundY = pivotY + carHeight * CAR.chassisBottomFraction
+  return { groundY, chassisWidth }
+}
+
+// A soft, low-alpha ellipse at a vehicle's ground-contact point — just
+// enough to read as contact with the road, not a cast shadow at night.
+// Shared by the player and every opponent; drawn flat (unrotated) so it
+// doesn't bank with the chassis above it.
+function drawGroundShadow(ctx, sx, sy, carWidth) {
+  const rx = carWidth * CAR.shadow.widthFraction
+  if (rx < 1) return
+  const ry = rx * CAR.shadow.heightFraction
+  const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, rx)
+  glow.addColorStop(0, `rgba(0, 0, 0, ${CAR.shadow.alpha})`)
+  glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  ctx.save()
+  ctx.fillStyle = glow
+  ctx.beginPath()
+  ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+}
+
 // Placeholder vector-drawn chassis. This is the seam for real art: once
 // sprite frames exist (4 per side, for the lean/drift angle), replace this
 // function's body with a frame lookup keyed on `driftAngle`/`steer` and
@@ -7,10 +39,12 @@ import { CAR } from '../data/tuning.js'
 // everything a sprite-based version would need and shouldn't need to change.
 export function drawCar(ctx, width, height, state, colors) {
   const { steer, driftAngle, speedPercent, boosting, time } = state
-  const carWidth = Math.min(width * CAR.widthFraction, CAR.maxWidthPx)
+  const { groundY, chassisWidth: carWidth } = getPlayerAnchor(width, height)
   const carHeight = carWidth * CAR.heightFraction
   const cx = width / 2
-  const cy = height - carHeight * CAR.groundYFraction
+  const cy = groundY - carHeight * CAR.chassisBottomFraction
+
+  drawGroundShadow(ctx, cx, groundY, carWidth)
 
   ctx.save()
   ctx.translate(cx, cy)
@@ -74,17 +108,18 @@ export function drawChassis(ctx, carWidth, carHeight, time, palette) {
   ctx.roundRect(-carWidth * 0.42, -carHeight * 0.28, carWidth * 0.84, carHeight * 0.62, carHeight * 0.24)
   ctx.fill()
 
+  const finY = carHeight * CAR.chassisBottomFraction
   ctx.fillStyle = palette.fin
   ctx.beginPath()
   ctx.moveTo(-carWidth * 0.42, carHeight * 0.1)
-  ctx.lineTo(-carWidth * 0.58, carHeight * 0.34)
-  ctx.lineTo(-carWidth * 0.40, carHeight * 0.34)
+  ctx.lineTo(-carWidth * 0.58, finY)
+  ctx.lineTo(-carWidth * 0.40, finY)
   ctx.closePath()
   ctx.fill()
   ctx.beginPath()
   ctx.moveTo(carWidth * 0.42, carHeight * 0.1)
-  ctx.lineTo(carWidth * 0.58, carHeight * 0.34)
-  ctx.lineTo(carWidth * 0.40, carHeight * 0.34)
+  ctx.lineTo(carWidth * 0.58, finY)
+  ctx.lineTo(carWidth * 0.40, finY)
   ctx.closePath()
   ctx.fill()
 
@@ -122,16 +157,19 @@ export function drawChassis(ctx, carWidth, carHeight, time, palette) {
 // roadside sprites use (sx/sy = ground contact point, sw = projected road
 // half-width at that depth) rather than the player's fixed screen-center
 // placement. `lean` is a steer-like -1..1 value for a bit of banking motion.
-export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth, alpha) {
+export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth) {
   const carHeight = carWidth * CAR.heightFraction
   if (carWidth < 2 || sy - carHeight > clipY || sy < 0) return
 
   ctx.save()
   ctx.beginPath()
-  ctx.rect(0, 0, canvasWidth, clipY)
+  ctx.rect(0, 0, canvasWidth, clipY + CAR.groundClipEpsilonPx)
   ctx.clip()
-  ctx.globalAlpha = alpha
-  ctx.translate(sx, sy)
+
+  drawGroundShadow(ctx, sx, sy, carWidth)
+
+  const pivotY = sy - carHeight * CAR.chassisBottomFraction
+  ctx.translate(sx, pivotY)
   ctx.rotate(lean * CAR.steerRotationFactor)
   drawChassis(ctx, carWidth, carHeight, time, palette)
   ctx.restore()

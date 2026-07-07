@@ -1,0 +1,794 @@
+{
+  "versionMarker": {
+    "consoleLogs": [
+      "[Echo Racers] opponents.js diag-2026-07-07a",
+      "[Echo Racers] opponents.js diag-2026-07-07a"
+    ],
+    "versionOk": true,
+    "hookOk": true
+  },
+  "scenarios": [
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-far.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 82.02586329022785,
+            "sy": 401.4499142501429,
+            "clip": 399.7903225806451,
+            "n0": 30,
+            "bucketN": 30,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 132.2997795003675,
+            "roadS1y": 401.4499142501429,
+            "roadClip": 401.45
+          }
+        ]
+      },
+      "phase": "far",
+      "playerPos": 6000,
+      "delta": 6000
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-far.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 40000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 82.02586329022785,
+            "sy": 248.99794631293653,
+            "clip": 248.49633238867136,
+            "n0": 30,
+            "bucketN": 30,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 132.2997795003675,
+            "roadS1y": 248.99794631293653,
+            "roadClip": 248.99777797618037
+          }
+        ]
+      },
+      "phase": "far",
+      "playerPos": 40000,
+      "delta": 6000
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-mid.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 130,
+            "sy": 504.3492282538587,
+            "clip": 490.3181818181818,
+            "n0": 10,
+            "bucketN": 10,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 396.89801550992246,
+            "roadS1y": 504.3492282538587,
+            "roadClip": 504.35
+          }
+        ]
+      },
+      "phase": "mid",
+      "playerPos": 6000,
+      "delta": 2000
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-mid.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 40000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 130,
+            "sy": 359.3736992819293,
+            "clip": 343.55482524975804,
+            "n0": 10,
+            "bucketN": 10,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 396.89801550992246,
+            "roadS1y": 359.3736992819293,
+            "roadClip": 359.37374615042575
+          }
+        ]
+      },
+      "phase": "mid",
+      "playerPos": 40000,
+      "delta": 2000
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-near.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 130,
+            "sy": 695.1850883113962,
+            "clip": 700,
+            "n0": 4,
+            "bucketN": 4,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 1984.4751940600743,
+            "roadS1y": 735.8701766227922,
+            "roadClip": 700
+          }
+        ]
+      },
+      "phase": "near",
+      "playerPos": 6000,
+      "delta": 400
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-near.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 40000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 130,
+            "sy": 708.7433071796722,
+            "clip": 700,
+            "n0": 3,
+            "bucketN": 3,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 1984.466925551241,
+            "roadS1y": 735.8649607695083,
+            "roadClip": 700
+          }
+        ]
+      },
+      "phase": "near",
+      "playerPos": 40000,
+      "delta": 400
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-alongside.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 130,
+            "sy": 657.5513816233547,
+            "clip": 700,
+            "n0": 4,
+            "bucketN": 4,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 26459.669254134325,
+            "roadS1y": 735.8701766227922,
+            "roadClip": 700
+          }
+        ]
+      },
+      "phase": "alongside",
+      "playerPos": 6000,
+      "delta": 30
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-alongside.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 40000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 130,
+            "sy": 658.5682480384754,
+            "clip": 700,
+            "n0": 3,
+            "bucketN": 3,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 26459.559007349882,
+            "roadS1y": 735.8649607695083,
+            "roadClip": 700
+          }
+        ]
+      },
+      "phase": "alongside",
+      "playerPos": 40000,
+      "delta": 30
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-just-passed.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 130,
+            "sy": 654.5,
+            "clip": 700,
+            "n0": 4,
+            "bucketN": 4,
+            "alpha": 0.84,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 992.2375970300371,
+            "roadS1y": 735.8701766227922,
+            "roadClip": 700
+          }
+        ]
+      },
+      "phase": "just-passed",
+      "playerPos": 6000,
+      "delta": -80
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-just-passed.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 40000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 130,
+            "sy": 654.5,
+            "clip": 700,
+            "n0": 3,
+            "bucketN": 3,
+            "alpha": 0.84,
+            "drawStatus": "DRAW:OK",
+            "sx": 450,
+            "sw": 1322.977950367494,
+            "roadS1y": 735.8649607695083,
+            "roadClip": 700
+          }
+        ]
+      },
+      "phase": "just-passed",
+      "playerPos": 40000,
+      "delta": -80
+    }
+  ],
+  "drives": [
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-drive-0.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 13.259114110299947,
+            "sy": 340.3518259782418,
+            "clip": 340.00131998661465,
+            "n0": 185,
+            "bucketN": 185,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 297.2487650665971,
+            "sw": 21.385667919838625,
+            "roadS1y": 340.8621646318474,
+            "roadClip": 340.8621621621622
+          },
+          {
+            "rivalIndex": 2,
+            "carWidth": 48.08983314488072,
+            "sy": 380.1638738363947,
+            "clip": 379.6826923076923,
+            "n0": 51,
+            "bucketN": 51,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 473.85526535178417,
+            "sw": 77.56424700787213,
+            "roadS1y": 380.26467621110174,
+            "roadClip": 380.2647058823529
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 49.57586696466927,
+            "sy": 381.09597390257034,
+            "clip": 380.87,
+            "n0": 49,
+            "bucketN": 49,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 458.14782812222415,
+            "sw": 79.96107574946656,
+            "roadS1y": 381.49996785717565,
+            "roadClip": 381.5
+          }
+        ]
+      },
+      "t": 692
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-drive-1.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 11.574600072677123,
+            "sy": 326.9617065173939,
+            "clip": 326.9590372948836,
+            "n0": 212,
+            "bucketN": 212,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 272.8446544065827,
+            "sw": 18.66870979464052,
+            "roadS1y": 326.95904272907165,
+            "roadClip": 326.9590372948836
+          },
+          {
+            "rivalIndex": 2,
+            "carWidth": 28.76234202128806,
+            "sy": 368.04089553306596,
+            "clip": 367.94767441860466,
+            "n0": 85,
+            "bucketN": 85,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 459.43373692925815,
+            "sw": 46.39087422788397,
+            "roadS1y": 368.15881284775713,
+            "roadClip": 368.15882352941173
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 30.043850433103167,
+            "sy": 368.8447090530217,
+            "clip": 368.8231707317073,
+            "n0": 81,
+            "bucketN": 81,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 449.70856476700277,
+            "sw": 48.45782327919866,
+            "roadS1y": 369.0555437928742,
+            "roadClip": 369.05555555555554
+          }
+        ]
+      },
+      "t": 1392
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-drive-2.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 2,
+            "carWidth": 21.66788643363307,
+            "sy": 363.590968193139,
+            "clip": 363.5394736842105,
+            "n0": 113,
+            "bucketN": 113,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 423.64364492870743,
+            "sw": 34.94820392521463,
+            "roadS1y": 363.6592859914664,
+            "roadClip": 363.6592920353982
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 22.822703452229533,
+            "sy": 364.3153157854486,
+            "clip": 364.2916666666667,
+            "n0": 107,
+            "bucketN": 107,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 417.87197238025766,
+            "sw": 36.810812019725056,
+            "roadS1y": 364.4252269040996,
+            "roadClip": 364.4252336448598
+          }
+        ]
+      },
+      "t": 2065
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-drive-3.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 2,
+            "carWidth": 17.926087462107226,
+            "sy": 361.2439616697805,
+            "clip": 361.1847826086956,
+            "n0": 137,
+            "bucketN": 137,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 384.95270392282237,
+            "sw": 28.913044293721335,
+            "roadS1y": 361.26641924583237,
+            "roadClip": 361.2664233576642
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 18.933201818114917,
+            "sy": 361.875664222832,
+            "clip": 361.87307692307695,
+            "n0": 129,
+            "bucketN": 129,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 380.2490599455986,
+            "sw": 30.537422287282123,
+            "roadS1y": 361.9651116414296,
+            "roadClip": 361.9651162790698
+          }
+        ]
+      },
+      "t": 2729
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-drive-4.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 2,
+            "carWidth": 15.000124136101435,
+            "sy": 357.2351304382878,
+            "clip": 356.72864336872044,
+            "n0": 164,
+            "bucketN": 164,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 345.32936716517526,
+            "sw": 24.19374860661522,
+            "roadS1y": 357.2622849762862,
+            "roadClip": 357.26228719039744
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 16.00733110903559,
+            "sy": 360.04044065978934,
+            "clip": 360.02272727272725,
+            "n0": 153,
+            "bucketN": 153,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 340.5053607109808,
+            "sw": 25.81827598231547,
+            "roadS1y": 360.0882319973098,
+            "roadClip": 360.0882352941176
+          }
+        ]
+      },
+      "t": 3391
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\flat-drive-5.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 6000,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 2,
+            "carWidth": 12.573937496033652,
+            "sy": 332.57967945270445,
+            "clip": 332.38845592225204,
+            "n0": 195,
+            "bucketN": 195,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 310.6590925588979,
+            "sw": 20.280544348441374,
+            "roadS1y": 333.03846588757284,
+            "roadClip": 333.03846153846155
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 13.500051254499677,
+            "sy": 343.24405872708854,
+            "clip": 342.6095357934841,
+            "n0": 182,
+            "bucketN": 182,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 305.8213165866714,
+            "sw": 21.774276216934965,
+            "roadS1y": 343.4912603592148,
+            "roadClip": 343.4912585710995
+          }
+        ]
+      },
+      "t": 4082
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-drive-0.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 38500,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 14.399678381843897,
+            "sy": 332.50223788011914,
+            "clip": 249.76139470462618,
+            "n0": 171,
+            "bucketN": 171,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 646.6197344535516,
+            "sw": 23.225287712651447,
+            "roadS1y": 331.9338875404177,
+            "roadClip": 249.76139470462618
+          },
+          {
+            "rivalIndex": 2,
+            "carWidth": 35.45132052218918,
+            "sy": 279.7478622188475,
+            "clip": 249.76139470462618,
+            "n0": 69,
+            "bucketN": 69,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 487.26419037539364,
+            "sw": 57.17954922933738,
+            "roadS1y": 279.1095700868232,
+            "roadClip": 249.76139470462618
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 45.78975145255225,
+            "sy": 262.94263944578586,
+            "clip": 249.76139470462618,
+            "n0": 54,
+            "bucketN": 54,
+            "alpha": 1,
+            "drawStatus": "DRAW:OK",
+            "sx": 437.47230468611195,
+            "sw": 73.85443782669718,
+            "roadS1y": 262.56047532517067,
+            "roadClip": 249.76139470462618
+          }
+        ]
+      },
+      "t": 676
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-drive-1.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 38500,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 0,
+            "carWidth": 12.155132202707312,
+            "sy": 358.84367035385264,
+            "clip": 249.76139470462618,
+            "n0": 202,
+            "bucketN": 202,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 694.6723232397865,
+            "sw": 19.605051939850505,
+            "roadS1y": 358.8568399542015,
+            "roadClip": 249.76139470462618
+          },
+          {
+            "rivalIndex": 2,
+            "carWidth": 24.348095601842868,
+            "sy": 290.64003460259676,
+            "clip": 249.76139470462618,
+            "n0": 101,
+            "bucketN": 101,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 513.2286109327431,
+            "sw": 39.27112193845624,
+            "roadS1y": 290.5350740874575,
+            "roadClip": 249.76139470462618
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 28.71452940789661,
+            "sy": 287.1927253542193,
+            "clip": 249.76139470462618,
+            "n0": 86,
+            "bucketN": 86,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 456.9087991723032,
+            "sw": 46.31375710951066,
+            "roadS1y": 287.13477053642754,
+            "roadClip": 249.76139470462618
+          }
+        ]
+      },
+      "t": 1359
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-drive-2.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 38500,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 2,
+            "carWidth": 19.39309100264834,
+            "sy": 295.94635523977604,
+            "clip": 249.76139470462618,
+            "n0": 127,
+            "bucketN": 127,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 574.3467460345449,
+            "sw": 31.27917903652958,
+            "roadS1y": 295.8450244428044,
+            "roadClip": 249.76139470462618
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 22.05224055876184,
+            "sy": 292.5695916247366,
+            "clip": 249.76139470462618,
+            "n0": 112,
+            "bucketN": 112,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 515.5265524460619,
+            "sw": 35.568129933486844,
+            "roadS1y": 292.5524821514406,
+            "roadClip": 249.76139470462618
+          }
+        ]
+      },
+      "t": 2022
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-drive-3.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 38500,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 2,
+            "carWidth": 16.161705928002025,
+            "sy": 307.54017595222575,
+            "clip": 249.76139470462618,
+            "n0": 152,
+            "bucketN": 152,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 633.8954182622981,
+            "sw": 26.06726762580972,
+            "roadS1y": 306.7746589765168,
+            "roadClip": 249.76139470462618
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 18.39405777166732,
+            "sy": 297.861752891648,
+            "clip": 249.76139470462618,
+            "n0": 134,
+            "bucketN": 134,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 580.9243536483116,
+            "sw": 29.66783511559245,
+            "roadS1y": 297.77721043687126,
+            "roadClip": 249.76139470462618
+          }
+        ]
+      },
+      "t": 2706
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-drive-4.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 38500,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 2,
+            "carWidth": 13.426501671679885,
+            "sy": 348.57488726724847,
+            "clip": 249.76139470462618,
+            "n0": 183,
+            "bucketN": 183,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 686.5558829509691,
+            "sw": 21.655647857548203,
+            "roadS1y": 347.7298496375532,
+            "roadClip": 249.76139470462618
+          },
+          {
+            "rivalIndex": 1,
+            "carWidth": 15.404627826157158,
+            "sy": 316.50792265508716,
+            "clip": 249.76139470462618,
+            "n0": 160,
+            "bucketN": 160,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 642.0471940358261,
+            "sw": 24.846173913156708,
+            "roadS1y": 316.1780326765801,
+            "roadClip": 249.76139470462618
+          }
+        ]
+      },
+      "t": 3391
+    },
+    {
+      "file": "E:\\KID GAME\\Echo_Racers\\scripts\\diag-screenshots\\hill-drive-5.png",
+      "snap": {
+        "version": "diag-2026-07-07a",
+        "playerPos": 38500,
+        "canvasH": 700,
+        "opponents": [
+          {
+            "rivalIndex": 1,
+            "carWidth": 12.89502657211839,
+            "sy": 355.19743075222874,
+            "clip": 249.76139470462618,
+            "n0": 191,
+            "bucketN": 191,
+            "alpha": 1,
+            "drawStatus": "DRAW:SKIP cull",
+            "sx": 691.9827861369097,
+            "sw": 20.79842995502966,
+            "roadS1y": 354.9788038929095,
+            "roadClip": 249.76139470462618
+          }
+        ]
+      },
+      "t": 4060
+    }
+  ]
+}

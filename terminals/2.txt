@@ -1,0 +1,31 @@
+---
+pid: 22940
+cwd: "E:\KID GAME\Echo_Racers"
+command: "cd \"E:\\KID GAME\\Echo_Racers\" && node -e \"
+import { chromium } from 'playwright'
+const browser = await chromium.launch()
+const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
+await page.goto('http://localhost:5173/race', { waitUntil: 'networkidle' })
+await page.evaluate(() => {
+  window.__ECHO_RACE_DEBUG__.setScenario({ playerPos: 6000, rivals: [{ rivalIndex: 0, delta: 400, x: 0 }] })
+})
+try {
+  await page.waitForFunction(() => window.__ECHO_RACE_DEBUG__?.getSnapshot?.()?.playerPos === 6000, { timeout: 5000 })
+  console.log('snapshot updated OK')
+} catch (e) {
+  console.log('snapshot NEVER updated', await page.evaluate(() => window.__ECHO_RACE_DEBUG__.getSnapshot()))
+}
+const snap = await page.evaluate(() => window.__ECHO_RACE_DEBUG__.getSnapshot())
+console.log(JSON.stringify(snap, null, 2))
+await page.locator('canvas').screenshot({ path: 'scripts/diag-screenshots/debug-test.png' })
+await browser.close()
+\""
+started_at: 2026-07-07T15:05:15.667Z
+running_for_ms: 5805004  
+---
+snapshot NEVER updated { version: 'diag-2026-07-07a', playerPos: 0, opponents: [] }
+{
+  "version": "diag-2026-07-07a",
+  "playerPos": 0,
+  "opponents": []
+}

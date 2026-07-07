@@ -1,0 +1,9 @@
+---
+pid: 30932
+cwd: "E:\KID GAME\Echo_Racers"
+command: "cd \"E:\\KID GAME\\Echo_Racers\" && node scripts/verify-opponents-render.mjs"
+started_at: 2026-07-07T16:33:11.594Z
+running_for_ms: 525003   
+---
+Using dev server at http://localhost:5173/race?verify=1
+FAIL dynamic flicker: only 0/120 frames had rival within near field

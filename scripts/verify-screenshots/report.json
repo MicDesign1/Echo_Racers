@@ -1,0 +1,1638 @@
+{
+  "port": "5173",
+  "zPlayer": 981.995164779234,
+  "nearPlane": 100,
+  "segmentLength": 200,
+  "flatRows": [
+    {
+      "label": "flat",
+      "delta": 6000,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 6000,
+          "cameraZ": 6981.995164779234,
+          "sx": 512.5308367731883,
+          "carWidth": 27.848063202208795,
+          "sy": 394.2137229709412,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 14
+    },
+    {
+      "label": "flat",
+      "delta": 4000,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 4000,
+          "cameraZ": 4981.995164779234,
+          "sx": 537.633565581621,
+          "carWidth": 39.02754543016588,
+          "sy": 411.96312717892397,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 20
+    },
+    {
+      "label": "flat",
+      "delta": 2500,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 2500,
+          "cameraZ": 3481.995164779234,
+          "sx": 575.3850104147634,
+          "carWidth": 55.840124246300014,
+          "sy": 438.6560679700347,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 28
+    },
+    {
+      "label": "flat",
+      "delta": 1500,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 1500,
+          "cameraZ": 2481.995164779234,
+          "sx": 625.902840664411,
+          "carWidth": 78.3382036296524,
+          "sy": 474.375745924331,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 40
+    },
+    {
+      "label": "flat",
+      "delta": 1000,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 1000,
+          "cameraZ": 1981.995164779234,
+          "sx": 670.278034860206,
+          "carWidth": 98.10066446249157,
+          "sy": 505.75214586075174,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 50
+    },
+    {
+      "label": "flat",
+      "delta": 700,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 700,
+          "cameraZ": 1681.995164779234,
+          "sx": 709.5667390383394,
+          "carWidth": 115.5978606227494,
+          "sy": 533.5320377038763,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 58
+    },
+    {
+      "label": "flat",
+      "delta": 500,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 500,
+          "cameraZ": 1481.995164779234,
+          "sx": 744.5961028591053,
+          "carWidth": 131.1981626169829,
+          "sy": 558.3002747488623,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 66
+    },
+    {
+      "label": "flat",
+      "delta": 350,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 350,
+          "cameraZ": 1331.995164779234,
+          "sx": 777.7714600956234,
+          "carWidth": 145.9727841118058,
+          "sy": 581.7575980474105,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 73
+    },
+    {
+      "label": "flat",
+      "delta": 200,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 200,
+          "cameraZ": 1181.995164779234,
+          "sx": 819.3669932072384,
+          "carWidth": 164.49732487916202,
+          "sy": 611.168581055623,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 83
+    },
+    {
+      "label": "flat",
+      "delta": 100,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 100,
+          "cameraZ": 1081.995164779234,
+          "sx": 853.5045758167321,
+          "carWidth": 179.7004727520756,
+          "sy": 635.3062657290025,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 90
+    },
+    {
+      "label": "flat",
+      "delta": 50,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 50,
+          "cameraZ": 1031.995164779234,
+          "sx": 873.0543077141219,
+          "carWidth": 188.4069317978657,
+          "sy": 649.1293084847326,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 95
+    },
+    {
+      "label": "flat",
+      "delta": 20,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 20,
+          "cameraZ": 1001.995164779234,
+          "sx": 885.7206654746606,
+          "carWidth": 194.04788512041122,
+          "sy": 658.0853190224873,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 98
+    },
+    {
+      "label": "flat",
+      "delta": 0,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 0,
+          "cameraZ": 981.995164779234,
+          "sx": 894.5948571428572,
+          "carWidth": 198,
+          "sy": 664.36,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "flat",
+      "delta": -20,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -20,
+          "cameraZ": 961.995164779234,
+          "sx": 903.838039924236,
+          "carWidth": 202.11644480656904,
+          "sy": 670.8955837848133,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 102
+    },
+    {
+      "label": "flat",
+      "delta": -50,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -50,
+          "cameraZ": 931.995164779234,
+          "sx": 918.4466363121285,
+          "carWidth": 208.62237270549042,
+          "sy": 681.224894362111,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 105
+    },
+    {
+      "label": "flat",
+      "delta": -80,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -80,
+          "cameraZ": 901.995164779234,
+          "sx": 934.0269848972601,
+          "carWidth": 215.56106974683937,
+          "sy": 692.2413024526081,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 108
+    },
+    {
+      "label": "flat",
+      "delta": -150,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -150,
+          "cameraZ": 831.995164779234,
+          "sx": 974.750645775504,
+          "carWidth": 233.69732284187103,
+          "sy": 721.0358101442957,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 96
+    },
+    {
+      "label": "flat",
+      "delta": -250,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -250,
+          "cameraZ": 731.995164779234,
+          "sx": 1046.4383659988703,
+          "carWidth": 265.6233975055408,
+          "sy": 771.7240971709182,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 62
+    },
+    {
+      "label": "flat",
+      "delta": -602,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -602,
+          "cameraZ": 379.99516477923396,
+          "sx": 1598.935671993737,
+          "carWidth": 511.6776755284488,
+          "sy": 1162.3787579753694,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "flat",
+      "delta": -652,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -652,
+          "cameraZ": 329.99516477923396,
+          "sx": 1773.0193851236509,
+          "carWidth": 589.2057320184219,
+          "sy": 1285.468252107632,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "flat",
+      "delta": -682,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -682,
+          "cameraZ": 299.99516477923396,
+          "sx": 1905.3234560339865,
+          "carWidth": 648.1272548821672,
+          "sy": 1379.016585074536,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "flat",
+      "delta": -712,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -712,
+          "cameraZ": 269.99516477923396,
+          "sx": 2067.0289581185098,
+          "carWidth": 720.1426839820311,
+          "sy": 1493.3538087706631,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "flat",
+      "delta": -762,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -762,
+          "cameraZ": 219.99516477923396,
+          "sx": 2434.543616847761,
+          "carWidth": 883.8150730331035,
+          "sy": 1753.2126583772044,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "flat",
+      "delta": -782,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -782,
+          "cameraZ": 199.99516477923396,
+          "sx": 2633.0027765017867,
+          "carWidth": 972.19871710857,
+          "sy": 1893.537316718435,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "flat",
+      "delta": -842,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -842,
+          "cameraZ": 139.99516477923396,
+          "sx": 3568.6077082625156,
+          "carWidth": 1388.8697008421939,
+          "sy": 2555.076157357334,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "flat",
+      "delta": -872,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -872,
+          "cameraZ": 109.99516477923396,
+          "sx": 4419.174471225702,
+          "carWidth": 1767.6689972375568,
+          "sy": 3156.4869998565573,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    }
+  ],
+  "hillRows": [
+    {
+      "label": "hill",
+      "delta": 6000,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 6000,
+          "cameraZ": 6981.995164779234,
+          "sx": 512.5308367731883,
+          "carWidth": 27.848063202208795,
+          "sy": 263.20341566548774,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 14
+    },
+    {
+      "label": "hill",
+      "delta": 4000,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 4000,
+          "cameraZ": 4981.995164779234,
+          "sx": 537.633565581621,
+          "carWidth": 39.02754543016588,
+          "sy": 286.55938755657644,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 20
+    },
+    {
+      "label": "hill",
+      "delta": 2500,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 2500,
+          "cameraZ": 3481.995164779234,
+          "sx": 575.3850104147634,
+          "carWidth": 55.840124246300014,
+          "sy": 331.54470296033185,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 28
+    },
+    {
+      "label": "hill",
+      "delta": 1500,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 1500,
+          "cameraZ": 2481.995164779234,
+          "sx": 625.902840664411,
+          "carWidth": 78.3382036296524,
+          "sy": 389.7978854205346,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 40
+    },
+    {
+      "label": "hill",
+      "delta": 1000,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 1000,
+          "cameraZ": 1981.995164779234,
+          "sx": 670.278034860206,
+          "carWidth": 98.10066446249157,
+          "sy": 438.1653684296475,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 50
+    },
+    {
+      "label": "hill",
+      "delta": 700,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 700,
+          "cameraZ": 1681.995164779234,
+          "sx": 709.5667390383394,
+          "carWidth": 115.5978606227494,
+          "sy": 479.3519464262807,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 58
+    },
+    {
+      "label": "hill",
+      "delta": 500,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 500,
+          "cameraZ": 1481.995164779234,
+          "sx": 744.5961028591053,
+          "carWidth": 131.1981626169829,
+          "sy": 515.2875156457977,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 66
+    },
+    {
+      "label": "hill",
+      "delta": 350,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 350,
+          "cameraZ": 1331.995164779234,
+          "sx": 777.7714600956234,
+          "carWidth": 145.9727841118058,
+          "sy": 548.8183453495772,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 73
+    },
+    {
+      "label": "hill",
+      "delta": 200,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 200,
+          "cameraZ": 1181.995164779234,
+          "sx": 819.3669932072384,
+          "carWidth": 164.49732487916202,
+          "sy": 590.3876247450809,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 83
+    },
+    {
+      "label": "hill",
+      "delta": 100,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 100,
+          "cameraZ": 1081.995164779234,
+          "sx": 853.5045758167321,
+          "carWidth": 179.7004727520756,
+          "sy": 623.9554803104922,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 90
+    },
+    {
+      "label": "hill",
+      "delta": 50,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 50,
+          "cameraZ": 1031.995164779234,
+          "sx": 873.0543077141219,
+          "carWidth": 188.4069317978657,
+          "sy": 643.1789439101553,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 95
+    },
+    {
+      "label": "hill",
+      "delta": 20,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 20,
+          "cameraZ": 1001.995164779234,
+          "sx": 885.7206654746606,
+          "carWidth": 194.04788512041122,
+          "sy": 655.6339109975831,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 98
+    },
+    {
+      "label": "hill",
+      "delta": 0,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 0,
+          "cameraZ": 981.995164779234,
+          "sx": 894.5948571428572,
+          "carWidth": 198,
+          "sy": 664.36,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "hill",
+      "delta": -20,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -20,
+          "cameraZ": 961.995164779234,
+          "sx": 903.838039924236,
+          "carWidth": 202.11644480656904,
+          "sy": 673.3186112490594,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 102
+    },
+    {
+      "label": "hill",
+      "delta": -50,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -50,
+          "cameraZ": 931.995164779234,
+          "sx": 918.4466363121285,
+          "carWidth": 208.62237270549042,
+          "sy": 687.4774501500053,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 105
+    },
+    {
+      "label": "hill",
+      "delta": -80,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -80,
+          "cameraZ": 901.995164779234,
+          "sx": 934.0269848972601,
+          "carWidth": 215.56106974683937,
+          "sy": 702.5781237383519,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 106
+    },
+    {
+      "label": "hill",
+      "delta": -150,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -150,
+          "cameraZ": 831.995164779234,
+          "sx": 974.750645775504,
+          "carWidth": 233.69732284187103,
+          "sy": 742.0480179377491,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 75
+    },
+    {
+      "label": "hill",
+      "delta": -250,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -250,
+          "cameraZ": 731.995164779234,
+          "sx": 1046.4383659988703,
+          "carWidth": 265.6233975055408,
+          "sy": 811.0787160554642,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 22
+    },
+    {
+      "label": "hill",
+      "delta": -602,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -602,
+          "cameraZ": 379.99516477923396,
+          "sx": 1598.935671993737,
+          "carWidth": 511.6776755284488,
+          "sy": 1336.3476168752381,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "hill",
+      "delta": -652,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -652,
+          "cameraZ": 329.99516477923396,
+          "sx": 1773.0193851236509,
+          "carWidth": 589.2057320184219,
+          "sy": 1500.3268791965786,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "hill",
+      "delta": -682,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -682,
+          "cameraZ": 299.99516477923396,
+          "sx": 1905.3234560339865,
+          "carWidth": 648.1272548821672,
+          "sy": 1624.951541434778,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "hill",
+      "delta": -712,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -712,
+          "cameraZ": 269.99516477923396,
+          "sx": 2067.0289581185098,
+          "carWidth": 720.1426839820311,
+          "sy": 1777.2710690251258,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "hill",
+      "delta": -762,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -762,
+          "cameraZ": 219.99516477923396,
+          "sx": 2434.543616847761,
+          "carWidth": 883.8150730331035,
+          "sy": 2123.453842514842,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "hill",
+      "delta": -782,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -782,
+          "cameraZ": 199.99516477923396,
+          "sx": 2633.0027765017867,
+          "carWidth": 972.19871710857,
+          "sy": 2310.3937119367115,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "hill",
+      "delta": -842,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -842,
+          "cameraZ": 139.99516477923396,
+          "sx": 3568.6077082625156,
+          "carWidth": 1388.8697008421939,
+          "sy": 3189.4624238975675,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    },
+    {
+      "label": "hill",
+      "delta": -872,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -872,
+          "cameraZ": 109.99516477923396,
+          "sx": 4419.174471225702,
+          "carWidth": 1767.6689972375568,
+          "sy": 3988.023333973236,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 1
+    }
+  ],
+  "flatSeam": [
+    {
+      "label": "flat",
+      "delta": -3,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -3,
+          "cameraZ": 978.995164779234,
+          "sx": 895.9572587352382,
+          "carWidth": 198.60674456970779,
+          "sy": 665.3233142572391,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 100
+    },
+    {
+      "label": "flat",
+      "delta": -2,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -2,
+          "cameraZ": 979.995164779234,
+          "sx": 895.5021980627341,
+          "carWidth": 198.40408362636074,
+          "sy": 665.0015541857715,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 100
+    },
+    {
+      "label": "flat",
+      "delta": -1,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -1,
+          "cameraZ": 980.995164779234,
+          "sx": 895.0480651433705,
+          "carWidth": 198.20183585720787,
+          "sy": 664.680450101373,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 100
+    },
+    {
+      "label": "flat",
+      "delta": -0.5,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -0.5,
+          "cameraZ": 981.495164779234,
+          "sx": 894.8213457049494,
+          "carWidth": 198.10086651830042,
+          "sy": 664.520143427742,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 100
+    },
+    {
+      "label": "flat",
+      "delta": 0,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 0,
+          "cameraZ": 981.995164779234,
+          "sx": 894.5948571428572,
+          "carWidth": 198,
+          "sy": 664.36,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "flat",
+      "delta": 0.5,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 0.5,
+          "cameraZ": 982.495164779234,
+          "sx": 894.3685991046088,
+          "carWidth": 197.89923614532773,
+          "sy": 664.2000195689153,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "flat",
+      "delta": 1,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 1,
+          "cameraZ": 982.995164779234,
+          "sx": 894.142571238437,
+          "carWidth": 197.79857479762427,
+          "sy": 664.0402018857635,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "flat",
+      "delta": 2,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 2,
+          "cameraZ": 983.995164779234,
+          "sx": 893.6912046188274,
+          "carWidth": 197.59755899807814,
+          "sy": 663.7210537708881,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "flat",
+      "delta": 3,
+      "playerPos": 6000,
+      "metrics": {
+        "playerPos": 6000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 3,
+          "cameraZ": 984.995164779234,
+          "sx": 893.2407544841628,
+          "carWidth": 197.3969513544433,
+          "sy": 663.4025536756708,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 99
+    }
+  ],
+  "hillSeam": [
+    {
+      "label": "hill",
+      "delta": -3,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -3,
+          "cameraZ": 978.995164779234,
+          "sx": 895.9572587352382,
+          "carWidth": 198.60674456970779,
+          "sy": 665.6804570892864,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 100
+    },
+    {
+      "label": "hill",
+      "delta": -2,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -2,
+          "cameraZ": 979.995164779234,
+          "sx": 895.5021980627341,
+          "carWidth": 198.40408362636074,
+          "sy": 665.2394064516302,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 100
+    },
+    {
+      "label": "hill",
+      "delta": -1,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -1,
+          "cameraZ": 980.995164779234,
+          "sx": 895.0480651433705,
+          "carWidth": 198.20183585720787,
+          "sy": 664.7992550042115,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 100
+    },
+    {
+      "label": "hill",
+      "delta": -0.5,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": -0.5,
+          "cameraZ": 981.495164779234,
+          "sx": 894.8213457049494,
+          "carWidth": 198.10086651830042,
+          "sy": 664.579515617957,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 100
+    },
+    {
+      "label": "hill",
+      "delta": 0,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 0,
+          "cameraZ": 981.995164779234,
+          "sx": 894.5948571428572,
+          "carWidth": 198,
+          "sy": 664.36,
+          "drawBeforePlayer": false
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "hill",
+      "delta": 0.5,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 0.5,
+          "cameraZ": 982.495164779234,
+          "sx": 894.3685991046088,
+          "carWidth": 197.89923614532773,
+          "sy": 664.1375180148134,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "hill",
+      "delta": 1,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 1,
+          "cameraZ": 982.995164779234,
+          "sx": 894.142571238437,
+          "carWidth": 197.79857479762427,
+          "sy": 663.9152623603281,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "hill",
+      "delta": 2,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 2,
+          "cameraZ": 983.995164779234,
+          "sx": 893.6912046188274,
+          "carWidth": 197.59755899807814,
+          "sy": 663.4714286633902,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 99
+    },
+    {
+      "label": "hill",
+      "delta": 3,
+      "playerPos": 40000,
+      "metrics": {
+        "playerPos": 40000,
+        "canvasH": 700,
+        "playerWidth": 198,
+        "playerGroundY": 664.36,
+        "nearPlane": 100,
+        "zPlayer": 981.995164779234,
+        "segmentLength": 200,
+        "rival": {
+          "delta": 3,
+          "cameraZ": 984.995164779234,
+          "sx": 893.2407544841628,
+          "carWidth": 197.3969513544433,
+          "sy": 663.0284961560474,
+          "drawBeforePlayer": true
+        }
+      },
+      "visPx": 99
+    }
+  ],
+  "flatAlignDiff": 0,
+  "hillAlignDiff": 0,
+  "dynamic": {
+    "frames": 120
+  },
+  "shimmer": {
+    "frames": 120,
+    "visibleCount": 48
+  },
+  "natural": {
+    "bump": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-bump.png",
+    "catching": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-catching.png",
+    "passed": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-passed.png"
+  }
+}

@@ -5,11 +5,13 @@ import { project, renderRoadSegment, renderLaneStripe } from '../engine/projecti
 import { drawParallax } from '../engine/background.js'
 import { drawRoadsideSprite } from '../engine/roadside.js'
 import { drawCar, drawOpponentCar } from '../engine/car.js'
-import { createOpponents, updateOpponents, getOpponentRenderSlot } from '../engine/opponents.js'
+import { createOpponents, updateOpponents, getOpponentScreenPlacement, computePlayerDepth } from '../engine/opponents.js'
 import { drawHud, formatTime } from '../engine/hud.js'
 import { COLORS, OPPONENT_PALETTES, linearGradient } from '../engine/colors.js'
 import { getBestTimes, recordLapResult } from '../data/saves.js'
 import './RaceTrack.css'
+
+const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('verify')
 
 export default function RaceTrack() {
   const canvasRef = useRef(null)
@@ -18,6 +20,7 @@ export default function RaceTrack() {
   const touchRightRef = useRef(null)
   const keysRef = useRef({ up: false, down: false, left: false, right: false, drift: false })
   const bannerTimeoutRef = useRef(null)
+  const verifyMetricsRef = useRef(null)
   const [banner, setBanner] = useState(null)
   const gameRef = useRef({
     pos: 0,
@@ -45,10 +48,6 @@ export default function RaceTrack() {
       bannerTimeoutRef.current = setTimeout(() => setBanner(null), RESULTS.bannerDurationMs)
     }
 
-    // Game math runs in CSS-pixel space (W/H); the canvas's internal pixel
-    // buffer is scaled up by devicePixelRatio via ctx.setTransform so the
-    // road stays crisp on high-DPI screens without touching any of the
-    // projection math below.
     let W = 0
     let H = 0
     function resize() {
@@ -83,9 +82,6 @@ export default function RaceTrack() {
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
 
-    // Touch zones set the same key flags keyboard input does, so update()
-    // doesn't need to know which input source is driving it. Drift is
-    // keyboard-only (Space/Shift) — there's no fourth touch zone for it.
     const touchTargets = [
       [touchLeftRef.current, 'left'],
       [touchAccelRef.current, 'up'],
@@ -108,15 +104,30 @@ export default function RaceTrack() {
       })
     }
 
+    function applyVerifyOverride(g) {
+      if (!verifyMode) return
+      const o = window.__ECHO_RACE_TEST_OVERRIDE__
+      if (!o) return
+      if (o.pos != null) g.pos = o.pos
+      if (o.playerX != null) g.playerX = o.playerX
+      if (o.speed != null) g.speed = o.speed
+      if (o.rivals) {
+        for (const { rivalIndex, delta, x } of o.rivals) {
+          const rival = g.opponents[rivalIndex]
+          if (!rival) continue
+          rival.pos = ((g.pos + delta) % trackLength + trackLength) % trackLength
+          if (x != null) rival.x = x
+        }
+      }
+    }
+
     function update(dt) {
       const g = gameRef.current
+      applyVerifyOverride(g)
       const keys = keysRef.current
       const spct = g.speed / RACE.maxSpeed
 
       if (keys.up) {
-        // Boost tapers from accelLowSpeedBoost at a standstill down toward
-        // (accelLowSpeedBoost - accelSpeedTaper) at top speed — takeoff
-        // feels strong without raising top-speed acceleration.
         g.speed += RACE.accel * dt * (RACE.accelLowSpeedBoost - RACE.accelSpeedTaper * spct)
       } else if (keys.down) {
         g.speed -= RACE.brakeDecel * dt
@@ -134,14 +145,10 @@ export default function RaceTrack() {
       g.steer += (steerTarget - g.steer) * Math.min(1, dt * RACE.steerEaseRate)
       g.playerX += g.steer * RACE.steerRate * dt * spct
 
-      // Curved road pulls the car toward the outside of the turn, harder at speed.
       const curve = seg(Math.floor(g.pos / ROAD.segmentLength)).curve
       g.playerX -= curve * RACE.centrifugalStrength * spct * spct * dt
       g.playerX = Math.max(-RACE.playerXMax, Math.min(RACE.playerXMax, g.playerX))
 
-      // Hold Space/Shift while turning at speed to drift: rotate into the
-      // slide, slew sideways, and scrub a little speed. Releasing while the
-      // slide angle is sharp enough earns a brief exit boost.
       const drifting = keys.drift && Math.abs(g.steer) > DRIFT.minSteer && spct > DRIFT.minSpeedPercent
       if (drifting) {
         g.driftAngle += (g.steer * DRIFT.angleTargetFactor - g.driftAngle) * Math.min(1, dt * DRIFT.angleEaseRate)
@@ -172,15 +179,15 @@ export default function RaceTrack() {
       updateOpponents(g, dt, trackLength)
     }
 
-    // Reused every frame/segment to avoid per-frame allocation.
     const P1 = { wx: 0, wy: 0, wz: 0, sx: 0, sy: 0, sw: 0, scale: 0 }
     const P2 = { wx: 0, wy: 0, wz: 0, sx: 0, sy: 0, sw: 0, scale: 0 }
     const frameSlots = Array.from({ length: ROAD.drawDistance }, () => (
-      { s1x: 0, s1y: 0, s1w: 0, s2y: 0, segIndex: 0, clip: 0 }
+      { s1x: 0, s1y: 0, s1w: 0, s2y: 0, s1wx: 0, s1wy: 0, segIndex: 0, clip: 0 }
     ))
 
     function render(width, height, time) {
       const g = gameRef.current
+      applyVerifyOverride(g)
       const baseIndex = Math.floor(g.pos / ROAD.segmentLength)
       const baseSegment = seg(baseIndex)
       const segProgress = (g.pos % ROAD.segmentLength) / ROAD.segmentLength
@@ -218,6 +225,7 @@ export default function RaceTrack() {
         const slot = frameSlots[n]
         slot.s1x = P1.sx; slot.s1y = P1.sy; slot.s1w = P1.sw
         slot.s2y = P2.sy; slot.segIndex = i; slot.clip = clip
+        slot.s1wx = P1.wx; slot.s1wy = P1.wy
 
         if (P2.sy >= P1.sy || P2.sy >= clip) continue
 
@@ -229,14 +237,14 @@ export default function RaceTrack() {
         clip = Math.min(clip, P2.sy)
       }
 
-      const opponentSlots = g.opponents.map((o) => ({ o, slot: getOpponentRenderSlot(o, g, frameSlots, trackLength) }))
+      const { groundY: playerGroundY, zPlayer, chassisWidth } = computePlayerDepth(width, height)
+      const opponentPlacements = g.opponents
+        .map((o) => ({ o, place: getOpponentScreenPlacement(o, g, frameSlots, trackLength, width, height, zPlayer, camY, chassisWidth) }))
+        .filter((entry) => entry.place)
 
-      // Sprites drawn far-to-near so closer objects paint over farther
-      // ones; each uses the hill-crest clip captured when its segment was
-      // processed, so objects behind a hill are cut off at the same plane
-      // the road itself is. Opponents are bucketed into the same pass by
-      // their clamped segment slot so they interleave with roadside
-      // sprites at similar depth instead of all painting on top.
+      const beforePlayer = opponentPlacements.filter(({ place }) => place.drawBeforePlayer)
+      const afterPlayer = opponentPlacements.filter(({ place }) => !place.drawBeforePlayer)
+
       for (let n = ROAD.drawDistance - 1; n >= 1; n--) {
         const slot = frameSlots[n]
         const s = seg(slot.segIndex)
@@ -246,10 +254,19 @@ export default function RaceTrack() {
             drawRoadsideSprite(ctx, sx, slot.s1y, slot.s1w, slot.clip, width, height, sprite, COLORS, time)
           }
         }
-        for (const { o, slot: oSlot } of opponentSlots) {
-          if (!oSlot || oSlot.n0 !== n) continue
-          const carWidth = Math.min(oSlot.sw * OPPONENTS.chassisWidthFraction, OPPONENTS.maxChassisWidthPx)
-          drawOpponentCar(ctx, oSlot.sx, oSlot.sy, carWidth, o.lean, OPPONENT_PALETTES[o.rivalIndex], time, oSlot.clip, width, oSlot.alpha)
+        for (const { o, place } of beforePlayer) {
+          if (place.n0 !== n) continue
+          drawOpponentCar(
+            ctx,
+            place.sx,
+            place.sy,
+            place.carWidth,
+            o.lean,
+            OPPONENT_PALETTES[o.rivalIndex],
+            time,
+            place.clip,
+            width,
+          )
         }
       }
 
@@ -260,6 +277,41 @@ export default function RaceTrack() {
         boosting: g.boost > 0,
         time,
       }, COLORS)
+
+      for (const { o, place } of afterPlayer.sort((a, b) => b.place.cameraZ - a.place.cameraZ)) {
+        drawOpponentCar(
+          ctx,
+          place.sx,
+          place.sy,
+          place.carWidth,
+          o.lean,
+          OPPONENT_PALETTES[o.rivalIndex],
+          time,
+          place.clip,
+          width,
+        )
+      }
+
+      if (verifyMode) {
+        const rival = opponentPlacements.find(({ o }) => o.rivalIndex === 0)
+        verifyMetricsRef.current = {
+          playerPos: g.pos,
+          canvasH: height,
+          playerWidth: chassisWidth,
+          playerGroundY,
+          nearPlane: OPPONENTS.cameraNearPlane,
+          zPlayer,
+          segmentLength: ROAD.segmentLength,
+          rival: rival ? {
+            delta: rival.place.delta,
+            cameraZ: rival.place.cameraZ,
+            sx: rival.place.sx,
+            carWidth: rival.place.carWidth,
+            sy: rival.place.sy,
+            drawBeforePlayer: rival.place.drawBeforePlayer,
+          } : null,
+        }
+      }
 
       drawHud(ctx, width, {
         speed: g.speed,
@@ -289,7 +341,24 @@ export default function RaceTrack() {
     }
     rafId = requestAnimationFrame(frame)
 
+    if (verifyMode) {
+      window.__ECHO_RACE_TEST__ = {
+        setScenario({ playerPos, playerX = 0, speed = 0, rivals }) {
+          window.__ECHO_RACE_TEST_OVERRIDE__ = { pos: playerPos, playerX, speed, rivals }
+        },
+        clearScenario() { window.__ECHO_RACE_TEST_OVERRIDE__ = null },
+        freeze() { keysRef.current = { up: false, down: false, left: false, right: false, drift: false } },
+        holdUp(on = true) { keysRef.current.up = on },
+        holdDown(on = true) { keysRef.current.down = on },
+        getMetrics: () => verifyMetricsRef.current,
+      }
+    }
+
     return () => {
+      if (verifyMode) {
+        delete window.__ECHO_RACE_TEST__
+        delete window.__ECHO_RACE_TEST_OVERRIDE__
+      }
       cancelAnimationFrame(rafId)
       window.removeEventListener('resize', resize)
       window.removeEventListener('keydown', onKeyDown)

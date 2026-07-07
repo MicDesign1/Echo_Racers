@@ -1,0 +1,9 @@
+---
+pid: 26956
+cwd: "E:\KID GAME\Echo_Racers"
+command: "cd \"E:\\KID GAME\\Echo_Racers\" && node scripts/verify-opponents-render.mjs"
+started_at: 2026-07-07T16:13:33.435Z
+running_for_ms: 1705001  
+---
+Using dev server at http://localhost:5173/race?verify=1
+FAIL dynamic flicker frame 1: cameraZ=135.6 delta=136 visPx=1

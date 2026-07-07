@@ -1,0 +1,24 @@
+---
+pid: 26184
+cwd: "E:\KID GAME\Echo_Racers"
+command: "cd \"E:\\KID GAME\\Echo_Racers\" && npm run dev"
+started_at: 2026-07-07T14:40:23.438Z
+running_for_ms: 7310011  
+---
+
+> echo-racers@0.0.0 dev
+> vite --host
+
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
+Port 5175 is in use, trying another one...
+Port 5176 is in use, trying another one...
+Port 5177 is in use, trying another one...
+Port 5178 is in use, trying another one...
+9:40:24 AM [vite] (client) Re-optimizing dependencies because vite config has changed
+
+  VITE v8.1.3  ready in 334 ms
+
+  ➜  Local:   http://localhost:5179/
+  ➜  Network: http://192.168.0.188:5179/
+  ➜  Network: http://172.26.240.1:5179/
