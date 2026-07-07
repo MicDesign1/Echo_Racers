@@ -2,69 +2,113 @@
 
 You are helping build **Animalian: Echo Racers**, a creature-powered racing game and
 sequel to Animalian Manor, set in the same universe. New repo, separate from
-animalian-manor.
+animalian-manor. Vibecoded by two kids aged 10–12 (Scarlet: character design and
+aesthetics; Gray: kinetic, mechanical gameplay) with adult supervision.
 
 ## What This Project Is
+
 The player travels through a portal to the island where the first Animalian came into
 being. An ancient civilization (the Wardens) left behind resonance technology —
 machines that only work when an Animalian is bonded to them. The creature riding in
 the vehicle IS the engine. Players race the Trial Circuits to unseal the island and
-reach Uncle Argon.
+reach Uncle Argon, who is stranded there by an ancient artefact.
 
 ## Tech Stack
+
 - **Framework:** React (Vite), plain JavaScript
 - **Rendering:** Pseudo-3D sprite-scaling racer (OutRun/Slipstream technique — road
   drawn as projected segments on HTML5 Canvas 2D). **No Three.js, no 3D engines, no
   external game libraries.**
 - **Data storage:** localStorage, namespaced per profile
-- **Hosting:** Cloudflare Pages
+- **Hosting:** Cloudflare Pages (deploy paths are CASE-SENSITIVE)
+- Local path: D:\KID GAME\project\Echo_Racers
+
+## Current Status
+
+Scaffolding only — no game implementation yet. The pseudo-3D technique and drift
+mechanic are proven in `echo_racers_reference_demo.html`. First milestone: port that
+demo into the repo structure.
+
+## Narrative Rules — CRITICAL
+
+- The **Sequel Story Bible (Sections 1–3)** is the ONLY source of narrative truth.
+  If `Animalian_Sequel_Story_Bible_S1-3.docx` is present in the repo, treat it as
+  READ-ONLY canon to consult — never edit it, never extend it.
+- NEVER invent story content, character names, item names, place names, or lore. If a
+  task needs a detail that isn't in the Bible or already in the codebase, STOP and
+  flag it in the session summary as "narrative decision needed." All narrative
+  decisions are resolved in the Claude.ai project conversation, never in Claude Code.
+- Canon from Game 1: the Masked Man escaped; six types (Ember, Tide, Thorn, Storm,
+  Phantom, Iron); legendary dual-types Genesis (Storm/Ember), Rekron (Ember/Iron —
+  spelling locked), RZ (Iron/Tide).
 
 ## Art Direction — CRITICAL
+
 Victorian naturalist meets ancient Atlantean craftsmanship. Brass, silver, verdigris
 copper, river-worn stone, warm parchment skies. Machines glow with soft warm
-"resonance light."
+"resonance light" (warm amber — never cold blue).
+
+**Vehicles are all-metal Warden hovercraft:** brushed silver, brass, verdigris copper
+accents. Stone appears only in environments, never on vehicles.
 
 **NEVER USE:** electric, neon, futuristic, chrome, sci-fi, high-tech, digital, cyber,
 hologram, laser.
 
 ## Color Palette (carried over from Game 1)
-| Name | Hex | Use |
-|------|-----|-----|
-| Cream | #FFF8E7 | Backgrounds, highlights |
-| Aged Gold | #C49A3C | Badges, accents |
-| Walnut | #5C3A1E | Headers, UI bars |
-| Brass | #8B6914 | Buttons, frames, hinges |
+
+| Name      | Hex     | Use                     |
+| --------- | ------- | ----------------------- |
+| Cream     | #FFF8E7 | Backgrounds, highlights |
+| Aged Gold | #C49A3C | Badges, accents         |
+| Walnut    | #5C3A1E | Headers, UI bars        |
+| Brass     | #8B6914 | Buttons, frames, hinges |
 
 ## Typography
+
 - **Display:** Cinzel
 - **Body:** Crimson Text / Georgia
 
 ## Creature System (carried over from Game 1)
+
 Six types: Ember, Tide, Thorn, Storm, Phantom, Iron.
+
 - Standard type advantage: 1.5x / disadvantage 0.75x
 - Phantom: 1.25x vs all / 0.75x taken from all
 - Iron: neutral (no advantage/disadvantage either way)
-- Legendary dual-types exist in this universe: Genesis, Rekron, RZ
+- Legendary dual-types exist: Genesis (Storm/Ember), Rekron (Ember/Iron), RZ (Iron/Tide)
 
 ### Card stats → racing stats
-| Card stat | Racing meaning |
-|---|---|
-| SPD | Speed / acceleration |
-| ATK | Attack power |
-| DEF | Hull toughness |
-| HP | Damage before spinout |
+
+| Card stat | Racing meaning        |
+| --------- | --------------------- |
+| SPD       | Speed / acceleration  |
+| ATK       | Attack power          |
+| DEF       | Hull toughness        |
+| HP        | Damage before spinout |
+
+## Sprite Conventions
+
+- Individual frames only, never sprite sheets
+- 512px WebP with alpha, bottom-center aligned, into `public/sprites/`
+- Vehicle frame set per craft: rear straight, slight-left, slight-right, hard-left,
+  hard-right
+- Vehicles support runtime tinting: keep resonance-glow pixels in a distinct color
+  range from hull metal so glow and hull can be recolored independently
 
 ## Tone & Safety Rails
+
 - Wholesome, never scary.
-- Damage slows racers but never eliminates them; vehicles mend after races.
-- Canonical lore lives in the **Sequel Story Bible** — never invent story content,
-  character names, or lore. If something isn't in the Bible, flag it instead of
-  inventing it. (No Sequel Story Bible file has been located in this workspace yet —
-  ask the user for it before inventing any lore.)
+- Damage slows racers but never eliminates them; vehicles mend after races. No death,
+  no explosions-as-destruction.
 
 ## Workflow Rules
-- This app is vibecoded by two kids (ages 10-12) with adult supervision.
-- All changes must be scoped and non-destructive — do not touch visual design or
-  working functionality outside the explicit scope of the request.
+
+- ONE change at a time. All changes must be scoped and non-destructive — do not touch
+  visual design or working functionality outside the explicit scope of the request.
+- End every session with a summary; wait for confirmation before the next change.
+- Verify repo state by READING actual files. Never assume.
+- Build/lint success ≠ runtime correctness — test the real scenario (run the game,
+  drive the road).
+- Use `git add -A` for commits.
 - Keep tuning constants centralized in `src/data/tuning.js` so game feel can be
-  iterated easily.
+  iterated easily. No magic numbers scattered in components.
