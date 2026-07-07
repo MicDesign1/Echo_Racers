@@ -1,4 +1,4 @@
-import { ROAD, ROADSIDE } from '../data/tuning.js'
+import { ROAD, ROADSIDE, TRACK_LAYOUT } from '../data/tuning.js'
 import { roadTone } from './colors.js'
 
 const { segmentLength } = ROAD
@@ -60,15 +60,9 @@ function buildTrack() {
     lastY = endY
   }
 
-  const CURVE = { EASY_LEFT: -2.4, HILLTOP_RIGHT: 4.6, HAIRPIN_LEFT: -3.0 }
-
-  addRoad(25, 25, 25, 0, 0) // start/finish straight
-  addRoad(30, 50, 30, CURVE.EASY_LEFT, 0) // gentle left sweeper
-  addRoad(20, 20, 20, 0, 22) // climb
-  addRoad(25, 40, 25, CURVE.HILLTOP_RIGHT, 8) // curve along the hilltop
-  addRoad(20, 20, 20, 0, -30) // descend back to base height
-  addRoad(30, 60, 30, CURVE.HAIRPIN_LEFT, 0) // sweeping hairpin
-  addRoad(20, 40, 20, 0, 0) // straight home
+  for (const { enter, hold, leave, curve, dy } of TRACK_LAYOUT) {
+    addRoad(enter, hold, leave, curve, dy)
+  }
 
   return segments
 }

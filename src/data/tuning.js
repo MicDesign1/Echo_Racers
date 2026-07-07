@@ -55,6 +55,31 @@ export const DRIFT = {
   settleEaseRate: 6, // how fast driftAngle relaxes back to 0 off-drift
 }
 
+// Named curve strengths reused across track sections; sign convention:
+// negative = left, positive = right (see track.js).
+export const CURVE = {
+  EASY_LEFT: -2.4,
+  HILLTOP_RIGHT: 4.6,
+  HAIRPIN_LEFT: -3.0,
+}
+
+// Identifies this course in localStorage best-time records. Bump/rename
+// when a genuinely different course is added so its records don't collide.
+export const TRACK_ID = 'trial-circuit-1'
+
+// The course layout: each entry is one addRoad() call in track.js — segment
+// counts for the ease-in/hold/ease-out phases, the curve strength, and the
+// elevation change (in segment-lengths) across the whole span.
+export const TRACK_LAYOUT = [
+  { enter: 25, hold: 25, leave: 25, curve: 0, dy: 0 }, // start/finish straight
+  { enter: 30, hold: 50, leave: 30, curve: CURVE.EASY_LEFT, dy: 0 }, // gentle left sweeper
+  { enter: 20, hold: 20, leave: 20, curve: 0, dy: 22 }, // climb
+  { enter: 25, hold: 40, leave: 25, curve: CURVE.HILLTOP_RIGHT, dy: 8 }, // curve along the hilltop
+  { enter: 20, hold: 20, leave: 20, curve: 0, dy: -30 }, // descend back to base height
+  { enter: 30, hold: 60, leave: 30, curve: CURVE.HAIRPIN_LEFT, dy: 0 }, // sweeping hairpin
+  { enter: 20, hold: 40, leave: 20, curve: 0, dy: 0 }, // straight home
+]
+
 // Roadside pillars/stones, placed deterministically by segment index so the
 // track is identical every run (no per-segment randomness).
 export const ROADSIDE = {
@@ -107,6 +132,9 @@ export const CAR = {
   idleSwayAmplitude: 0.004,
   idleSwayRate: 0.02, // rad/ms
   driftDustThreshold: 0.12, // |driftAngle| beyond which dust particles show
+  driftDustParticleCount: 3,
+  driftDustJitterRate: 0.03, // rad/ms
+  driftDustJitterAmplitudeFraction: 0.12, // of carWidth
   glowTrailThreshold: 0.15, // speedPercent above which the rear glow shows
   intakePulseBase: 0.7,
   intakePulseAmplitude: 0.3,
@@ -124,6 +152,10 @@ export const HUD = {
   lapLineOffsets: [{ x: 14, y: 24 }, { x: 14, y: 44 }, { x: 14, y: 64 }],
   speedDivisor1: 60,
   speedDivisor2: 2.2,
+}
+
+export const RESULTS = {
+  bannerDurationMs: 2200, // how long the post-lap banner stays on screen
 }
 
 export const CREATURE_STAT_RANGES = {

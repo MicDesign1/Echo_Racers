@@ -11,6 +11,56 @@
   height: 100%;
 }
 
+.lap-banner {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 28px;
+  border-radius: 10px;
+  background: rgba(44, 24, 16, 0.72);
+  border: 1.5px solid var(--brass);
+  color: var(--cream);
+  font-family: var(--font-display);
+  text-align: center;
+  pointer-events: none;
+  animation-name: lap-banner-fade;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+
+.lap-banner-time {
+  font-size: 1.6rem;
+}
+
+.lap-banner-best {
+  font-family: var(--font-body);
+  font-style: italic;
+  color: var(--aged-gold);
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+
+.lap-banner-record {
+  border-color: var(--resonance-glow);
+  box-shadow: 0 0 24px rgba(242, 200, 121, 0.55);
+}
+
+.lap-banner-record .lap-banner-best {
+  color: var(--resonance-glow);
+}
+
+@keyframes lap-banner-fade {
+  0% { opacity: 0; transform: translate(-50%, -8px) scale(0.92); }
+  10% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 .touch-zones {
   position: absolute;
   inset: 0;

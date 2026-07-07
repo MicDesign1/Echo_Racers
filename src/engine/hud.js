@@ -1,6 +1,6 @@
 import { HUD } from '../data/tuning.js'
 
-function formatTime(t) {
+export function formatTime(t) {
   if (t == null) return '—'
   const minutes = Math.floor(t / 60)
   const seconds = (t % 60).toFixed(2).padStart(5, '0')

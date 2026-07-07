@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react'
-import { ROAD, RACE, DRIFT, PARALLAX } from '../data/tuning.js'
+import { useEffect, useRef, useState } from 'react'
+import { ROAD, RACE, DRIFT, PARALLAX, TRACK_ID, RESULTS } from '../data/tuning.js'
 import { trackLength, seg } from '../engine/track.js'
 import { project, renderRoadSegment, renderLaneStripe } from '../engine/projection.js'
 import { drawParallax } from '../engine/background.js'
 import { drawRoadsideSprite } from '../engine/roadside.js'
 import { drawCar } from '../engine/car.js'
-import { drawHud } from '../engine/hud.js'
+import { drawHud, formatTime } from '../engine/hud.js'
 import { COLORS, linearGradient } from '../engine/colors.js'
+import { getBestTimes, recordLapResult } from '../data/saves.js'
 import './RaceTrack.css'
 
 export default function RaceTrack() {
@@ -15,6 +16,8 @@ export default function RaceTrack() {
   const touchAccelRef = useRef(null)
   const touchRightRef = useRef(null)
   const keysRef = useRef({ up: false, down: false, left: false, right: false, drift: false })
+  const bannerTimeoutRef = useRef(null)
+  const [banner, setBanner] = useState(null)
   const gameRef = useRef({
     pos: 0,
     speed: 0,
@@ -31,6 +34,14 @@ export default function RaceTrack() {
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
+
+    gameRef.current.bestLapTime = getBestTimes(TRACK_ID).bestLap
+
+    function showBanner(lapTime, bestTime, isRecord) {
+      clearTimeout(bannerTimeoutRef.current)
+      setBanner({ lapText: formatTime(lapTime), bestText: formatTime(bestTime), isRecord })
+      bannerTimeoutRef.current = setTimeout(() => setBanner(null), RESULTS.bannerDurationMs)
+    }
 
     // Game math runs in CSS-pixel space (W/H); the canvas's internal pixel
     // buffer is scaled up by devicePixelRatio via ctx.setTransform so the
@@ -150,7 +161,9 @@ export default function RaceTrack() {
       g.lapTime += dt
       if (g.pos < prevPos && g.speed > 0) {
         g.lastLapTime = g.lapTime
-        if (g.bestLapTime == null || g.lapTime < g.bestLapTime) g.bestLapTime = g.lapTime
+        const result = recordLapResult(TRACK_ID, g.lapTime)
+        g.bestLapTime = result.bestLap
+        showBanner(g.lapTime, result.bestLap, result.isNewBestLap)
         g.lapTime = 0
       }
     }
@@ -268,12 +281,24 @@ export default function RaceTrack() {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       for (const cleanup of touchCleanups) cleanup()
+      clearTimeout(bannerTimeoutRef.current)
     }
   }, [])
 
   return (
     <div className="race-track">
       <canvas ref={canvasRef} />
+      {banner && (
+        <div
+          className={`lap-banner${banner.isRecord ? ' lap-banner-record' : ''}`}
+          style={{ animationDuration: `${RESULTS.bannerDurationMs}ms` }}
+        >
+          <span className="lap-banner-time">Lap {banner.lapText}</span>
+          <span className="lap-banner-best">
+            {banner.isRecord ? 'New Best!' : `Best ${banner.bestText}`}
+          </span>
+        </div>
+      )}
       <div className="touch-zones">
         <div ref={touchLeftRef} className="touch-zone touch-left" />
         <div ref={touchAccelRef} className="touch-zone touch-accel" />

@@ -23,8 +23,8 @@ export function drawCar(ctx, width, height, state, colors) {
 
   if (Math.abs(driftAngle) > CAR.driftDustThreshold) {
     ctx.fillStyle = colors.driftDust
-    for (let d = 0; d < 3; d++) {
-      const jitter = Math.sin(time * 0.03 + d * 2.1) * carWidth * 0.12
+    for (let d = 0; d < CAR.driftDustParticleCount; d++) {
+      const jitter = Math.sin(time * CAR.driftDustJitterRate + d * 2.1) * carWidth * CAR.driftDustJitterAmplitudeFraction
       ctx.beginPath()
       ctx.arc(
         -Math.sign(driftAngle) * carWidth * (0.3 + d * 0.14) + jitter,

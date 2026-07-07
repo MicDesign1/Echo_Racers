@@ -21,13 +21,11 @@ reach Uncle Argon, who is stranded there by an ancient artefact.
   external game libraries.**
 - **Data storage:** localStorage, namespaced per profile
 - **Hosting:** Cloudflare Pages (deploy paths are CASE-SENSITIVE)
-- Local path: D:\KID GAME\project\Echo_Racers
+- Local path: E:\KID GAME\Echo_Racers
 
 ## Current Status
 
-Scaffolding only — no game implementation yet. The pseudo-3D technique and drift
-mechanic are proven in `echo_racers_reference_demo.html`. First milestone: port that
-demo into the repo structure.
+Playable single-player driving engine complete (projected-segment rendering, drift with exit boost, HUD lap timers, keyboard + touch input). Vehicle is a placeholder vector chassis awaiting sprites. Not yet built: AI opponents, lap-count/race-completion logic, vehicle/creature selection, localStorage saves, menus.
 
 ## Narrative Rules — CRITICAL
 
@@ -45,14 +43,10 @@ demo into the repo structure.
 ## Art Direction — CRITICAL
 
 Victorian naturalist meets ancient Atlantean craftsmanship. Brass, silver, verdigris
-copper, river-worn stone, warm parchment skies. Machines glow with soft warm
-"resonance light" (warm amber — never cold blue).
+copper, river-worn stone, warm parchment skies. Machines glow with soft "resonance light"
 
 **Vehicles are all-metal Warden hovercraft:** brushed silver, brass, verdigris copper
 accents. Stone appears only in environments, never on vehicles.
-
-**NEVER USE:** electric, neon, futuristic, chrome, sci-fi, high-tech, digital, cyber,
-hologram, laser.
 
 ## Color Palette (carried over from Game 1)
 
