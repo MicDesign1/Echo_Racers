@@ -1,89 +1,50 @@
 import { useEffect, useRef } from 'react'
-import { ROAD, RACE } from '../data/tuning.js'
-import { track, trackLength, findSegment, percentRemaining, interpolate } from '../engine/track.js'
-import { project, renderSegment } from '../engine/projection.js'
-import { COLORS } from '../engine/colors.js'
+import { ROAD, RACE, DRIFT, PARALLAX } from '../data/tuning.js'
+import { trackLength, seg } from '../engine/track.js'
+import { project, renderRoadSegment, renderLaneStripe } from '../engine/projection.js'
+import { drawParallax } from '../engine/background.js'
+import { drawRoadsideSprite } from '../engine/roadside.js'
+import { drawCar } from '../engine/car.js'
+import { drawHud } from '../engine/hud.js'
+import { COLORS, linearGradient } from '../engine/colors.js'
 import './RaceTrack.css'
-
-// Distance ahead of the camera at which the ground plane crosses the bottom
-// of the screen — this is "where the car is" for projection purposes.
-const PLAYER_Z = ROAD.cameraHeight * ROAD.cameraDepth
-
-function formatTime(t) {
-  const minutes = Math.floor(t / 60)
-  const seconds = (t % 60).toFixed(2).padStart(5, '0')
-  return `${minutes}:${seconds}`
-}
-
-function drawCar(ctx, width, height, game) {
-  const carWidth = 140
-  const carHeight = 70
-  const baseX = width / 2 + game.tilt * 220
-  const baseY = height - 90
-
-  ctx.save()
-  ctx.translate(baseX, baseY)
-  ctx.rotate(game.tilt)
-
-  ctx.fillStyle = COLORS.carHull
-  ctx.beginPath()
-  ctx.moveTo(-carWidth / 2, carHeight / 2)
-  ctx.lineTo(-carWidth / 2 + 20, -carHeight / 2)
-  ctx.lineTo(carWidth / 2 - 20, -carHeight / 2)
-  ctx.lineTo(carWidth / 2, carHeight / 2)
-  ctx.closePath()
-  ctx.fill()
-
-  ctx.fillStyle = COLORS.carTrim
-  ctx.fillRect(-carWidth / 2 + 10, carHeight / 2 - 14, carWidth - 20, 8)
-
-  ctx.fillStyle = COLORS.carGlow
-  ctx.beginPath()
-  ctx.ellipse(0, -carHeight / 4, carWidth / 5, carHeight / 4, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  ctx.restore()
-}
-
-function drawHud(ctx, game) {
-  ctx.fillStyle = COLORS.hudPanel
-  ctx.fillRect(12, 12, 230, 88)
-
-  ctx.font = '20px Georgia, serif'
-  ctx.textBaseline = 'top'
-  ctx.fillStyle = COLORS.hudText
-  const speedPercent = Math.round((game.speed / RACE.maxSpeed) * 200)
-  ctx.fillText(`Speed  ${speedPercent}`, 24, 22)
-  ctx.fillText(`Lap    ${formatTime(game.lapTime)}`, 24, 48)
-  ctx.fillText(`Last   ${game.lastLapTime !== null ? formatTime(game.lastLapTime) : '--:--.--'}`, 24, 74)
-}
 
 export default function RaceTrack() {
   const canvasRef = useRef(null)
   const touchLeftRef = useRef(null)
   const touchAccelRef = useRef(null)
   const touchRightRef = useRef(null)
-  const keysRef = useRef({ up: false, down: false, left: false, right: false })
+  const keysRef = useRef({ up: false, down: false, left: false, right: false, drift: false })
   const gameRef = useRef({
-    position: 0,
+    pos: 0,
     speed: 0,
     playerX: 0,
-    tilt: 0,
+    steer: 0,
+    driftAngle: 0,
+    boost: 0,
+    bgSkew: 0,
     lapTime: 0,
     lastLapTime: null,
+    bestLapTime: null,
   })
 
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    let skyGradient = null
 
+    // Game math runs in CSS-pixel space (W/H); the canvas's internal pixel
+    // buffer is scaled up by devicePixelRatio via ctx.setTransform so the
+    // road stays crisp on high-DPI screens without touching any of the
+    // projection math below.
+    let W = 0
+    let H = 0
     function resize() {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-      skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height / 2)
-      skyGradient.addColorStop(0, COLORS.skyTop)
-      skyGradient.addColorStop(1, COLORS.skyHorizon)
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      W = canvas.clientWidth
+      H = canvas.clientHeight
+      canvas.width = W * dpr
+      canvas.height = H * dpr
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
     resize()
     window.addEventListener('resize', resize)
@@ -94,6 +55,7 @@ export default function RaceTrack() {
         case 'ArrowDown': case 'KeyS': return 'down'
         case 'ArrowLeft': case 'KeyA': return 'left'
         case 'ArrowRight': case 'KeyD': return 'right'
+        case 'Space': case 'ShiftLeft': case 'ShiftRight': return 'drift'
         default: return null
       }
     }
@@ -109,7 +71,8 @@ export default function RaceTrack() {
     window.addEventListener('keyup', onKeyUp)
 
     // Touch zones set the same key flags keyboard input does, so update()
-    // doesn't need to know which input source is driving it.
+    // doesn't need to know which input source is driving it. Drift is
+    // keyboard-only (Space/Shift) — there's no fourth touch zone for it.
     const touchTargets = [
       [touchLeftRef.current, 'left'],
       [touchAccelRef.current, 'up'],
@@ -135,97 +98,169 @@ export default function RaceTrack() {
     function update(dt) {
       const g = gameRef.current
       const keys = keysRef.current
+      const spct = g.speed / RACE.maxSpeed
 
-      if (keys.up) g.speed += RACE.accel * dt
-      else if (keys.down) g.speed -= RACE.brakeDecel * dt
-      else g.speed -= RACE.friction * dt
+      if (keys.up) {
+        // Boost tapers from accelLowSpeedBoost at a standstill down toward
+        // (accelLowSpeedBoost - accelSpeedTaper) at top speed — takeoff
+        // feels strong without raising top-speed acceleration.
+        g.speed += RACE.accel * dt * (RACE.accelLowSpeedBoost - RACE.accelSpeedTaper * spct)
+      } else if (keys.down) {
+        g.speed -= RACE.brakeDecel * dt
+      } else {
+        g.speed -= RACE.friction * dt
+      }
+
+      const offRoad = Math.abs(g.playerX) > RACE.offRoadThreshold
+      if (offRoad && g.speed > RACE.offRoadMaxSpeed) {
+        g.speed -= RACE.offRoadDecel * dt
+      }
       g.speed = Math.max(0, Math.min(RACE.maxSpeed, g.speed))
 
-      const speedPercent = g.speed / RACE.maxSpeed
-      const playerSegment = findSegment(g.position + PLAYER_Z)
+      const steerTarget = (keys.left ? -1 : 0) + (keys.right ? 1 : 0)
+      g.steer += (steerTarget - g.steer) * Math.min(1, dt * RACE.steerEaseRate)
+      g.playerX += g.steer * RACE.steerRate * dt * spct
 
-      const steerInput = (keys.right ? 1 : 0) - (keys.left ? 1 : 0)
-      const steerScale = Math.max(speedPercent, 0.15)
-      g.playerX += steerInput * RACE.steerRate * steerScale * dt
       // Curved road pulls the car toward the outside of the turn, harder at speed.
-      g.playerX -= playerSegment.curve * speedPercent * speedPercent * RACE.centrifugalStrength * dt
+      const curve = seg(Math.floor(g.pos / ROAD.segmentLength)).curve
+      g.playerX -= curve * RACE.centrifugalStrength * spct * spct * dt
+      g.playerX = Math.max(-RACE.playerXMax, Math.min(RACE.playerXMax, g.playerX))
 
-      // Off-road caps top speed; only bleed speed off when actually above that
-      // cap, so accelerating off-road can still climb back up to the cap
-      // instead of getting stuck fighting the penalty at 0.
-      const offRoad = Math.abs(g.playerX) > 1
-      if (offRoad && g.speed > RACE.offRoadMaxSpeed) {
-        g.speed = Math.max(RACE.offRoadMaxSpeed, g.speed - RACE.offRoadDecel * dt)
+      // Hold Space/Shift while turning at speed to drift: rotate into the
+      // slide, slew sideways, and scrub a little speed. Releasing while the
+      // slide angle is sharp enough earns a brief exit boost.
+      const drifting = keys.drift && Math.abs(g.steer) > DRIFT.minSteer && spct > DRIFT.minSpeedPercent
+      if (drifting) {
+        g.driftAngle += (g.steer * DRIFT.angleTargetFactor - g.driftAngle) * Math.min(1, dt * DRIFT.angleEaseRate)
+        g.playerX += g.steer * RACE.steerRate * DRIFT.lateralSteerFactor * dt * spct
+        g.speed -= RACE.friction * DRIFT.speedScrub * dt
+      } else {
+        if (Math.abs(g.driftAngle) > DRIFT.exitAngleThreshold && spct > DRIFT.exitMinSpeedPercent) {
+          g.boost = DRIFT.boostDuration
+        }
+        g.driftAngle += (0 - g.driftAngle) * Math.min(1, dt * DRIFT.settleEaseRate)
       }
-      g.playerX = Math.max(-2.2, Math.min(2.2, g.playerX))
+      if (g.boost > 0) {
+        g.boost -= dt
+        g.speed += RACE.accel * DRIFT.boostAccelFactor * dt
+      }
 
-      const targetTilt = steerInput * 0.15
-      g.tilt += (targetTilt - g.tilt) * Math.min(1, dt * 10)
-
-      g.position += g.speed * dt
+      const prevPos = g.pos
+      g.pos = (g.pos + g.speed * dt) % trackLength
       g.lapTime += dt
-      if (g.position >= trackLength) {
-        g.position -= trackLength
+      if (g.pos < prevPos && g.speed > 0) {
         g.lastLapTime = g.lapTime
+        if (g.bestLapTime == null || g.lapTime < g.bestLapTime) g.bestLapTime = g.lapTime
         g.lapTime = 0
       }
     }
 
-    function render(width, height) {
-      ctx.clearRect(0, 0, width, height)
-      ctx.fillStyle = skyGradient
-      ctx.fillRect(0, 0, width, height / 2)
+    // Reused every frame/segment to avoid per-frame allocation.
+    const P1 = { wx: 0, wy: 0, wz: 0, sx: 0, sy: 0, sw: 0, scale: 0 }
+    const P2 = { wx: 0, wy: 0, wz: 0, sx: 0, sy: 0, sw: 0, scale: 0 }
+    const frameSlots = Array.from({ length: ROAD.drawDistance }, () => (
+      { s1x: 0, s1y: 0, s1w: 0, s2y: 0, segIndex: 0, clip: 0 }
+    ))
 
+    function render(width, height, time) {
       const g = gameRef.current
-      const baseSegment = findSegment(g.position)
-      const basePercent = percentRemaining(g.position, ROAD.segmentLength)
-      const playerSegment = findSegment(g.position + PLAYER_Z)
-      const playerPercent = percentRemaining(g.position + PLAYER_Z, ROAD.segmentLength)
-      const playerY = interpolate(playerSegment.p1.world.y, playerSegment.p2.world.y, playerPercent)
+      const baseIndex = Math.floor(g.pos / ROAD.segmentLength)
+      const baseSegment = seg(baseIndex)
+      const segProgress = (g.pos % ROAD.segmentLength) / ROAD.segmentLength
+      const camY = ROAD.cameraHeight + baseSegment.y + (seg(baseIndex + 1).y - baseSegment.y) * segProgress
+      const spct = g.speed / RACE.maxSpeed
+      g.bgSkew += baseSegment.curve * spct * PARALLAX.skewRate
 
-      let maxy = height
+      const horizonY = height * PARALLAX.horizonFraction
+      ctx.fillStyle = linearGradient(ctx, 0, 0, 0, horizonY, COLORS.sky)
+      ctx.fillRect(0, 0, width, horizonY)
+      ctx.fillStyle = COLORS.grass
+      ctx.fillRect(0, horizonY, width, height - horizonY)
+
+      drawParallax(ctx, width, height, g.bgSkew, COLORS)
+
+      let clip = height
       let x = 0
-      let dx = -(baseSegment.curve * basePercent)
+      const basePct = (g.pos % ROAD.segmentLength) / ROAD.segmentLength
+      let dx = -(baseSegment.curve * basePct)
 
       for (let n = 0; n < ROAD.drawDistance; n++) {
-        const segment = track[(baseSegment.index + n) % track.length]
-        const looped = segment.index < baseSegment.index
-        const cameraZ = g.position - (looped ? trackLength : 0)
+        const i = baseIndex + n
+        const s = seg(i)
+        const z1 = n * ROAD.segmentLength - (g.pos % ROAD.segmentLength)
+        const z2 = z1 + ROAD.segmentLength
 
-        project(segment.p1, g.playerX * ROAD.roadWidth - x, playerY + ROAD.cameraHeight, cameraZ, ROAD.cameraDepth, width, height, ROAD.roadWidth)
-        project(segment.p2, g.playerX * ROAD.roadWidth - x - dx, playerY + ROAD.cameraHeight, cameraZ, ROAD.cameraDepth, width, height, ROAD.roadWidth)
+        P1.wx = x; P1.wy = s.y; P1.wz = z1 + 0.01
+        P2.wx = x + dx; P2.wy = seg(i + 1).y; P2.wz = z2
+        project(P1, g.playerX * ROAD.roadWidth, camY, 0, ROAD.cameraDepth, width, height, ROAD.roadWidth)
+        project(P2, g.playerX * ROAD.roadWidth, camY, 0, ROAD.cameraDepth, width, height, ROAD.roadWidth)
 
         x += dx
-        dx += segment.curve
+        dx += s.curve
 
-        if (segment.p1.camera.z <= ROAD.cameraDepth ||
-            segment.p2.screen.y >= segment.p1.screen.y ||
-            segment.p2.screen.y >= maxy) {
-          continue
+        const slot = frameSlots[n]
+        slot.s1x = P1.sx; slot.s1y = P1.sy; slot.s1w = P1.sw
+        slot.s2y = P2.sy; slot.segIndex = i; slot.clip = clip
+
+        if (P2.sy >= P1.sy || P2.sy >= clip) continue
+
+        renderRoadSegment(ctx, width, P1, P2, n % 2, COLORS, s.roadColor)
+        if (i % ROAD.laneDashPeriod < ROAD.laneDashOn) {
+          renderLaneStripe(ctx, P1, P2, COLORS.laneStripe)
         }
 
-        renderSegment(ctx, width,
-          segment.p1.screen.x, segment.p1.screen.y, segment.p1.screen.w,
-          segment.p2.screen.x, segment.p2.screen.y, segment.p2.screen.w,
-          segment.color === 'dark' ? COLORS.dark : COLORS.light)
-
-        maxy = segment.p2.screen.y
+        clip = Math.min(clip, P2.sy)
       }
 
-      drawCar(ctx, width, height, g)
-      drawHud(ctx, g)
+      // Sprites drawn far-to-near so closer objects paint over farther
+      // ones; each uses the hill-crest clip captured when its segment was
+      // processed, so objects behind a hill are cut off at the same plane
+      // the road itself is.
+      for (let n = ROAD.drawDistance - 1; n >= 1; n--) {
+        const slot = frameSlots[n]
+        const s = seg(slot.segIndex)
+        if (!s.sprites.length) continue
+        for (const sprite of s.sprites) {
+          const sx = slot.s1x + slot.s1w * sprite.offset
+          drawRoadsideSprite(ctx, sx, slot.s1y, slot.s1w, slot.clip, width, height, sprite, COLORS, time)
+        }
+      }
+
+      drawCar(ctx, width, height, {
+        steer: g.steer,
+        driftAngle: g.driftAngle,
+        speedPercent: spct,
+        boosting: g.boost > 0,
+        time,
+      }, COLORS)
+
+      drawHud(ctx, width, {
+        speed: g.speed,
+        lapTime: g.lapTime,
+        lastLapTime: g.lastLapTime,
+        bestLapTime: g.bestLapTime,
+      }, COLORS)
+
+      const vignette = ctx.createRadialGradient(
+        width / 2, horizonY, height * PARALLAX.vignetteInnerRadiusFraction,
+        width / 2, horizonY, height * PARALLAX.vignetteOuterRadiusFraction
+      )
+      vignette.addColorStop(0, COLORS.vignetteInner)
+      vignette.addColorStop(1, COLORS.vignetteOuter)
+      ctx.fillStyle = vignette
+      ctx.fillRect(0, 0, width, height)
     }
 
     let rafId
     let lastTime = performance.now()
-    function step(now) {
-      const dt = Math.min((now - lastTime) / 1000, 0.1)
+    function frame(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.05)
       lastTime = now
       update(dt)
-      render(canvas.width, canvas.height)
-      rafId = requestAnimationFrame(step)
+      render(W, H, now)
+      rafId = requestAnimationFrame(frame)
     }
-    rafId = requestAnimationFrame(step)
+    rafId = requestAnimationFrame(frame)
 
     return () => {
       cancelAnimationFrame(rafId)

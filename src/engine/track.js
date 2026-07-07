@@ -1,78 +1,74 @@
-import { ROAD } from '../data/tuning.js'
+import { ROAD, ROADSIDE } from '../data/tuning.js'
+import { roadTone } from './colors.js'
 
-const { segmentLength, segmentsPerColor } = ROAD
+const { segmentLength } = ROAD
 
 // Curve is the amount a segment bends the road per unit of distance; sign
-// convention: negative = left, positive = right. Height (y) is an absolute
-// world elevation, not a delta — sections ease from the current elevation to
-// a target so hills/curves blend smoothly instead of kinking.
-function easeIn(a, b, t) {
-  return a + (b - a) * t * t
-}
-function easeInOut(a, b, t) {
-  return a + (b - a) * ((1 - Math.cos(t * Math.PI)) / 2)
-}
+// convention: negative = left, positive = right. `y` is an absolute world
+// elevation, not a delta — sections ease from the current elevation to a
+// target so hills/curves blend smoothly instead of kinking.
+function easeIn(a, b, p) { return a + (b - a) * p * p }
+function easeOut(a, b, p) { return a + (b - a) * (1 - (1 - p) * (1 - p)) }
+function easeInOut(a, b, p) { return a + (b - a) * ((1 - Math.cos(p * Math.PI)) / 2) }
 
 function buildTrack() {
   const segments = []
-
-  function lastY() {
-    return segments.length === 0 ? 0 : segments[segments.length - 1].p2.world.y
-  }
+  let lastY = 0
 
   function addSegment(curve, y) {
-    const n = segments.length
-    segments.push({
-      index: n,
-      curve,
-      color: Math.floor(n / segmentsPerColor) % 2 ? 'dark' : 'light',
-      p1: {
-        world: { x: 0, y: lastY(), z: n * segmentLength },
-        camera: { x: 0, y: 0, z: 0 },
-        screen: { x: 0, y: 0, w: 0 },
-      },
-      p2: {
-        world: { x: 0, y, z: (n + 1) * segmentLength },
-        camera: { x: 0, y: 0, z: 0 },
-        screen: { x: 0, y: 0, w: 0 },
-      },
-    })
+    const i = segments.length
+    const tone = (
+      Math.sin(i * ROAD.surfaceNoiseFreq1) * ROAD.surfaceNoiseWeight1 +
+      Math.sin(i * ROAD.surfaceNoiseFreq2)
+    ) * ROAD.surfaceNoiseAmplitude
+
+    // Deterministic placement (by segment index, not randomness) so the
+    // track scatters the same way every run.
+    const sprites = []
+    if (i % ROADSIDE.pillarModulo === ROADSIDE.pillarRemainderLeft) {
+      sprites.push({ offset: ROADSIDE.pillarOffsetLeft, type: 'pillar', seed: i })
+    }
+    if (i % ROADSIDE.pillarModulo === ROADSIDE.pillarRemainderRight) {
+      sprites.push({ offset: ROADSIDE.pillarOffsetRight, type: 'pillar', seed: i * 3 })
+    }
+    if (i % ROADSIDE.stoneModuloA === ROADSIDE.stoneRemainderA) {
+      sprites.push({ offset: ROADSIDE.stoneOffsetA, type: 'stone', seed: i })
+    }
+    if (i % ROADSIDE.stoneModuloB === ROADSIDE.stoneRemainderB) {
+      sprites.push({ offset: ROADSIDE.stoneOffsetB, type: 'stone', seed: i * 7 })
+    }
+
+    segments.push({ index: i, curve, y, roadColor: roadTone(tone), sprites })
   }
 
   // Curve eases in from 0, holds, then eases back to 0 across the section;
-  // elevation eases from whatever it is now to targetY over the whole span.
-  function addSection(enter, hold, leave, curve, targetY) {
-    const startY = lastY()
+  // elevation eases from whatever it is now to a target `dy` segment-lengths
+  // away over the whole span.
+  function addRoad(enter, hold, leave, curve, dy) {
+    const startY = lastY
+    const endY = startY + dy * segmentLength
     const total = enter + hold + leave
-    for (let i = 0; i < enter; i++) {
-      addSegment(easeIn(0, curve, i / enter), easeInOut(startY, targetY, i / total))
+    for (let n = 0; n < enter; n++) {
+      addSegment(easeIn(0, curve, n / enter), easeInOut(startY, endY, n / total))
     }
-    for (let i = 0; i < hold; i++) {
-      addSegment(curve, easeInOut(startY, targetY, (enter + i) / total))
+    for (let n = 0; n < hold; n++) {
+      addSegment(curve, easeInOut(startY, endY, (enter + n) / total))
     }
-    for (let i = 0; i < leave; i++) {
-      addSegment(easeInOut(curve, 0, i / leave), easeInOut(startY, targetY, (enter + hold + i) / total))
+    for (let n = 0; n < leave; n++) {
+      addSegment(easeOut(curve, 0, n / leave), easeInOut(startY, endY, (enter + hold + n) / total))
     }
+    lastY = endY
   }
 
-  function addStraight(num, targetY = lastY()) {
-    addSection(num, 0, 0, 0, targetY)
-  }
+  const CURVE = { EASY_LEFT: -2.4, HILLTOP_RIGHT: 4.6, HAIRPIN_LEFT: -3.0 }
 
-  const CURVE = { EASY: 3, MEDIUM: 4.5, HAIRPIN: 7 }
-  const HILL_HEIGHT = 500
-
-  addStraight(60) // start/finish straight
-  addSection(40, 60, 40, -CURVE.EASY, 0) // left curve 1
-  addStraight(40)
-  addSection(50, 70, 50, -CURVE.MEDIUM, 0) // left curve 2 (sharper)
-  addStraight(30)
-  addSection(60, 60, 60, 0, HILL_HEIGHT) // hill climb
-  addStraight(60, HILL_HEIGHT) // straight along the top
-  addSection(60, 60, 60, 0, 0) // descent back to base height
-  addStraight(40)
-  addSection(30, 100, 30, CURVE.HAIRPIN, 0) // right hairpin
-  addStraight(80) // run back to start/finish
+  addRoad(25, 25, 25, 0, 0) // start/finish straight
+  addRoad(30, 50, 30, CURVE.EASY_LEFT, 0) // gentle left sweeper
+  addRoad(20, 20, 20, 0, 22) // climb
+  addRoad(25, 40, 25, CURVE.HILLTOP_RIGHT, 8) // curve along the hilltop
+  addRoad(20, 20, 20, 0, -30) // descend back to base height
+  addRoad(30, 60, 30, CURVE.HAIRPIN_LEFT, 0) // sweeping hairpin
+  addRoad(20, 40, 20, 0, 0) // straight home
 
   return segments
 }
@@ -80,14 +76,9 @@ function buildTrack() {
 export const track = buildTrack()
 export const trackLength = track.length * segmentLength
 
-export function findSegment(z) {
-  return track[Math.floor(z / segmentLength) % track.length]
-}
-
-export function percentRemaining(z, length) {
-  return (z % length) / length
-}
-
-export function interpolate(a, b, t) {
-  return a + (b - a) * t
+// Wrapping lookup — any index (including negative or past the end) resolves
+// to a segment, so callers never need to special-case the loop boundary.
+export function seg(i) {
+  const n = track.length
+  return track[((i % n) + n) % n]
 }
