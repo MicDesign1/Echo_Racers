@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HUB, CONTROLS } from '../data/tuning.js'
 import { getHubState, setHubState, getAvatar, setOrigin } from '../data/saves.js'
-import { normalizeAvatar } from '../data/avatarManifest.js'
+import { normalizeAvatar, isBodyStandalone } from '../data/avatarManifest.js'
 import { ensureComposite, getComposite, getBuildCount } from '../engine/avatarComposite.js'
 import { HUB_MAP } from '../data/hubMap.js'
 import { CRITTER_SHEETS } from '../data/critters.js'
@@ -131,6 +131,14 @@ export default function HubScene() {
     const world = worldSize(HUB_MAP)
     const cam = { x: 0, y: 0, w: 0, h: 0 }
 
+    // The avatar look is fixed for the life of this mount (changing it means
+    // a trip to /avatar and back), so its sprite grid + timing can be
+    // resolved once here rather than re-checked every frame.
+    const standalone = isBodyStandalone(avatar)
+    const spriteCfg = standalone ? HUB.npcSprite : HUB.sprite
+    const animFrameMs = standalone ? HUB.npcSprite.animFrameMs : HUB.player.animFrameMs
+    const drawScale = standalone ? HUB.npcSprite.drawScale : HUB.player.drawScale
+
     // Composite the look ONCE on scene entry (not per frame).
     ensureComposite(avatar)
 
@@ -200,9 +208,9 @@ export default function HubScene() {
         tryMove((rawDx / mag) * m * step, 0)
         tryMove(0, (rawDy / mag) * m * step)
         player.animTime += dt * 1000
-        while (player.animTime >= P.animFrameMs) {
-          player.animTime -= P.animFrameMs
-          player.animFrame = (player.animFrame + 1) % HUB.sprite.walkFrames
+        while (player.animTime >= animFrameMs) {
+          player.animTime -= animFrameMs
+          player.animFrame = (player.animFrame + 1) % spriteCfg.walkFrames
         }
       } else {
         player.animFrame = 0
@@ -319,12 +327,12 @@ export default function HubScene() {
     function drawPlayer() {
       const sheet = getComposite(avatar)
       if (!sheet) return
-      const S = HUB.sprite
+      const S = spriteCfg
       const row = player.moving ? S.walkRow[player.facing] : S.idleRow[player.facing]
       const col = player.moving ? player.animFrame : S.idleCol
       const sx = col * S.frameSize
       const sy = row * S.frameSize
-      const dw = S.frameSize * HUB.player.drawScale
+      const dw = S.frameSize * drawScale
       const dh = dw
       const dx = Math.round(player.x - cam.x - dw / 2)
       const dy = Math.round(player.y - cam.y - dh)
@@ -385,6 +393,10 @@ export default function HubScene() {
           camY: cam.y,
           viewW: cam.w,
           viewH: cam.h,
+          spriteStandalone: standalone,
+          spriteFrameSize: spriteCfg.frameSize,
+          spriteWalkFrames: spriteCfg.walkFrames,
+          spriteRow: player.moving ? spriteCfg.walkRow[player.facing] : spriteCfg.idleRow[player.facing],
         }),
         getWorld: () => worldSize(HUB_MAP),
         getMapInfo: () => ({ w: HUB_MAP.w, h: HUB_MAP.h, tilePx: tilePx(), spawn: { ...HUB_MAP.spawn } }),
@@ -409,6 +421,8 @@ export default function HubScene() {
           for (let i = 0; i < steps; i++) stepPlayer(0.016, dx, dy)
           return { x: player.x, y: player.y, facing: player.facing }
         },
+        // targetHex is optional: standalone-body sheets have no recolor ramp
+        // to search for, so omitting it just checks dims + build-once/caching.
         compositeProbe: async (descriptor, targetHex) => {
           const before = getBuildCount()
           const sheet = await ensureComposite(descriptor)
@@ -417,14 +431,41 @@ export default function HubScene() {
           c.height = sheet.height
           const cctx = c.getContext('2d', { willReadFrequently: true })
           cctx.drawImage(sheet, 0, 0)
-          const d = cctx.getImageData(0, 0, c.width, c.height).data
-          const want = parseInt(String(targetHex).slice(1), 16) & 0xffffff
-          let found = false
-          for (let i = 0; i < d.length; i += 4) {
-            if (d[i + 3] === 0) continue
-            if (((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]) === want) { found = true; break }
+          let found = true
+          if (targetHex) {
+            const d = cctx.getImageData(0, 0, c.width, c.height).data
+            const want = parseInt(String(targetHex).slice(1), 16) & 0xffffff
+            found = false
+            for (let i = 0; i < d.length; i += 4) {
+              if (d[i + 3] === 0) continue
+              if (((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]) === want) { found = true; break }
+            }
           }
           return { width: sheet.width, height: sheet.height, found, builtNow: getBuildCount() - before, buildCount: getBuildCount() }
+        },
+        // Darkest-pixel (eye) x-position within one frame cell — an objective
+        // landmark for regression-testing facing direction (which row is
+        // "left" vs "right"), since a swap there is otherwise only visible by
+        // eye. frameSize comes from the caller so this works for any sheet.
+        frameEyeX: async (descriptor, col, row, frameSize) => {
+          const sheet = await ensureComposite(descriptor)
+          const c = document.createElement('canvas')
+          c.width = frameSize
+          c.height = frameSize
+          const cctx = c.getContext('2d', { willReadFrequently: true })
+          cctx.drawImage(sheet, col * frameSize, row * frameSize, frameSize, frameSize, 0, 0, frameSize, frameSize)
+          const d = cctx.getImageData(0, 0, frameSize, frameSize).data
+          let bestX = -1
+          let bestLum = Infinity
+          for (let y = 0; y < frameSize; y++) {
+            for (let x = 0; x < frameSize; x++) {
+              const i = (y * frameSize + x) * 4
+              if (d[i + 3] < 128) continue
+              const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
+              if (lum < bestLum) { bestLum = lum; bestX = x }
+            }
+          }
+          return bestX
         },
         save: () => saveNow(),
       }

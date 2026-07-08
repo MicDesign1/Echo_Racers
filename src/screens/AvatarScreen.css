@@ -140,13 +140,24 @@
   transition: transform 0.08s ease, box-shadow 0.12s ease, border-color 0.12s ease;
 }
 
-.avatar-swatch:hover {
+.avatar-swatch:hover:not(:disabled) {
   transform: scale(1.06);
 }
 
 .avatar-swatch.is-selected {
   border-color: var(--resonance-glow);
   box-shadow: 0 0 14px rgba(242, 200, 121, 0.7);
+}
+
+.avatar-swatch:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* A standalone body (baked-in look) locks the outfit/hair/hat rows — shown
+   so Scarlet can see they exist for other bodies, but inert. */
+.avatar-row.is-locked {
+  opacity: 0.5;
 }
 
 .avatar-actions {

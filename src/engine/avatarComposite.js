@@ -7,7 +7,7 @@
 // Caching is two-tier: source layer images are loaded once (module cache), and
 // finished composites are cached by a stable stringify of the descriptor — so
 // compositing happens once per distinct look, never per frame.
-import { AVATAR_STYLES, findStyle, colorList } from '../data/avatarManifest.js'
+import { AVATAR_STYLES, findStyle, colorList, parseBody } from '../data/avatarManifest.js'
 import { AVATAR_PALETTES } from '../data/avatarPalettes.js'
 
 const imageCache = new Map() // src -> { img, promise, loaded }
@@ -102,6 +102,22 @@ export async function ensureComposite(descriptor) {
   const key = descriptorKey(descriptor)
   const cached = compositeCache.get(key)
   if (cached) return cached
+
+  // Standalone bodies (pre-baked Mana Seed NPC sheets) short-circuit: no
+  // layer compositing, no palette swap, just the loaded sheet image itself
+  // cached as "the composite" (an Image draws via ctx.drawImage exactly like
+  // a canvas, so callers don't need to care which they got).
+  const { styleId, variantId } = parseBody(descriptor.body)
+  const bodyStyle = findStyle('body', styleId)
+  if (bodyStyle.standalone) {
+    const variant = colorList('body', styleId).find((c) => c.id === variantId) || colorList('body', styleId)[0]
+    const rec = loadImage(variant.src)
+    await rec.promise
+    if (!rec.loaded) return null
+    compositeCache.set(key, rec.img)
+    buildCount += 1
+    return rec.img
+  }
 
   const layers = resolveLayers(descriptor)
   const recs = layers.map((l) => loadImage(l.src))

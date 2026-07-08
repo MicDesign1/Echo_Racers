@@ -503,6 +503,37 @@ export const HUB = {
     idleRow: { down: 0, up: 1, right: 2, left: 3 },
     walkRow: { down: 4, up: 5, right: 6, left: 7 },
   },
+
+  // Standalone NPC body sheets (Hub Phase 1.7 — see data/avatarManifest.js
+  // `standalone` body styles). These do NOT go through the layer compositor:
+  // confirmed on the actual sheets (128x256 canvas, content only in the top
+  // 128x128) a 4-col x 4-row grid of 32x32 frames, one row per facing, 4 walk
+  // frames (no separate idle row — column 0 doubles as the idle pose). Row1 is
+  // RIGHT-facing and row3 is LEFT-facing (row3 is a pixel-perfect horizontal
+  // mirror of row1, baked into the file) — verified directly on the pixels,
+  // not assumed; an earlier pass had these two backwards.
+  npcSprite: {
+    frameSize: 32,
+    columns: 4,
+    walkFrames: 4,
+    idleCol: 0,
+    idleRow: { down: 0, right: 1, up: 2, left: 3 },
+    walkRow: { down: 0, right: 1, up: 2, left: 3 }, // same row as idle: frame 0 IS the idle pose
+    animFrameMs: 160, // a 4-frame cycle reads better a touch slower than the 6-frame one
+    // The composited player sprite's actual character only fills about half
+    // its 64px frame (lots of headroom for hats etc.), while this sheet's art
+    // fills almost the entire 32px frame — so despite the frame being half
+    // the pixel size, the ON-SCREEN CHARACTER is already about the same size
+    // at the SAME drawScale as the player (measured on the real pixels: ~31px
+    // of content either way), so this tracks HUB.player.drawScale directly
+    // (staying in sync if that's ever tuned) plus a flat +10% bump requested
+    // on top, since the 1:1 size read a touch small for this body type.
+    sizeBoost: 1.1,
+    get drawScale() {
+      return HUB.player.drawScale * HUB.npcSprite.sizeBoost
+    },
+  },
+
   // The player look is now DATA: a serializable avatar descriptor (see
   // data/avatarManifest.js + data/avatarPalettes.js) rendered by the
   // palette-swap compositor (engine/avatarComposite.js). Draw order is still

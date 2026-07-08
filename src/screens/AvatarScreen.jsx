@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HUB } from '../data/tuning.js'
 import {
-  AVATAR_SLOTS, AVATAR_STYLES, SLOT_FIELDS,
+  AVATAR_SLOTS, AVATAR_STYLES,
   colorList, findStyle, normalizeAvatar, randomAvatar,
+  getSlotStyleId, getSlotColorId, setSlotStyle, setSlotColor, isBodyStandalone,
 } from '../data/avatarManifest.js'
 import { ensureComposite, getComposite, descriptorKey } from '../engine/avatarComposite.js'
 import { getAvatar, setAvatar, getOrigin } from '../data/saves.js'
@@ -35,7 +36,6 @@ export default function AvatarScreen() {
     const canvas = previewCanvasRef.current
     const ctx = canvas.getContext('2d')
     const A = HUB.avatar
-    const S = HUB.sprite
     let W = 0
     let H = 0
     function resize() {
@@ -61,10 +61,18 @@ export default function AvatarScreen() {
       last = now
       const desc = descriptorRef.current
       const key = descriptorKey(desc)
-      if (key !== lastKey) { lastKey = key; ensureComposite(desc) }
+      if (key !== lastKey) { lastKey = key; ensureComposite(desc); animFrame = 0; animTime = 0 }
+
+      // The sprite grid/timing depends on the CURRENT body (standalone NPC
+      // sheets use a different frame size/count than the composited player),
+      // so it's resolved fresh each frame rather than captured once.
+      const standalone = isBodyStandalone(desc)
+      const S = standalone ? HUB.npcSprite : HUB.sprite
+      const frameMs = standalone ? HUB.npcSprite.animFrameMs : A.previewAnimFrameMs
+      const scale = standalone ? (HUB.npcSprite.drawScale / HUB.player.drawScale) * A.previewScale : A.previewScale
 
       animTime += dt
-      while (animTime >= A.previewAnimFrameMs) { animTime -= A.previewAnimFrameMs; animFrame = (animFrame + 1) % S.walkFrames }
+      while (animTime >= frameMs) { animTime -= frameMs; animFrame = (animFrame + 1) % S.walkFrames }
       facingTime += dt
       if (facingTime >= A.facingCycleMs) { facingTime -= A.facingCycleMs; facingRef.current = (facingRef.current + 1) % A.facingOrder.length }
 
@@ -75,7 +83,7 @@ export default function AvatarScreen() {
         const row = S.walkRow[facing]
         const sx = animFrame * S.frameSize
         const sy = row * S.frameSize
-        const dw = S.frameSize * A.previewScale
+        const dw = S.frameSize * scale
         const dh = dw
         const dx = (W - dw) / 2
         const dy = H - dh
@@ -91,29 +99,18 @@ export default function AvatarScreen() {
     }
   }, [])
 
-  function currentStyleId(slot) {
-    const field = SLOT_FIELDS[slot].style
-    return field ? descriptor[field] : AVATAR_STYLES[slot][0].id
-  }
-
   function cycleStyle(slot, dir) {
     const styles = AVATAR_STYLES[slot]
     if (styles.length < 2) return
-    const field = SLOT_FIELDS[slot].style
-    const idx = styles.findIndex((s) => s.id === descriptor[field])
-    const next = styles[(idx + dir + styles.length) % styles.length]
-    const colorField = SLOT_FIELDS[slot].color
-    const colors = colorList(slot, next.id)
-    const keepColor = colors.some((c) => c.id === descriptor[colorField])
-    setDescriptor((d) => ({
-      ...d,
-      [field]: next.id,
-      [colorField]: keepColor ? d[colorField] : (colors[0]?.id || 'c00'),
-    }))
+    setDescriptor((d) => {
+      const idx = styles.findIndex((s) => s.id === getSlotStyleId(slot, d))
+      const next = styles[(idx + dir + styles.length) % styles.length]
+      return setSlotStyle(slot, d, next.id)
+    })
   }
 
   function setColor(slot, colorId) {
-    setDescriptor((d) => ({ ...d, [SLOT_FIELDS[slot].color]: colorId }))
+    setDescriptor((d) => setSlotColor(slot, d, colorId))
   }
 
   function onSave() {
@@ -145,13 +142,17 @@ export default function AvatarScreen() {
         <div className="avatar-rows">
           {AVATAR_SLOTS.map((slot) => {
             const styles = AVATAR_STYLES[slot]
-            const styleId = currentStyleId(slot)
+            const styleId = getSlotStyleId(slot, descriptor)
             const style = findStyle(slot, styleId)
             const colors = colorList(slot, styleId)
-            const colorField = SLOT_FIELDS[slot].color
+            const colorId = getSlotColorId(slot, descriptor)
             const multiStyle = styles.length > 1
+            // A standalone body (baked-in look) locks every OTHER slot — its
+            // outfit/hair/hat are ignored at render time, so the pickers stay
+            // visible (Scarlet can see they exist for other bodies) but inert.
+            const locked = slot !== 'body' && isBodyStandalone(descriptor)
             return (
-              <div className="avatar-row" key={slot}>
+              <div className={`avatar-row${locked ? ' is-locked' : ''}`} key={slot}>
                 <div className="avatar-row-head">
                   <span className="avatar-slot-label">{SLOT_LABELS[slot]}</span>
                   <div className="avatar-style-pick">
@@ -159,7 +160,7 @@ export default function AvatarScreen() {
                       type="button"
                       className="avatar-arrow"
                       onClick={() => cycleStyle(slot, -1)}
-                      disabled={!multiStyle}
+                      disabled={!multiStyle || locked}
                       aria-label={`Previous ${SLOT_LABELS[slot]} style`}
                     >
                       &#9664;
@@ -169,7 +170,7 @@ export default function AvatarScreen() {
                       type="button"
                       className="avatar-arrow"
                       onClick={() => cycleStyle(slot, 1)}
-                      disabled={!multiStyle}
+                      disabled={!multiStyle || locked}
                       aria-label={`Next ${SLOT_LABELS[slot]} style`}
                     >
                       &#9654;
@@ -181,10 +182,11 @@ export default function AvatarScreen() {
                     <button
                       key={c.id}
                       type="button"
-                      className={`avatar-swatch${c.id === descriptor[colorField] ? ' is-selected' : ''}`}
+                      className={`avatar-swatch${c.id === colorId ? ' is-selected' : ''}`}
                       style={{ background: c.swatch }}
                       onClick={() => setColor(slot, c.id)}
-                      aria-pressed={c.id === descriptor[colorField]}
+                      disabled={locked}
+                      aria-pressed={c.id === colorId}
                       aria-label={`${SLOT_LABELS[slot]} color ${c.id}`}
                     />
                   ))}
