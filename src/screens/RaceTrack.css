@@ -271,3 +271,16 @@
 .results-again-btn:active {
   transform: scale(0.97);
 }
+
+/* Secondary results action shown only in the hub flow (returnTo set): a
+   quieter, outlined variant so "Race Again" stays the primary call. */
+.results-hub-btn {
+  margin-top: 10px;
+  background: transparent;
+  color: var(--brass);
+}
+
+.results-hub-btn:hover {
+  background: rgba(139, 105, 20, 0.12);
+  color: var(--aged-gold);
+}

@@ -1,0 +1,102 @@
+.hub-scene {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--walnut);
+  touch-action: none;
+}
+
+.hub-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Top-left dev/back affordance — leaves the hub for the home menu. */
+.hub-back-btn {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  padding: 8px 16px;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 15px;
+  color: var(--cream);
+  background: rgba(92, 58, 30, 0.82);
+  border: 2px solid var(--brass);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.hub-back-btn:hover {
+  background: rgba(139, 105, 20, 0.9);
+  box-shadow: 0 0 14px rgba(242, 200, 121, 0.4);
+}
+
+/* Interaction prompt shown while standing in the Trial Gate zone. It's a real
+   button so a tap enters on touch; Space also enters (see HubScene keydown). */
+.hub-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 12px 26px;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 18px;
+  color: var(--walnut);
+  background: radial-gradient(circle at 50% 30%, var(--cream), #f0e2bd);
+  border: 2px solid var(--aged-gold);
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 0 22px rgba(242, 200, 121, 0.55);
+  animation: hub-prompt-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes hub-prompt-pulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(242, 200, 121, 0.4); }
+  50% { box-shadow: 0 0 28px rgba(242, 200, 121, 0.75); }
+}
+
+/* Touch joystick — mirrors the racer's steering-stick styling (same palette
+   and CONTROLS.joystick sizing), extended to a 2D walk stick for the hub. */
+.hub-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hub-joy-base {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: var(--ctrl-rest, 0.42);
+  background: radial-gradient(circle at 50% 45%, rgba(92, 58, 30, 0.55), rgba(44, 24, 16, 0.55));
+  border: 2px solid var(--brass);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.45);
+  transition: opacity 0.12s ease;
+}
+
+.hub-joy-base.is-pressed {
+  opacity: var(--ctrl-press, 0.88);
+  border-color: var(--resonance-glow);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.4), 0 0 20px rgba(242, 200, 121, 0.5);
+}
+
+.hub-joy-nub {
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, var(--aged-gold), var(--brass));
+  border: 2px solid var(--cream);
+  box-shadow: 0 0 12px rgba(242, 200, 121, 0.55);
+  will-change: transform;
+}

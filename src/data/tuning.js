@@ -457,6 +457,77 @@ export const CONTROLS = {
   },
 }
 
+// Walkable hub scene (see screens/HubScene.jsx). Phase 1 prototype: a flat
+// test area the player walks around, a few collision obstacles, and one
+// interaction zone ("Trial Gate", a placeholder label) that opens the
+// existing Practice setup screen. EVERY number the scene uses lives here.
+//
+// Coordinates are a fixed LOGICAL world (HUB.world); the canvas fits this box
+// and letterboxes any leftover space, so obstacle/gate/player positions are
+// deterministic regardless of the actual window size — the same
+// fit-to-a-logical-size approach the racer uses, which also keeps the verify
+// script's geometry checks stable.
+export const HUB = {
+  world: { width: 960, height: 600 }, // logical play field, px
+  groundColor: '#FFF8E7', // cream play field (palette: Cream)
+  letterboxColor: '#E8DBB5', // slightly deeper parchment behind the field
+
+  player: {
+    start: { x: 480, y: 360 }, // feet-anchor start, logical px (clear of gate + obstacles)
+    speed: 170, // walk speed, logical px/sec
+    drawScale: 2.1, // sprite scale: a 64px sheet frame draws at 64*this logical px
+    animFrameMs: 135, // ms per walk frame (Mana Seed page-1 default cadence)
+    moveDeadzone: 0.06, // input magnitude below this reads as standing still
+    // Feet-based collision box (NOT the full sprite height): centered on the
+    // feet anchor in x, rising `height` px above the anchor in y.
+    feet: { width: 24, height: 14 },
+  },
+
+  // Mana Seed "char_a_p1" sheet facts (from the pack's guide, confirmed on the
+  // actual sheet): a 512px page = 8x8 grid of 64px frames. Idle/stand is
+  // column 0 of the top four rows; walk is rows 4-7, columns 0-5 (6 frames).
+  // Row order (both blocks): 0 down, 1 up, 2 right, 3 left.
+  sprite: {
+    frameSize: 64,
+    columns: 8,
+    idleCol: 0,
+    walkFrames: 6,
+    idleRow: { down: 0, up: 1, right: 2, left: 3 },
+    walkRow: { down: 4, up: 5, right: 6, left: 7 },
+  },
+  // Draw order body -> outfit -> hair (Mana Seed layer numbering 0bas < 1out
+  // < 4har). Served from public/ at the site root. This is the Phase-1
+  // default look; per-player customization (Phase 2) will swap these.
+  layers: [
+    { id: 'body', src: '/sprites/hub/char_a_p1_0bas_humn_v00.png' },
+    { id: 'outfit', src: '/sprites/hub/char_a_p1_1out_fstr_v01.png' },
+    { id: 'hair', src: '/sprites/hub/char_a_p1_4har_bob1_v00.png' },
+  ],
+
+  // Placeholder collision obstacles (drawn rectangles, no art), logical px.
+  obstacles: [
+    { x: 150, y: 150, w: 120, h: 92 },
+    { x: 640, y: 140, w: 156, h: 74 },
+    { x: 236, y: 402, w: 96, h: 128 },
+    { x: 688, y: 420, w: 132, h: 104 },
+  ],
+  obstacleFill: '#8B6914', // Brass
+  obstacleEdge: '#5C3A1E', // Walnut outline
+
+  // The one interaction zone. `label` is a placeholder per the session brief —
+  // no invented location/lore names. Trigger = player feet within `radius`.
+  trialGate: { x: 480, y: 118, radius: 64, label: 'Trial Gate' },
+  gateFill: 'rgba(196, 154, 60, 0.22)', // Aged Gold, translucent
+  gateRing: '#C49A3C', // Aged Gold
+  gateLabelFont: "20px 'Cinzel', Georgia, serif",
+  gateLabelColor: '#5C3A1E',
+
+  // Persist-on-move throttle: how often (ms) the hub writes the player's
+  // position to localStorage while walking, so a reload restores it without
+  // writing every frame.
+  saveThrottleMs: 750,
+}
+
 export const CREATURE_STAT_RANGES = {
   spd: [10, 100],
   atk: [10, 100],

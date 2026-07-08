@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { ROAD, RACE, DRIFT, PARALLAX, RESULTS, OPPONENTS, COMBAT, CONTROLS, DIFFICULTY, activeTrackId } from '../data/tuning.js'
 import { trackLength, seg } from '../engine/track.js'
 import { project, renderRoadSegment, renderLaneStripe } from '../engine/projection.js'
@@ -128,6 +128,12 @@ function createInitialGameState() {
 
 export default function RaceTrack() {
   const navigate = useNavigate()
+  const location = useLocation()
+  // Origin threaded from the setup screen: '/hub' when the player came in via
+  // the hub's Trial Gate, null on the normal home-page flow. When set, the
+  // race offers a way back to the hub (results button + Esc); when null the
+  // results screen and race behave exactly as before.
+  const returnTo = location.state?.returnTo || null
   const canvasRef = useRef(null)
   const joyBaseRef = useRef(null)
   const joyNubRef = useRef(null)
@@ -914,6 +920,18 @@ export default function RaceTrack() {
     }
   }, [showTouch])
 
+  // Hub flow only: Esc leaves the race and returns to the hub. Isolated from
+  // the game-loop effect and inert when returnTo is null, so normal races are
+  // untouched.
+  useEffect(() => {
+    if (!returnTo) return
+    function onEsc(e) {
+      if (e.key === 'Escape') navigate(returnTo)
+    }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [returnTo, navigate])
+
   return (
     <div className="race-track">
       <canvas ref={canvasRef} />
@@ -1033,10 +1051,19 @@ export default function RaceTrack() {
             <button
               type="button"
               className="results-again-btn"
-              onClick={() => navigate('/practice')}
+              onClick={() => navigate('/practice', { state: { returnTo } })}
             >
               Race Again
             </button>
+            {returnTo && (
+              <button
+                type="button"
+                className="results-again-btn results-hub-btn"
+                onClick={() => navigate(returnTo)}
+              >
+                Back to Hub
+              </button>
+            )}
           </div>
         </div>
       )}

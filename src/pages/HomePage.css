@@ -25,3 +25,10 @@
 .home-page-link:hover {
   color: var(--aged-gold);
 }
+
+/* Temporary dev-only entry (hub prototype); visually de-emphasized. */
+.home-page-link-dev {
+  font-size: 0.95rem;
+  color: var(--walnut);
+  opacity: 0.6;
+}

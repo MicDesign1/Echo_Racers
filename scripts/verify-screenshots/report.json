@@ -1,5 +1,5 @@
 {
-  "port": "5173",
+  "port": "5177",
   "zPlayer": 981.995164779234,
   "nearPlane": 100,
   "segmentLength": 200,
@@ -1768,7 +1768,7 @@
   },
   "shimmer": {
     "frames": 120,
-    "visibleCount": 77
+    "visibleCount": 120
   },
   "natural": {
     "bump": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-bump.png",

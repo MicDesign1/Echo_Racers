@@ -59,6 +59,27 @@ export function setPracticeConfig(config, profile = PROFILE_ID) {
   return config
 }
 
+// Last hub position/facing, stored on the same settings record so the
+// walkable hub restores where the player left off. Only the serializable
+// bits (x, y, facing) are kept — never sprite images or scene refs. Stored
+// raw; the caller validates the shape when reading, so a stale/hand-edited
+// value can never corrupt the scene.
+export function getHubState(profile = PROFILE_ID) {
+  const h = loadSettings(profile).hub
+  return h && typeof h === 'object' ? h : null
+}
+
+export function setHubState(state, profile = PROFILE_ID) {
+  try {
+    const settings = loadSettings(profile)
+    settings.hub = state
+    localStorage.setItem(settingsKey(profile), JSON.stringify(settings))
+  } catch {
+    // Storage unavailable (private browsing, quota) — position just won't persist.
+  }
+  return state
+}
+
 function loadBestTimes(profile) {
   try {
     const raw = localStorage.getItem(storageKey(profile))
