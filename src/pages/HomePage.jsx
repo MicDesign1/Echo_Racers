@@ -6,8 +6,9 @@ export default function HomePage() {
     <div className="home-page">
       <h1>Animalian: Echo Racers</h1>
       <Link to="/practice" className="home-page-link">Practice Race</Link>
-      {/* Temporary dev entry into the Phase-1 walkable hub prototype. */}
+      {/* Temporary dev entries into the walkable hub prototype + avatar screen. */}
       <Link to="/hub" className="home-page-link home-page-link-dev">Hub (dev)</Link>
+      <Link to="/avatar" className="home-page-link home-page-link-dev">Avatar (dev)</Link>
     </div>
   )
 }

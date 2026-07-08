@@ -495,14 +495,11 @@ export const HUB = {
     idleRow: { down: 0, up: 1, right: 2, left: 3 },
     walkRow: { down: 4, up: 5, right: 6, left: 7 },
   },
-  // Draw order body -> outfit -> hair (Mana Seed layer numbering 0bas < 1out
-  // < 4har). Served from public/ at the site root. This is the Phase-1
-  // default look; per-player customization (Phase 2) will swap these.
-  layers: [
-    { id: 'body', src: '/sprites/hub/char_a_p1_0bas_humn_v00.png' },
-    { id: 'outfit', src: '/sprites/hub/char_a_p1_1out_fstr_v01.png' },
-    { id: 'hair', src: '/sprites/hub/char_a_p1_4har_bob1_v00.png' },
-  ],
+  // The player look is now DATA: a serializable avatar descriptor (see
+  // data/avatarManifest.js + data/avatarPalettes.js) rendered by the
+  // palette-swap compositor (engine/avatarComposite.js). Draw order is still
+  // body -> outfit -> hair (Mana Seed 0bas < 1out < 4har), baked into the
+  // composited sheet, so this scene just draws the one cached sheet.
 
   // Placeholder collision obstacles (drawn rectangles, no art), logical px.
   obstacles: [
@@ -514,13 +511,28 @@ export const HUB = {
   obstacleFill: '#8B6914', // Brass
   obstacleEdge: '#5C3A1E', // Walnut outline
 
-  // The one interaction zone. `label` is a placeholder per the session brief —
-  // no invented location/lore names. Trigger = player feet within `radius`.
-  trialGate: { x: 480, y: 118, radius: 64, label: 'Trial Gate' },
-  gateFill: 'rgba(196, 154, 60, 0.22)', // Aged Gold, translucent
-  gateRing: '#C49A3C', // Aged Gold
-  gateLabelFont: "20px 'Cinzel', Georgia, serif",
-  gateLabelColor: '#5C3A1E',
+  // Interaction zones — generic DATA (not one-offs) so new zones are just new
+  // entries. Trigger = player feet within `radius`; `action` picks what the
+  // prompt opens. `label`s are placeholders per the brief — no invented
+  // location/lore names ("Trial Gate", "Mirror" are stand-ins to be renamed
+  // when hub locations are resolved from the story side).
+  zones: [
+    { id: 'trialGate', x: 480, y: 118, radius: 64, label: 'Trial Gate', action: 'practice' },
+    { id: 'mirror', x: 150, y: 305, radius: 58, label: 'Mirror', action: 'avatar' },
+  ],
+  zoneFill: 'rgba(196, 154, 60, 0.22)', // Aged Gold, translucent
+  zoneRing: '#C49A3C', // Aged Gold
+  zoneLabelFont: "20px 'Cinzel', Georgia, serif",
+  zoneLabelColor: '#5C3A1E',
+
+  // Avatar customization preview (screens/AvatarScreen.jsx): the composited
+  // character walks in place, slowly cycling facings.
+  avatar: {
+    previewScale: 3.2, // sprite draw scale in the preview canvas
+    previewAnimFrameMs: 150, // ms per walk frame in the preview
+    facingCycleMs: 1500, // ms each facing holds before rotating
+    facingOrder: ['down', 'right', 'up', 'left'],
+  },
 
   // Persist-on-move throttle: how often (ms) the hub writes the player's
   // position to localStorage while walking, so a reload restores it without

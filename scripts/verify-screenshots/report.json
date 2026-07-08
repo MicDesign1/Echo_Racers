@@ -1771,8 +1771,8 @@
     "visibleCount": 120
   },
   "natural": {
-    "bump": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-bump.png",
     "catching": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-catching.png",
+    "bump": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-bump.png",
     "passed": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-passed.png"
   }
 }

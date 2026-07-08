@@ -1,12 +1,14 @@
 /**
- * Headless sanity for the Phase-1 walkable hub (src/screens/HubScene.jsx):
+ * Headless sanity for the walkable hub (src/screens/HubScene.jsx):
  *   1. the scene constructs and exposes its verify hook,
- *   2. all three Mana Seed player sprite layers resolve (load),
- *   3. the Trial Gate interaction zone triggers at the right distance
- *      (inside its radius true, just outside false),
- *   4. keyboard-style movement walks + faces correctly and cannot pass
- *      through an obstacle (slides/stops at its edge),
- *   5. position persists across a reload (per-profile localStorage).
+ *   2. the player's composited avatar sheet builds (palette compositor),
+ *   3. every interaction zone triggers at the right distance (inside radius
+ *      true, just outside clears), driven from HUB.zones data,
+ *   4. the palette-swap composite of a NON-default look is 512x512, contains a
+ *      target-ramp color, and is built once per descriptor (not per call),
+ *   5. keyboard-style movement walks + faces correctly and cannot pass through
+ *      an obstacle (slides/stops at its edge),
+ *   6. position persists across a reload (per-profile localStorage).
  * Mirrors scripts/verify-opponents-render.mjs (Vite port auto-detect, a
  * verify-gated window hook driven directly rather than through rAF timing).
  * Prereq: dev server running.  Run: node scripts/verify-hub-render.mjs
@@ -15,6 +17,7 @@ import { chromium } from 'playwright'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { AVATAR_PALETTES } from '../src/data/avatarPalettes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const OUT_DIR = path.join(__dirname, 'verify-screenshots')
@@ -50,38 +53,53 @@ async function main() {
   const hasHook = await page.evaluate(() => !!window.__ECHO_HUB_TEST__)
   if (!hasHook) throw new Error('verify hook __ECHO_HUB_TEST__ missing (scene did not construct)')
 
-  // 2. All three sprite layers resolve.
-  await page.waitForFunction(() => {
-    const s = window.__ECHO_HUB_TEST__.getState()
-    return s.layersLoaded === true
-  }, null, { timeout: 10000 })
-  const state0 = await page.evaluate(() => window.__ECHO_HUB_TEST__.getState())
-  if (state0.layerCount !== 3) throw new Error(`expected 3 sprite layers, got ${state0.layerCount}`)
-  console.log(`  sprite layers: ${state0.layerCount} resolved`)
+  // 2. The player's composited avatar sheet builds.
+  await page.waitForFunction(() => window.__ECHO_HUB_TEST__.getState().composited === true, null, { timeout: 10000 })
+  console.log(`  avatar composite: player sheet built`)
 
-  // 3. Zone triggers at the right distance.
-  const gate = await page.evaluate(() => window.__ECHO_HUB_TEST__.getGate())
-  const zone = await page.evaluate(({ gx, gy, r }) => {
-    const H = window.__ECHO_HUB_TEST__
-    H.setPos(gx, gy)
-    const center = H.getState().inZone
-    H.setPos(gx + (r - 4), gy)
-    const justInside = H.getState().inZone
-    H.setPos(gx + (r + 4), gy)
-    const justOutside = H.getState().inZone
-    return { center, justInside, justOutside }
-  }, { gx: gate.x, gy: gate.y, r: gate.radius })
-  if (!zone.center) throw new Error('zone: player at gate center not detected inside')
-  if (!zone.justInside) throw new Error(`zone: player ${4}px inside radius not detected inside`)
-  if (zone.justOutside) throw new Error(`zone: player ${4}px outside radius wrongly detected inside`)
-  console.log(`  trial gate: triggers inside r=${gate.radius}, clears outside`)
+  // 3. Every zone triggers inside its radius and clears just outside.
+  const zones = await page.evaluate(() => window.__ECHO_HUB_TEST__.getZones())
+  if (zones.length < 2) throw new Error(`expected >=2 hub zones, got ${zones.length}`)
+  for (const z of zones) {
+    const r = await page.evaluate(({ zx, zy, rad, id }) => {
+      const H = window.__ECHO_HUB_TEST__
+      H.setPos(zx, zy)
+      const center = H.getState().activeZone
+      H.setPos(zx + (rad - 4), zy)
+      const justInside = H.getState().activeZone
+      H.setPos(zx + (rad + 6), zy)
+      const justOutside = H.getState().activeZone
+      return { center, justInside, justOutside, id }
+    }, { zx: z.x, zy: z.y, rad: z.radius, id: z.id })
+    if (r.center !== z.id) throw new Error(`zone ${z.id}: center not active (got ${r.center})`)
+    if (r.justInside !== z.id) throw new Error(`zone ${z.id}: inside radius not active (got ${r.justInside})`)
+    if (r.justOutside === z.id) throw new Error(`zone ${z.id}: still active just outside radius`)
+    console.log(`  zone '${z.label}' (${z.id}): triggers inside r=${z.radius}, clears outside`)
+  }
 
-  // 4. Movement + facing + obstacle collision (slide/stop at edge).
+  // 4. Palette-swap composite of a NON-default look.
+  const skin = AVATAR_PALETTES.body.human
+  const skinIdx = skin.colors.findIndex((c) => c.ramp[0] !== skin.sourceRamp[0])
+  if (skinIdx < 0) throw new Error('no non-identity skin color found in palettes')
+  const targetHex = skin.colors[skinIdx].ramp[0]
+  const descriptor = {
+    body: skin.colors[skinIdx].id,
+    outfit: 'forester', outfitColor: 'c00',
+    hair: 'bob', hairColor: 'c00',
+  }
+  const probe1 = await page.evaluate(({ d, t }) => window.__ECHO_HUB_TEST__.compositeProbe(d, t), { d: descriptor, t: targetHex })
+  if (probe1.width !== 512 || probe1.height !== 512) throw new Error(`composite dims ${probe1.width}x${probe1.height}, expected 512x512`)
+  if (!probe1.found) throw new Error(`composite missing target-ramp color ${targetHex}`)
+  if (probe1.builtNow !== 1) throw new Error(`expected composite to build once, builtNow=${probe1.builtNow}`)
+  const probe2 = await page.evaluate(({ d, t }) => window.__ECHO_HUB_TEST__.compositeProbe(d, t), { d: descriptor, t: targetHex })
+  if (probe2.builtNow !== 0) throw new Error(`expected cache hit (builtNow=0) on repeat, got ${probe2.builtNow}`)
+  console.log(`  composite: 512x512, target ${targetHex} present, built once then cached`)
+
+  // 5. Movement + facing + obstacle collision (slide/stop at edge).
   const obstacles = await page.evaluate(() => window.__ECHO_HUB_TEST__.getObstacles())
   const facings = await page.evaluate(() => {
     const H = window.__ECHO_HUB_TEST__
     const out = {}
-    // Open spot away from obstacles/gate.
     H.setPos(480, 300)
     out.right = H.simulateMove(1, 0, 400)
     H.setPos(480, 300)
@@ -101,8 +119,6 @@ async function main() {
   const o = obstacles[0]
   const feet = await page.evaluate(({ ox, oy, oh }) => {
     const H = window.__ECHO_HUB_TEST__
-    // Start just left of the obstacle, feet vertically inside its span, and
-    // walk right into it for a generous duration.
     H.setPos(ox - 60, oy + oh - 4)
     const start = H.getState().x
     const end = H.simulateMove(1, 0, 2000)
@@ -112,7 +128,7 @@ async function main() {
   if (feet.endX >= o.x) throw new Error(`collision: player penetrated obstacle (endX ${feet.endX.toFixed(1)} >= obstacle left ${o.x})`)
   console.log(`  collision: stopped at obstacle edge (endX=${feet.endX.toFixed(1)}, wall=${o.x})`)
 
-  // 5. Position persists across reload.
+  // 6. Position persists across reload.
   const persistTarget = { x: 300, y: 500 }
   await page.evaluate(({ x, y }) => {
     const H = window.__ECHO_HUB_TEST__
@@ -127,8 +143,8 @@ async function main() {
   }
   console.log(`  persist: position restored after reload (${restored.x.toFixed(0)},${restored.y.toFixed(0)})`)
 
-  // Screenshot for the record: player standing in the gate.
-  await page.evaluate(({ gx, gy }) => window.__ECHO_HUB_TEST__.setPos(gx, gy + 40), { gx: gate.x, gy: gate.y })
+  // Screenshot for the record: player standing near the first zone.
+  await page.evaluate(({ zx, zy }) => window.__ECHO_HUB_TEST__.setPos(zx, zy + 40), { zx: zones[0].x, zy: zones[0].y })
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
   await page.locator('canvas').screenshot({ path: path.join(OUT_DIR, 'hub-scene.png') })
 

@@ -80,6 +80,27 @@ export function setHubState(state, profile = PROFILE_ID) {
   return state
 }
 
+// The player's avatar look — a plain serializable descriptor
+// ({ body, outfit, outfitColor, hair, hairColor }) stored on its own sibling
+// key so it's independent of hub position (and shareable across future scenes
+// / the network). Stored raw; callers normalize against the current manifest
+// so a stale/hand-edited look can never break rendering.
+export function getAvatar(profile = PROFILE_ID) {
+  const a = loadSettings(profile).avatar
+  return a && typeof a === 'object' ? a : null
+}
+
+export function setAvatar(avatar, profile = PROFILE_ID) {
+  try {
+    const settings = loadSettings(profile)
+    settings.avatar = avatar
+    localStorage.setItem(settingsKey(profile), JSON.stringify(settings))
+  } catch {
+    // Storage unavailable (private browsing, quota) — look just won't persist.
+  }
+  return avatar
+}
+
 function loadBestTimes(profile) {
   try {
     const raw = localStorage.getItem(storageKey(profile))

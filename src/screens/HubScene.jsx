@@ -1,40 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HUB, CONTROLS } from '../data/tuning.js'
-import { getHubState, setHubState } from '../data/saves.js'
+import { getHubState, setHubState, getAvatar } from '../data/saves.js'
+import { normalizeAvatar } from '../data/avatarManifest.js'
+import { ensureComposite, getComposite, getBuildCount } from '../engine/avatarComposite.js'
 import './HubScene.css'
 
-// Phase-1 walkable hub prototype. A player character walks a flat test area,
-// collides with a few rectangle obstacles, and can enter one interaction zone
-// (the "Trial Gate" placeholder) that opens the existing Practice setup. All
-// tunables live in HUB (src/data/tuning.js) — nothing numeric is invented here.
+// Walkable hub. The player walks a flat test area, collides with rectangle
+// obstacles, and can enter data-driven interaction zones (Trial Gate ->
+// Practice, Mirror -> Avatar). The character is a palette-composited Mana Seed
+// sprite driven by the profile's avatar descriptor. All tunables live in HUB.
 
 const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('verify')
-// Same forcing hook the racer uses, so the touch joystick can be hand-tested
-// on a desktop without a coarse pointer.
 const forceTouch = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('touch')
-
-// Sprite images are cached ONCE at module scope, keyed by src, and shared
-// across mounts. They are deliberately kept OUT of the player state object
-// (which must stay plain/serializable for future phases).
-const imageCache = new Map()
-function getImage(src) {
-  let img = imageCache.get(src)
-  if (!img) {
-    img = new Image()
-    img.src = src
-    imageCache.set(src, img)
-  }
-  return img
-}
 
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v
 }
 
-// Builds the ONE plain, serializable hub-player state object. No functions, no
-// class instances, no canvas/Image refs — only numbers, strings, and a layers
-// descriptor (id + src strings). This is a hard requirement for later phases.
+// The ONE plain, serializable hub-player state object (position/facing/anim).
+// No functions, no canvas/Image refs. The avatar look is a separate
+// serializable descriptor (see avatarRef), also plain.
 function createPlayerState() {
   const saved = getHubState()
   const W = HUB.world
@@ -46,15 +32,7 @@ function createPlayerState() {
     y = clamp(saved.y, 0, W.height)
     if (['down', 'up', 'left', 'right'].includes(saved.facing)) facing = saved.facing
   }
-  return {
-    x,
-    y,
-    facing,
-    moving: false,
-    animFrame: 0,
-    animTime: 0,
-    layers: HUB.layers.map((l) => ({ id: l.id, src: l.src })),
-  }
+  return { x, y, facing, moving: false, animFrame: 0, animTime: 0 }
 }
 
 export default function HubScene() {
@@ -62,16 +40,18 @@ export default function HubScene() {
   const canvasRef = useRef(null)
   const playerRef = useRef(null)
   if (playerRef.current === null) playerRef.current = createPlayerState()
+  const avatarRef = useRef(null)
+  if (avatarRef.current === null) avatarRef.current = normalizeAvatar(getAvatar())
 
   const keysRef = useRef({ up: false, down: false, left: false, right: false })
   const inputRef = useRef({ x: 0, y: 0, active: false }) // joystick analog vector
-  const inZoneRef = useRef(false)
-  const enterGateRef = useRef(() => {})
+  const activeZoneRef = useRef(null)
+  const enterZoneRef = useRef(() => {})
 
   const joyBaseRef = useRef(null)
   const joyNubRef = useRef(null)
 
-  const [inZone, setInZone] = useState(false)
+  const [activeZone, setActiveZone] = useState(null)
   const [showTouch] = useState(() => {
     if (verifyMode) return false
     if (forceTouch) return true
@@ -80,12 +60,15 @@ export default function HubScene() {
       : false
   })
 
-  // Main scene: canvas sizing, image load, movement/collision/zone update, the
-  // render loop, keyboard, persistence, and (verify only) the test hook.
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const player = playerRef.current
+    const avatar = avatarRef.current
+
+    // Composite the look ONCE on scene entry (not per frame). The render loop
+    // reads the cached sheet; it simply draws nothing until this resolves.
+    ensureComposite(avatar)
 
     let W = 0
     let H = 0
@@ -100,13 +83,6 @@ export default function HubScene() {
     resize()
     window.addEventListener('resize', resize)
 
-    function layersLoaded() {
-      return player.layers.every((l) => {
-        const img = getImage(l.src)
-        return img.complete && img.naturalWidth > 0
-      })
-    }
-
     function collides(px, py) {
       const f = HUB.player.feet
       const x0 = px - f.width / 2
@@ -119,8 +95,6 @@ export default function HubScene() {
       return false
     }
 
-    // Axis-separated move so the player slides along an obstacle edge instead
-    // of sticking when pushing into it diagonally.
     function tryMove(ddx, ddy) {
       const f = HUB.player.feet
       const world = HUB.world
@@ -130,25 +104,26 @@ export default function HubScene() {
       if (ddy !== 0 && !collides(player.x, ny)) player.y = ny
     }
 
+    // First zone whose radius contains the player's feet (null if none).
+    function zoneAt(px, py) {
+      for (const z of HUB.zones) {
+        if (Math.hypot(px - z.x, py - z.y) < z.radius) return z
+      }
+      return null
+    }
     function recomputeZone() {
-      const g = HUB.trialGate
-      const inside = Math.hypot(player.x - g.x, player.y - g.y) < g.radius
-      inZoneRef.current = inside
-      setInZone((prev) => (prev === inside ? prev : inside))
+      const z = zoneAt(player.x, player.y)
+      activeZoneRef.current = z
+      setActiveZone((prev) => (prev?.id === (z?.id ?? null) ? prev : (z ? { id: z.id, label: z.label, action: z.action } : null)))
     }
 
-    // Shared movement step (used by the rAF loop AND the verify hook), so both
-    // exercise identical collision/facing/animation logic.
     function stepPlayer(dt, rawDx, rawDy) {
       const P = HUB.player
       const mag = Math.hypot(rawDx, rawDy)
       const moving = mag > P.moveDeadzone
       if (moving) {
-        // Diagonal input picks the dominant axis for facing (4-direction).
         if (Math.abs(rawDx) > Math.abs(rawDy)) player.facing = rawDx > 0 ? 'right' : 'left'
         else player.facing = rawDy > 0 ? 'down' : 'up'
-        // Normalize direction, then re-apply the (clamped) magnitude so a
-        // half-tilted stick walks at half speed and diagonals aren't faster.
         const m = Math.min(mag, 1)
         const step = P.speed * dt
         tryMove((rawDx / mag) * m * step, 0)
@@ -172,13 +147,14 @@ export default function HubScene() {
     let lastSave = performance.now()
     let dirtySinceSave = false
 
-    function enterGate() {
+    // Dispatch an interaction zone by its data-driven action.
+    function enterZone(zone) {
+      if (!zone) return
       saveNow()
-      // Origin threaded so completing/leaving the race returns here, not to
-      // the home-page practice flow.
-      navigate('/practice', { state: { returnTo: '/hub' } })
+      if (zone.action === 'practice') navigate('/practice', { state: { returnTo: '/hub' } })
+      else if (zone.action === 'avatar') navigate('/avatar', { state: { returnTo: '/hub' } })
     }
-    enterGateRef.current = enterGate
+    enterZoneRef.current = () => enterZone(activeZoneRef.current)
 
     function keyForMove(code) {
       switch (code) {
@@ -192,7 +168,7 @@ export default function HubScene() {
     function onKeyDown(e) {
       if (e.code === 'Escape') { navigate('/'); return }
       if (e.code === 'Space') {
-        if (inZoneRef.current) enterGate()
+        if (activeZoneRef.current) enterZone(activeZoneRef.current)
         e.preventDefault()
         return
       }
@@ -216,8 +192,6 @@ export default function HubScene() {
       if (keys.right) dx += 1
       if (keys.up) dy -= 1
       if (keys.down) dy += 1
-      // Keyboard takes priority; the joystick feeds movement only when no
-      // movement key is held (desktop keyboard behaviour is untouched).
       if (dx === 0 && dy === 0) {
         const j = inputRef.current
         if (j.active) { dx = j.x; dy = j.y }
@@ -227,7 +201,6 @@ export default function HubScene() {
 
     function draw() {
       const world = HUB.world
-      // Fit the logical world into the canvas, centered, letterboxing the rest.
       const scale = Math.min(W / world.width, H / world.height)
       const offX = (W - world.width * scale) / 2
       const offY = (H - world.height * scale) / 2
@@ -243,7 +216,6 @@ export default function HubScene() {
       ctx.fillStyle = HUB.groundColor
       ctx.fillRect(0, 0, world.width, world.height)
 
-      // Obstacles.
       ctx.lineWidth = 3
       for (const o of HUB.obstacles) {
         ctx.fillStyle = HUB.obstacleFill
@@ -252,36 +224,35 @@ export default function HubScene() {
         ctx.strokeRect(o.x, o.y, o.w, o.h)
       }
 
-      // Trial Gate zone (drawn under the player).
-      const g = HUB.trialGate
-      ctx.beginPath()
-      ctx.arc(g.x, g.y, g.radius, 0, Math.PI * 2)
-      ctx.fillStyle = HUB.gateFill
-      ctx.fill()
-      ctx.lineWidth = 3
-      ctx.strokeStyle = HUB.gateRing
-      ctx.stroke()
-      ctx.fillStyle = HUB.gateLabelColor
-      ctx.font = HUB.gateLabelFont
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(g.label, g.x, g.y)
+      // Interaction zones (drawn under the player).
+      for (const z of HUB.zones) {
+        ctx.beginPath()
+        ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2)
+        ctx.fillStyle = HUB.zoneFill
+        ctx.fill()
+        ctx.lineWidth = 3
+        ctx.strokeStyle = HUB.zoneRing
+        ctx.stroke()
+        ctx.fillStyle = HUB.zoneLabelColor
+        ctx.font = HUB.zoneLabelFont
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(z.label, z.x, z.y)
+      }
 
-      // Player: 3 layers, body -> outfit -> hair, bottom-center anchored.
-      const S = HUB.sprite
-      const row = player.moving ? S.walkRow[player.facing] : S.idleRow[player.facing]
-      const col = player.moving ? player.animFrame : S.idleCol
-      const sx = col * S.frameSize
-      const sy = row * S.frameSize
-      const dw = S.frameSize * HUB.player.drawScale
-      const dh = dw
-      const dx = player.x - dw / 2
-      const dy = player.y - dh
-      for (const l of player.layers) {
-        const img = getImage(l.src)
-        if (img.complete && img.naturalWidth > 0) {
-          ctx.drawImage(img, sx, sy, S.frameSize, S.frameSize, dx, dy, dw, dh)
-        }
+      // Player: the composited avatar sheet, bottom-center anchored.
+      const sheet = getComposite(avatar)
+      if (sheet) {
+        const S = HUB.sprite
+        const row = player.moving ? S.walkRow[player.facing] : S.idleRow[player.facing]
+        const col = player.moving ? player.animFrame : S.idleCol
+        const sx = col * S.frameSize
+        const sy = row * S.frameSize
+        const dw = S.frameSize * HUB.player.drawScale
+        const dh = dw
+        const dx = player.x - dw / 2
+        const dy = player.y - dh
+        ctx.drawImage(sheet, sx, sy, S.frameSize, S.frameSize, dx, dy, dw, dh)
       }
 
       ctx.restore()
@@ -292,13 +263,12 @@ export default function HubScene() {
     function frame(now) {
       let dt = (now - last) / 1000
       last = now
-      if (dt > 0.05) dt = 0.05 // clamp big gaps (tab refocus) so nothing teleports
+      if (dt > 0.05) dt = 0.05
       const { dx, dy } = readInput()
       const beforeX = player.x
       const beforeY = player.y
       stepPlayer(dt, dx, dy)
       if (player.x !== beforeX || player.y !== beforeY) dirtySinceSave = true
-      // Throttled autosave while walking, so a reload restores position.
       if (dirtySinceSave && now - lastSave > HUB.saveThrottleMs) {
         saveNow()
         lastSave = now
@@ -317,20 +287,37 @@ export default function HubScene() {
           facing: player.facing,
           moving: player.moving,
           animFrame: player.animFrame,
-          inZone: inZoneRef.current,
-          layersLoaded: layersLoaded(),
-          layerCount: player.layers.length,
+          activeZone: activeZoneRef.current?.id ?? null,
+          composited: !!getComposite(avatar),
+          buildCount: getBuildCount(),
           world: { ...HUB.world },
         }),
-        getGate: () => ({ ...HUB.trialGate }),
+        getZones: () => HUB.zones.map((z) => ({ ...z })),
         getObstacles: () => HUB.obstacles.map((o) => ({ ...o })),
         setPos: (x, y) => { player.x = x; player.y = y; recomputeZone() },
-        // Run the shared movement step for `ms` at a fixed timestep so the
-        // script can verify walking/collision/facing deterministically.
         simulateMove: (dx, dy, ms) => {
           const steps = Math.max(1, Math.round(ms / 16))
           for (let i = 0; i < steps; i++) stepPlayer(0.016, dx, dy)
           return { x: player.x, y: player.y, facing: player.facing }
+        },
+        // Composite an arbitrary descriptor and report whether a given target
+        // ramp color appears in the output sheet (proves the palette swap).
+        compositeProbe: async (descriptor, targetHex) => {
+          const before = getBuildCount()
+          const sheet = await ensureComposite(descriptor)
+          const c = document.createElement('canvas')
+          c.width = sheet.width
+          c.height = sheet.height
+          const cctx = c.getContext('2d', { willReadFrequently: true })
+          cctx.drawImage(sheet, 0, 0)
+          const d = cctx.getImageData(0, 0, c.width, c.height).data
+          const want = parseInt(String(targetHex).slice(1), 16) & 0xffffff
+          let found = false
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i + 3] === 0) continue
+            if (((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]) === want) { found = true; break }
+          }
+          return { width: sheet.width, height: sheet.height, found, builtNow: getBuildCount() - before, buildCount: getBuildCount() }
         },
         save: () => saveNow(),
       }
@@ -346,9 +333,6 @@ export default function HubScene() {
     }
   }, [navigate])
 
-  // Touch joystick — reuses the racer's CONTROLS.joystick tuning + pointer-
-  // capture pattern, extended to a 2D walk vector. Self-contained so the
-  // verified race input is left untouched. Mounted only when controls show.
   useEffect(() => {
     if (!showTouch) return
     const base = joyBaseRef.current
@@ -407,13 +391,13 @@ export default function HubScene() {
         &larr; Back
       </button>
 
-      {inZone && (
+      {activeZone && (
         <button
           type="button"
           className="hub-prompt"
-          onClick={() => enterGateRef.current()}
+          onClick={() => enterZoneRef.current()}
         >
-          Enter — Space / tap
+          {activeZone.label} — Space / tap
         </button>
       )}
 

@@ -1,0 +1,201 @@
+/* Avatar customization — same parchment/brass aesthetic as the home, practice,
+   and results screens (Cinzel headings, Crimson Text body, cream/gold/walnut/
+   brass, resonance-glow accents). Tap targets sized for thumbs. */
+.avatar-screen {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(242, 200, 121, 0.18), transparent 60%),
+    var(--cream);
+}
+
+.avatar-card {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  border-radius: 18px;
+  border: 2px solid var(--brass);
+  background: rgba(255, 248, 231, 0.96);
+  box-shadow: 0 12px 40px rgba(44, 24, 16, 0.28);
+}
+
+.avatar-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.4rem;
+  color: var(--walnut);
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+.avatar-preview-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.avatar-preview {
+  width: 220px;
+  height: 280px;
+  border-radius: 14px;
+  border: 2px solid var(--brass);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(242, 200, 121, 0.28), transparent 65%),
+    var(--cream);
+  box-shadow: inset 0 0 24px rgba(139, 105, 20, 0.18);
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+
+.avatar-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.avatar-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: 12px;
+  border: 2px solid var(--brass);
+  background: rgba(196, 154, 60, 0.1);
+}
+
+.avatar-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.avatar-slot-label {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--walnut);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.avatar-style-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.avatar-arrow {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 2px solid var(--brass);
+  background: rgba(196, 154, 60, 0.14);
+  color: var(--walnut);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+
+.avatar-arrow:hover:not(:disabled) {
+  background: rgba(196, 154, 60, 0.3);
+}
+
+.avatar-arrow:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.avatar-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.avatar-style-name {
+  min-width: 92px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--brass);
+}
+
+.avatar-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.avatar-swatch {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 3px solid rgba(92, 58, 30, 0.35);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.avatar-swatch:hover {
+  transform: scale(1.06);
+}
+
+.avatar-swatch.is-selected {
+  border-color: var(--resonance-glow);
+  box-shadow: 0 0 14px rgba(242, 200, 121, 0.7);
+}
+
+.avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.avatar-btn {
+  flex: 1 1 30%;
+  min-height: 56px;
+  border-radius: 12px;
+  border: 2px solid var(--brass);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.avatar-btn:active {
+  transform: scale(0.97);
+}
+
+.avatar-save {
+  background: var(--brass);
+  color: var(--cream);
+}
+
+.avatar-save:hover {
+  background: var(--aged-gold);
+  box-shadow: 0 0 22px rgba(242, 200, 121, 0.55);
+}
+
+.avatar-randomize {
+  background: rgba(196, 154, 60, 0.16);
+  color: var(--walnut);
+}
+
+.avatar-randomize:hover {
+  background: rgba(196, 154, 60, 0.32);
+}
+
+.avatar-cancel {
+  background: transparent;
+  color: var(--brass);
+  border-style: dashed;
+}
+
+.avatar-cancel:hover {
+  background: rgba(139, 105, 20, 0.1);
+}
