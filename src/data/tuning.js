@@ -457,30 +457,38 @@ export const CONTROLS = {
   },
 }
 
-// Walkable hub scene (see screens/HubScene.jsx). Phase 1 prototype: a flat
-// test area the player walks around, a few collision obstacles, and one
-// interaction zone ("Trial Gate", a placeholder label) that opens the
-// existing Practice setup screen. EVERY number the scene uses lives here.
+// Walkable hub scene (see screens/HubScene.jsx). The hub is the game's home:
+// a tiled forest the player walks around, with interaction zones that open
+// Practice ("Trial Gate") and avatar customization ("Mirror"). The map itself
+// (terrain, walkability, zone/spawn placement) is DATA in src/data/hubMap.js;
+// this block holds only the render/feel constants the scene + tilemap use.
+// EVERY number the scene uses lives here or in hubMap.js.
 //
-// Coordinates are a fixed LOGICAL world (HUB.world); the canvas fits this box
-// and letterboxes any leftover space, so obstacle/gate/player positions are
-// deterministic regardless of the actual window size — the same
-// fit-to-a-logical-size approach the racer uses, which also keeps the verify
-// script's geometry checks stable.
+// Coordinates are WORLD pixels: worldPxPerTile = tile.size * tile.scale. A
+// camera follows the player and clamps to the map bounds (screens/HubScene).
 export const HUB = {
-  world: { width: 960, height: 600 }, // logical play field, px
-  groundColor: '#FFF8E7', // cream play field (palette: Cream)
-  letterboxColor: '#E8DBB5', // slightly deeper parchment behind the field
+  bgColor: '#20301c', // shown behind the map if the view is larger than it
+
+  // Forest tileset (Mana Seed "Seasonal Forest" summer atlas). 16px source
+  // tiles in a 16-wide atlas, drawn at an integer `scale` (imageSmoothing off)
+  // so pixels stay crisp; scale is tuned to sit right next to the character
+  // draw size (a ~2-tile-tall character over 48px tiles).
+  tile: {
+    size: 16, // source tile px
+    atlasCols: 16, // atlas is 16 tiles wide (256px)
+    scale: 3, // integer draw scale -> 48 world px per tile
+    atlasSrc: '/sprites/hub/tiles/forest-summer.png',
+  },
 
   player: {
-    start: { x: 480, y: 360 }, // feet-anchor start, logical px (clear of gate + obstacles)
-    speed: 170, // walk speed, logical px/sec
-    drawScale: 2.1, // sprite scale: a 64px sheet frame draws at 64*this logical px
+    speed: 190, // walk speed, world px/sec
+    drawScale: 2.1, // sprite scale: a 64px sheet frame draws at 64*this world px
+    // (kept prominent over the 48px tiles so the character reads clearly)
     animFrameMs: 135, // ms per walk frame (Mana Seed page-1 default cadence)
     moveDeadzone: 0.06, // input magnitude below this reads as standing still
     // Feet-based collision box (NOT the full sprite height): centered on the
     // feet anchor in x, rising `height` px above the anchor in y.
-    feet: { width: 24, height: 14 },
+    feet: { width: 22, height: 12 },
   },
 
   // Mana Seed "char_a_p1" sheet facts (from the pack's guide, confirmed on the
@@ -501,29 +509,13 @@ export const HUB = {
   // body -> outfit -> hair (Mana Seed 0bas < 1out < 4har), baked into the
   // composited sheet, so this scene just draws the one cached sheet.
 
-  // Placeholder collision obstacles (drawn rectangles, no art), logical px.
-  obstacles: [
-    { x: 150, y: 150, w: 120, h: 92 },
-    { x: 640, y: 140, w: 156, h: 74 },
-    { x: 236, y: 402, w: 96, h: 128 },
-    { x: 688, y: 420, w: 132, h: 104 },
-  ],
-  obstacleFill: '#8B6914', // Brass
-  obstacleEdge: '#5C3A1E', // Walnut outline
-
-  // Interaction zones — generic DATA (not one-offs) so new zones are just new
-  // entries. Trigger = player feet within `radius`; `action` picks what the
-  // prompt opens. `label`s are placeholders per the brief — no invented
-  // location/lore names ("Trial Gate", "Mirror" are stand-ins to be renamed
-  // when hub locations are resolved from the story side).
-  zones: [
-    { id: 'trialGate', x: 480, y: 118, radius: 64, label: 'Trial Gate', action: 'practice' },
-    { id: 'mirror', x: 150, y: 305, radius: 58, label: 'Mirror', action: 'avatar' },
-  ],
-  zoneFill: 'rgba(196, 154, 60, 0.22)', // Aged Gold, translucent
+  // Interaction-zone STYLING (positions/labels/actions/radii are per-map in
+  // hubMap.js). Labels are placeholders per the brief — no invented location
+  // names ("Trial Gate", "Mirror" are stand-ins pending story-side naming).
+  zoneFill: 'rgba(196, 154, 60, 0.20)', // Aged Gold, translucent
   zoneRing: '#C49A3C', // Aged Gold
-  zoneLabelFont: "20px 'Cinzel', Georgia, serif",
-  zoneLabelColor: '#5C3A1E',
+  zoneLabelFont: "600 22px 'Cinzel', Georgia, serif",
+  zoneLabelColor: '#3a2a12',
 
   // Avatar customization preview (screens/AvatarScreen.jsx): the composited
   // character walks in place, slowly cycling facings.
@@ -532,6 +524,20 @@ export const HUB = {
     previewAnimFrameMs: 150, // ms per walk frame in the preview
     facingCycleMs: 1500, // ms each facing holds before rotating
     facingOrder: ['down', 'right', 'up', 'left'],
+  },
+
+  // Ambient wildlife (see engine/critters.js + data/critters.js). PLACEHOLDER
+  // wild critters that gently wander open ground — never chase, block, or
+  // startle. Sheet layout is in data/critters.js; this is just their motion feel.
+  critter: {
+    speed: 26, // world px/sec — a slow, unhurried glide
+    animFrameMs: 220, // ms per idle-bob frame (calm, not twitchy)
+    idleMs: [1400, 4200], // random pause between wanders
+    walkMs: [1400, 3200], // max time spent heading to one target
+    wanderRadius: 150, // world px: how far a new wander target can be
+    arriveDist: 3, // world px: "close enough" to the target
+    zonePad: 26, // stay this far OUTSIDE interaction-zone radii
+    feet: { width: 20, height: 8 }, // small feet box vs the walkability grid
   },
 
   // Persist-on-move throttle: how often (ms) the hub writes the player's

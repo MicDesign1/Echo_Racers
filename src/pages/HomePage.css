@@ -14,21 +14,25 @@
   font-size: 2.5rem;
 }
 
-.home-page-link {
-  font-family: var(--font-body);
-  font-style: italic;
-  font-size: 1.25rem;
-  color: var(--brass);
-  text-decoration: underline;
+.home-page-play {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  color: var(--cream);
+  background: var(--brass);
+  border: 2px solid var(--brass);
+  border-radius: 12px;
+  padding: var(--space-md) var(--space-xl);
+  text-decoration: none;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
 }
 
-.home-page-link:hover {
-  color: var(--aged-gold);
+.home-page-play:hover {
+  background: var(--aged-gold);
+  box-shadow: 0 0 22px rgba(242, 200, 121, 0.55);
 }
 
-/* Temporary dev-only entry (hub prototype); visually de-emphasized. */
-.home-page-link-dev {
-  font-size: 0.95rem;
-  color: var(--walnut);
-  opacity: 0.6;
+.home-page-play:active {
+  transform: scale(0.97);
 }

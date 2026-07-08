@@ -101,6 +101,21 @@ export function setAvatar(avatar, profile = PROFILE_ID) {
   return avatar
 }
 
+// Navigation origin — where sub-screens (Practice, Race, Avatar) return to.
+// Stored in sessionStorage (NOT per-profile, NOT persistent across tabs) so it
+// SURVIVES A HARD RELOAD mid-flow, unlike react-router location.state. Defaults
+// to the hub, which is the game's home.
+const ORIGIN_KEY = 'echoRacers.origin'
+
+export function setOrigin(path) {
+  try { sessionStorage.setItem(ORIGIN_KEY, path) } catch { /* session storage unavailable */ }
+  return path
+}
+
+export function getOrigin() {
+  try { return sessionStorage.getItem(ORIGIN_KEY) || '/hub' } catch { return '/hub' }
+}
+
 function loadBestTimes(profile) {
   try {
     const raw = localStorage.getItem(storageKey(profile))

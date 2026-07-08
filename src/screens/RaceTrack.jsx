@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { ROAD, RACE, DRIFT, PARALLAX, RESULTS, OPPONENTS, COMBAT, CONTROLS, DIFFICULTY, activeTrackId } from '../data/tuning.js'
 import { trackLength, seg } from '../engine/track.js'
 import { project, renderRoadSegment, renderLaneStripe } from '../engine/projection.js'
@@ -12,7 +12,7 @@ import { drawAttackBolt, drawPlayerHitEdge } from '../engine/combatfx.js'
 import * as audio from '../engine/audio.js'
 import { drawHud, formatTime, ordinal } from '../engine/hud.js'
 import { COLORS, OPPONENT_PALETTES, linearGradient } from '../engine/colors.js'
-import { getBestTimes, recordLapResult, recordRaceResult, getPracticeConfig } from '../data/saves.js'
+import { getBestTimes, recordLapResult, recordRaceResult, getPracticeConfig, getOrigin } from '../data/saves.js'
 import './RaceTrack.css'
 
 const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('verify')
@@ -128,12 +128,9 @@ function createInitialGameState() {
 
 export default function RaceTrack() {
   const navigate = useNavigate()
-  const location = useLocation()
-  // Origin threaded from the setup screen: '/hub' when the player came in via
-  // the hub's Trial Gate, null on the normal home-page flow. When set, the
-  // race offers a way back to the hub (results button + Esc); when null the
-  // results screen and race behave exactly as before.
-  const returnTo = location.state?.returnTo || null
+  // Reload-proof origin (sessionStorage, defaults to the hub). The race always
+  // offers a way back (results button + Esc); Race Again keeps the same origin.
+  const returnTo = getOrigin()
   const canvasRef = useRef(null)
   const joyBaseRef = useRef(null)
   const joyNubRef = useRef(null)
@@ -920,11 +917,8 @@ export default function RaceTrack() {
     }
   }, [showTouch])
 
-  // Hub flow only: Esc leaves the race and returns to the hub. Isolated from
-  // the game-loop effect and inert when returnTo is null, so normal races are
-  // untouched.
+  // Esc leaves the race and returns to the origin (the hub).
   useEffect(() => {
-    if (!returnTo) return
     function onEsc(e) {
       if (e.key === 'Escape') navigate(returnTo)
     }
@@ -1051,19 +1045,17 @@ export default function RaceTrack() {
             <button
               type="button"
               className="results-again-btn"
-              onClick={() => navigate('/practice', { state: { returnTo } })}
+              onClick={() => navigate('/practice')}
             >
               Race Again
             </button>
-            {returnTo && (
-              <button
-                type="button"
-                className="results-again-btn results-hub-btn"
-                onClick={() => navigate(returnTo)}
-              >
-                Back to Hub
-              </button>
-            )}
+            <button
+              type="button"
+              className="results-again-btn results-hub-btn"
+              onClick={() => navigate(returnTo)}
+            >
+              Back to Hub
+            </button>
           </div>
         </div>
       )}

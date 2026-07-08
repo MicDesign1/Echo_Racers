@@ -6,18 +6,19 @@
 // the palette-swap compositor (engine/avatarComposite.js).
 //
 // Slots are drawn/composited in this order (Mana Seed layer order):
-//   body (0bas, skin) -> outfit (1out) -> hair (4har)
+//   body (0bas, skin) -> outfit (1out) -> hair (4har) -> hat (5hat)
 // The avatar descriptor is a plain serializable object:
-//   { body, outfit, outfitColor, hair, hairColor }
+//   { body, outfit, outfitColor, hair, hairColor, hat, hatColor }
 // where `body` selects the skin color (the body has a single style), and each
-// *Color field selects a color id from that slot/style's ramp list.
+// *Color field selects a color id from that slot/style's ramp list. The hat slot
+// includes a 'none' style (no sheet) so a bare-headed look is a valid choice.
 
 import { AVATAR_PALETTES } from './avatarPalettes.js'
 
 const LAYER_DIR = '/sprites/hub/layers'
 
-// Drawing + picking order.
-export const AVATAR_SLOTS = ['body', 'outfit', 'hair']
+// Drawing + picking order (hat draws last, on top of hair).
+export const AVATAR_SLOTS = ['body', 'outfit', 'hair', 'hat']
 
 // Styles per slot. `id` is stable (used in the descriptor + palette keys),
 // `name` is the kid-facing label, `src` is the source sheet the compositor
@@ -34,6 +35,13 @@ export const AVATAR_STYLES = {
     { id: 'bob', name: 'Bob', src: `${LAYER_DIR}/char_a_p1_4har_bob1_v00.png` },
     { id: 'dap', name: 'Swept', src: `${LAYER_DIR}/char_a_p1_4har_dap1_v00.png` },
   ],
+  // 'none' has no sheet (bare-headed); the compositor skips styles with no
+  // palette entry, so it simply draws nothing for that slot.
+  hat: [
+    { id: 'none', name: 'None', src: null },
+    { id: 'straw', name: 'Straw Hat', src: `${LAYER_DIR}/char_a_p1_5hat_pfht_v01.png` },
+    { id: 'pointed', name: 'Pointed Hat', src: `${LAYER_DIR}/char_a_p1_5hat_pnty_v01.png` },
+  ],
 }
 
 // Which descriptor field carries the STYLE id and which carries the COLOR id,
@@ -42,6 +50,7 @@ export const SLOT_FIELDS = {
   body: { style: null, color: 'body' },
   outfit: { style: 'outfit', color: 'outfitColor' },
   hair: { style: 'hair', color: 'hairColor' },
+  hat: { style: 'hat', color: 'hatColor' },
 }
 
 export function findStyle(slot, id) {
@@ -61,6 +70,8 @@ export const DEFAULT_AVATAR = {
   outfitColor: 'c00',
   hair: 'bob',
   hairColor: 'c00',
+  hat: 'none',
+  hatColor: 'c00',
 }
 
 function validColor(slot, styleId, colorId) {
@@ -76,12 +87,15 @@ export function normalizeAvatar(a) {
   const bodyStyle = 'human' // single body style
   const outfitStyle = findStyle('outfit', src.outfit).id
   const hairStyle = findStyle('hair', src.hair).id
+  const hatStyle = findStyle('hat', src.hat).id // defaults to 'none' for old saves
   return {
     body: validColor('body', bodyStyle, src.body),
     outfit: outfitStyle,
     outfitColor: validColor('outfit', outfitStyle, src.outfitColor),
     hair: hairStyle,
     hairColor: validColor('hair', hairStyle, src.hairColor),
+    hat: hatStyle,
+    hatColor: validColor('hat', hatStyle, src.hatColor),
   }
 }
 
@@ -93,11 +107,15 @@ function pick(arr) {
 export function randomAvatar() {
   const outfitStyle = pick(AVATAR_STYLES.outfit).id
   const hairStyle = pick(AVATAR_STYLES.hair).id
+  const hatStyle = pick(AVATAR_STYLES.hat).id
+  const hatColors = colorList('hat', hatStyle) // empty for 'none'
   return {
     body: pick(colorList('body', 'human')).id,
     outfit: outfitStyle,
     outfitColor: pick(colorList('outfit', outfitStyle)).id,
     hair: hairStyle,
     hairColor: pick(colorList('hair', hairStyle)).id,
+    hat: hatStyle,
+    hatColor: hatColors.length ? pick(hatColors).id : 'c00',
   }
 }

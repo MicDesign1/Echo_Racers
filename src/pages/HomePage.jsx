@@ -1,14 +1,14 @@
 import { Link } from 'react-router-dom'
 import './HomePage.css'
 
+// Title / entry screen. The hub (/hub) is the game's home world — this screen
+// is just the front door into it. (Profile/settings will live here later as
+// overlays.)
 export default function HomePage() {
   return (
     <div className="home-page">
       <h1>Animalian: Echo Racers</h1>
-      <Link to="/practice" className="home-page-link">Practice Race</Link>
-      {/* Temporary dev entries into the walkable hub prototype + avatar screen. */}
-      <Link to="/hub" className="home-page-link home-page-link-dev">Hub (dev)</Link>
-      <Link to="/avatar" className="home-page-link home-page-link-dev">Avatar (dev)</Link>
+      <Link to="/hub" className="home-page-play">Play</Link>
     </div>
   )
 }

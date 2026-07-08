@@ -35,6 +35,47 @@
   box-shadow: 0 0 14px rgba(242, 200, 121, 0.4);
 }
 
+/* Persistent hub entries (top-right): Customize -> avatar screen, Quick Race ->
+   Practice setup. Always reachable (not just via the walk-up zones), then they
+   return here. Thumb-sized for tablets. */
+.hub-top-right {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+.hub-ui-btn {
+  padding: 10px 20px;
+  min-height: 44px;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--cream);
+  background: var(--brass);
+  border: 2px solid var(--aged-gold);
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 0 16px rgba(242, 200, 121, 0.4);
+  transition: background 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+}
+
+.hub-ui-btn:hover {
+  background: var(--aged-gold);
+  box-shadow: 0 0 22px rgba(242, 200, 121, 0.6);
+}
+
+.hub-ui-btn:active {
+  transform: scale(0.96);
+}
+
+/* Customize reads as the softer/secondary action next to Quick Race. */
+.hub-customize-btn {
+  background: rgba(92, 58, 30, 0.86);
+}
+
 /* Interaction prompt shown while standing in the Trial Gate zone. It's a real
    button so a tap enters on touch; Space also enters (see HubScene keydown). */
 .hub-prompt {

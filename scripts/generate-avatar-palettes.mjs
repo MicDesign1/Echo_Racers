@@ -36,6 +36,8 @@ const VARIANT_FILES = {
   farmer: range(1, 5).map((n) => `char_a_p1_1out_pfpn_v${p2(n)}.png`),
   bob: range(0, 13).map((n) => `char_a_p1_4har_bob1_v${p2(n)}.png`),
   dap: range(0, 13).map((n) => `char_a_p1_4har_dap1_v${p2(n)}.png`),
+  straw: range(1, 5).map((n) => `char_a_p1_5hat_pfht_v${p2(n)}.png`),
+  pointed: range(1, 5).map((n) => `char_a_p1_5hat_pnty_v${p2(n)}.png`),
 }
 
 function range(a, b) { const o = []; for (let i = a; i <= b; i++) o.push(i); return o }
@@ -67,6 +69,7 @@ async function main() {
   for (const slot of Object.keys(AVATAR_STYLES)) {
     result[slot] = {}
     for (const style of AVATAR_STYLES[slot]) {
+      if (!style.src) continue // styles with no sheet (e.g. hat 'none') have no ramp
       const files = VARIANT_FILES[style.id]
       if (!files) throw new Error(`no VARIANT_FILES for style ${style.id}`)
       const sourceUrl = `${BASE}${style.src}`

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { RACE, DIFFICULTY } from '../data/tuning.js'
-import { getPracticeConfig, setPracticeConfig } from '../data/saves.js'
+import { getPracticeConfig, setPracticeConfig, getOrigin } from '../data/saves.js'
 import './PracticeSetup.css'
 
 // Out-of-box difficulty: Racer, so a first-time player doesn't start on the
@@ -34,11 +34,10 @@ function initialChoices() {
 
 export default function PracticeSetup() {
   const navigate = useNavigate()
-  const location = useLocation()
-  // Where to go on "back" and after the race. Set when the hub opens this
-  // screen (state.returnTo === '/hub'); null on the normal home-page flow,
-  // which then behaves exactly as before (back to '/').
-  const returnTo = location.state?.returnTo || null
+  // Where to go on "back" and after the race — a reload-proof origin from
+  // sessionStorage (defaults to the hub, the game's home). Survives a hard
+  // reload mid-setup, unlike react-router location.state.
+  const returnTo = getOrigin()
   const [{ difficulty, rivalCount }, setChoices] = useState(initialChoices)
 
   const setDifficulty = (d) => setChoices((c) => ({ ...c, difficulty: d }))
@@ -51,9 +50,9 @@ export default function PracticeSetup() {
     RACE.raceMode = 'practice'
     RACE.practice = { ...RACE.practice, difficulty, rivalCount }
     setPracticeConfig({ difficulty, rivalCount, trackId: RACE.practice.trackId })
-    // Carry the origin so the race can return the player to where they came
-    // from (the hub) rather than always back to this screen.
-    navigate('/race', { state: { returnTo } })
+    // Origin persists in sessionStorage, so the race returns to the hub even
+    // after a hard reload — no navigation state needed.
+    navigate('/race')
   }
 
   return (
@@ -113,7 +112,7 @@ export default function PracticeSetup() {
           <button type="button" className="start-btn" onClick={startRace}>
             Start Race
           </button>
-          <Link to={returnTo || '/'} className="setup-back">
+          <Link to={returnTo} className="setup-back">
             {returnTo === '/hub' ? 'Back to hub' : 'Back to menu'}
           </Link>
         </div>

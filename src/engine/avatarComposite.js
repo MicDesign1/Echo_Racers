@@ -1,6 +1,6 @@
 // Avatar compositor: turns a plain descriptor
-//   { body, outfit, outfitColor, hair, hairColor }
-// into ONE cached composited sprite sheet (body -> outfit -> hair), with a
+//   { body, outfit, outfitColor, hair, hairColor, hat, hatColor }
+// into ONE cached composited sprite sheet (body -> outfit -> hair -> hat), with a
 // palette-ramp color swap applied per layer (source ramp -> the chosen color's
 // ramp, exact RGB match, alpha preserved, non-ramp pixels untouched).
 //
@@ -57,6 +57,7 @@ function resolveLayers(descriptor) {
   add('body', 'human', descriptor.body)
   add('outfit', descriptor.outfit, descriptor.outfitColor)
   add('hair', descriptor.hair, descriptor.hairColor)
+  add('hat', descriptor.hat, descriptor.hatColor) // 'none'/unknown -> no palette -> skipped
   return out
 }
 
@@ -91,6 +92,7 @@ export function descriptorKey(descriptor) {
   return [
     descriptor.body, descriptor.outfit, descriptor.outfitColor,
     descriptor.hair, descriptor.hairColor,
+    descriptor.hat, descriptor.hatColor,
   ].join('|')
 }
 

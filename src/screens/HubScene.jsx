@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HUB, CONTROLS } from '../data/tuning.js'
-import { getHubState, setHubState, getAvatar } from '../data/saves.js'
+import { getHubState, setHubState, getAvatar, setOrigin } from '../data/saves.js'
 import { normalizeAvatar } from '../data/avatarManifest.js'
 import { ensureComposite, getComposite, getBuildCount } from '../engine/avatarComposite.js'
+import { HUB_MAP } from '../data/hubMap.js'
+import { CRITTER_SHEETS } from '../data/critters.js'
+import { createCritters, updateCritters } from '../engine/critters.js'
+import { tilePx, worldSize, tileCenter, isWalkable, drawLayer } from '../engine/tilemap.js'
 import './HubScene.css'
 
-// Walkable hub. The player walks a flat test area, collides with rectangle
-// obstacles, and can enter data-driven interaction zones (Trial Gate ->
-// Practice, Mirror -> Avatar). The character is a palette-composited Mana Seed
-// sprite driven by the profile's avatar descriptor. All tunables live in HUB.
+// The hub is the game's home: a tiled forest the player walks around, with a
+// camera that follows and clamps to the map. Interaction zones (Trial Gate ->
+// Practice, Mirror -> Avatar) are placed in hubMap.js; terrain + walkability
+// are DATA there too. The character is a palette-composited avatar. Every
+// number lives in HUB (tuning.js) or hubMap.js — nothing is invented here.
 
 const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('verify')
 const forceTouch = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('touch')
@@ -18,19 +23,65 @@ function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v
 }
 
-// The ONE plain, serializable hub-player state object (position/facing/anim).
-// No functions, no canvas/Image refs. The avatar look is a separate
-// serializable descriptor (see avatarRef), also plain.
+// The forest atlas is loaded once at module scope and shared across mounts.
+let atlasImg = null
+function getAtlas() {
+  if (!atlasImg) {
+    atlasImg = new Image()
+    atlasImg.src = HUB.tile.atlasSrc
+  }
+  return atlasImg
+}
+
+// Critter sprite sheets are loaded once at module scope (like the atlas).
+const critterImgs = new Map()
+function getCritterImg(src) {
+  let img = critterImgs.get(src)
+  if (!img) {
+    img = new Image()
+    img.src = src
+    critterImgs.set(src, img)
+  }
+  return img
+}
+
+// Interaction zones in WORLD px (tile placement + radius come from the map).
+const ZONES = HUB_MAP.zones.map((z) => {
+  const c = tileCenter(z.tx, z.ty)
+  return { id: z.id, label: z.label, action: z.action, radius: z.radius, x: c.x, y: c.y }
+})
+
+// A saved spot is only safe to restore if the player would be VISIBLE and free
+// there: on walkable ground AND not tucked under a decor-over canopy (which
+// draws over entities — a reload there would hide the character). Otherwise we
+// fall back to the open spawn, so the avatar is always visible on load.
+function isVisibleSpot(worldX, worldY) {
+  if (!isWalkable(HUB_MAP, worldX, worldY)) return false
+  const TW = tilePx()
+  const tx = Math.floor(worldX / TW)
+  const ty = Math.floor(worldY / TW)
+  if (tx < 0 || ty < 0 || tx >= HUB_MAP.w || ty >= HUB_MAP.h) return false
+  const over = HUB_MAP.decorOver[ty * HUB_MAP.w + tx]
+  return over == null || over < 0
+}
+
+// The ONE plain, serializable hub-player state object (position/facing/anim);
+// the avatar look is a separate serializable descriptor (avatarRef).
 function createPlayerState() {
-  const saved = getHubState()
-  const W = HUB.world
-  let x = HUB.player.start.x
-  let y = HUB.player.start.y
+  const world = worldSize(HUB_MAP)
+  const spawn = tileCenter(HUB_MAP.spawn.tx, HUB_MAP.spawn.ty)
+  let x = spawn.x
+  let y = spawn.y
   let facing = 'down'
+  const saved = getHubState()
   if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
-    x = clamp(saved.x, 0, W.width)
-    y = clamp(saved.y, 0, W.height)
-    if (['down', 'up', 'left', 'right'].includes(saved.facing)) facing = saved.facing
+    const sx = clamp(saved.x, 0, world.w)
+    const sy = clamp(saved.y, 0, world.h)
+    if (isVisibleSpot(sx, sy)) {
+      x = sx
+      y = sy
+      if (['down', 'up', 'left', 'right'].includes(saved.facing)) facing = saved.facing
+    }
   }
   return { x, y, facing, moving: false, animFrame: 0, animTime: 0 }
 }
@@ -60,15 +111,36 @@ export default function HubScene() {
       : false
   })
 
+  // Persistent hub entries (work from anywhere on the hub, not just the zones).
+  // Origin is set so each sub-screen returns to the hub even after a hard reload.
+  function quickRace() {
+    setOrigin('/hub')
+    navigate('/practice')
+  }
+  function openAvatar() {
+    setOrigin('/hub')
+    navigate('/avatar')
+  }
+
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const player = playerRef.current
     const avatar = avatarRef.current
+    const atlas = getAtlas()
+    const world = worldSize(HUB_MAP)
+    const cam = { x: 0, y: 0, w: 0, h: 0 }
 
-    // Composite the look ONCE on scene entry (not per frame). The render loop
-    // reads the cached sheet; it simply draws nothing until this resolves.
+    // Composite the look ONCE on scene entry (not per frame).
     ensureComposite(avatar)
+
+    // Ambient wildlife: fixed population from the map, each with its own wander
+    // state. Preload every used sheet once.
+    const critters = createCritters(HUB_MAP)
+    for (const type of new Set(critters.map((c) => c.type))) {
+      const sheet = CRITTER_SHEETS[type]
+      if (sheet) getCritterImg(sheet.src)
+    }
 
     let W = 0
     let H = 0
@@ -83,30 +155,29 @@ export default function HubScene() {
     resize()
     window.addEventListener('resize', resize)
 
-    function collides(px, py) {
+    // Feet-box walkability against the map grid (out-of-bounds reads blocked).
+    function feetOk(px, py) {
       const f = HUB.player.feet
       const x0 = px - f.width / 2
       const x1 = px + f.width / 2
       const y0 = py - f.height
       const y1 = py
-      for (const o of HUB.obstacles) {
-        if (x1 > o.x && x0 < o.x + o.w && y1 > o.y && y0 < o.y + o.h) return true
-      }
-      return false
+      return isWalkable(HUB_MAP, x0, y0) && isWalkable(HUB_MAP, x1, y0)
+        && isWalkable(HUB_MAP, x0, y1) && isWalkable(HUB_MAP, x1, y1)
     }
 
+    // Axis-separated move so the player slides along a blocked edge instead of
+    // sticking when pushing into it diagonally.
     function tryMove(ddx, ddy) {
       const f = HUB.player.feet
-      const world = HUB.world
-      const nx = clamp(player.x + ddx, f.width / 2, world.width - f.width / 2)
-      const ny = clamp(player.y + ddy, f.height, world.height)
-      if (ddx !== 0 && !collides(nx, player.y)) player.x = nx
-      if (ddy !== 0 && !collides(player.x, ny)) player.y = ny
+      const nx = clamp(player.x + ddx, f.width / 2, world.w - f.width / 2)
+      const ny = clamp(player.y + ddy, f.height, world.h)
+      if (ddx !== 0 && feetOk(nx, player.y)) player.x = nx
+      if (ddy !== 0 && feetOk(player.x, ny)) player.y = ny
     }
 
-    // First zone whose radius contains the player's feet (null if none).
     function zoneAt(px, py) {
-      for (const z of HUB.zones) {
+      for (const z of ZONES) {
         if (Math.hypot(px - z.x, py - z.y) < z.radius) return z
       }
       return null
@@ -147,12 +218,14 @@ export default function HubScene() {
     let lastSave = performance.now()
     let dirtySinceSave = false
 
-    // Dispatch an interaction zone by its data-driven action.
+    // Dispatch a zone by its data-driven action. Origin is persisted so the
+    // race/avatar flow returns to the hub even after a hard reload.
     function enterZone(zone) {
       if (!zone) return
       saveNow()
-      if (zone.action === 'practice') navigate('/practice', { state: { returnTo: '/hub' } })
-      else if (zone.action === 'avatar') navigate('/avatar', { state: { returnTo: '/hub' } })
+      setOrigin('/hub')
+      if (zone.action === 'practice') navigate('/practice')
+      else if (zone.action === 'avatar') navigate('/avatar')
     }
     enterZoneRef.current = () => enterZone(activeZoneRef.current)
 
@@ -200,34 +273,25 @@ export default function HubScene() {
     }
 
     function draw() {
-      const world = HUB.world
-      const scale = Math.min(W / world.width, H / world.height)
-      const offX = (W - world.width * scale) / 2
-      const offY = (H - world.height * scale) / 2
+      // Camera follows the player, clamped so it never shows past the map.
+      cam.w = W
+      cam.h = H
+      cam.x = clamp(player.x - W / 2, 0, Math.max(0, world.w - W))
+      cam.y = clamp(player.y - H / 2, 0, Math.max(0, world.h - H))
 
-      ctx.fillStyle = HUB.letterboxColor
+      ctx.fillStyle = HUB.bgColor
       ctx.fillRect(0, 0, W, H)
-
-      ctx.save()
-      ctx.translate(offX, offY)
-      ctx.scale(scale, scale)
       ctx.imageSmoothingEnabled = false
 
-      ctx.fillStyle = HUB.groundColor
-      ctx.fillRect(0, 0, world.width, world.height)
+      drawLayer(ctx, HUB_MAP, HUB_MAP.ground, atlas, cam.x, cam.y, W, H)
+      drawLayer(ctx, HUB_MAP, HUB_MAP.decorUnder, atlas, cam.x, cam.y, W, H)
 
-      ctx.lineWidth = 3
-      for (const o of HUB.obstacles) {
-        ctx.fillStyle = HUB.obstacleFill
-        ctx.fillRect(o.x, o.y, o.w, o.h)
-        ctx.strokeStyle = HUB.obstacleEdge
-        ctx.strokeRect(o.x, o.y, o.w, o.h)
-      }
-
-      // Interaction zones (drawn under the player).
-      for (const z of HUB.zones) {
+      // Interaction zones (drawn on the ground, under entities).
+      for (const z of ZONES) {
+        const zx = z.x - cam.x
+        const zy = z.y - cam.y
         ctx.beginPath()
-        ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2)
+        ctx.arc(zx, zy, z.radius, 0, Math.PI * 2)
         ctx.fillStyle = HUB.zoneFill
         ctx.fill()
         ctx.lineWidth = 3
@@ -237,25 +301,50 @@ export default function HubScene() {
         ctx.font = HUB.zoneLabelFont
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillText(z.label, z.x, z.y)
+        ctx.fillText(z.label, zx, zy)
       }
 
-      // Player: the composited avatar sheet, bottom-center anchored.
+      // Entities (player + critters) are depth-sorted by feet-Y so nearer ones
+      // draw in front, then decor-over (canopies) draws over all of them.
+      const entities = [{ y: player.y, draw: drawPlayer }]
+      for (const c of critters) entities.push({ y: c.y, draw: () => drawCritter(c) })
+      entities.sort((a, b) => a.y - b.y)
+      for (const e of entities) e.draw()
+
+      // Decor-over (tree canopies) draws AFTER entities -> walk-behind.
+      drawLayer(ctx, HUB_MAP, HUB_MAP.decorOver, atlas, cam.x, cam.y, W, H)
+    }
+
+    // Player: composited avatar, bottom-center anchored, camera-corrected.
+    function drawPlayer() {
       const sheet = getComposite(avatar)
-      if (sheet) {
-        const S = HUB.sprite
-        const row = player.moving ? S.walkRow[player.facing] : S.idleRow[player.facing]
-        const col = player.moving ? player.animFrame : S.idleCol
-        const sx = col * S.frameSize
-        const sy = row * S.frameSize
-        const dw = S.frameSize * HUB.player.drawScale
-        const dh = dw
-        const dx = player.x - dw / 2
-        const dy = player.y - dh
-        ctx.drawImage(sheet, sx, sy, S.frameSize, S.frameSize, dx, dy, dw, dh)
-      }
+      if (!sheet) return
+      const S = HUB.sprite
+      const row = player.moving ? S.walkRow[player.facing] : S.idleRow[player.facing]
+      const col = player.moving ? player.animFrame : S.idleCol
+      const sx = col * S.frameSize
+      const sy = row * S.frameSize
+      const dw = S.frameSize * HUB.player.drawScale
+      const dh = dw
+      const dx = Math.round(player.x - cam.x - dw / 2)
+      const dy = Math.round(player.y - cam.y - dh)
+      ctx.drawImage(sheet, sx, sy, S.frameSize, S.frameSize, dx, dy, dw, dh)
+    }
 
-      ctx.restore()
+    // Critter: single gentle-bob animation, bottom-center anchored.
+    function drawCritter(c) {
+      const sh = CRITTER_SHEETS[c.type]
+      if (!sh) return
+      const img = getCritterImg(sh.src)
+      if (!(img.complete && img.naturalWidth > 0)) return
+      const fs = sh.frameSize
+      const sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fs
+      const sy = sh.idleRow * fs
+      const dw = fs * sh.drawScale
+      const dh = dw
+      const dx = Math.round(c.x - cam.x - dw / 2)
+      const dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+      ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
     }
 
     let raf = 0
@@ -268,6 +357,7 @@ export default function HubScene() {
       const beforeX = player.x
       const beforeY = player.y
       stepPlayer(dt, dx, dy)
+      updateCritters(critters, dt, HUB_MAP, ZONES)
       if (player.x !== beforeX || player.y !== beforeY) dirtySinceSave = true
       if (dirtySinceSave && now - lastSave > HUB.saveThrottleMs) {
         saveNow()
@@ -290,18 +380,35 @@ export default function HubScene() {
           activeZone: activeZoneRef.current?.id ?? null,
           composited: !!getComposite(avatar),
           buildCount: getBuildCount(),
-          world: { ...HUB.world },
+          atlasLoaded: !!(atlas.complete && atlas.naturalWidth > 0),
+          camX: cam.x,
+          camY: cam.y,
+          viewW: cam.w,
+          viewH: cam.h,
         }),
-        getZones: () => HUB.zones.map((z) => ({ ...z })),
-        getObstacles: () => HUB.obstacles.map((o) => ({ ...o })),
+        getWorld: () => worldSize(HUB_MAP),
+        getMapInfo: () => ({ w: HUB_MAP.w, h: HUB_MAP.h, tilePx: tilePx(), spawn: { ...HUB_MAP.spawn } }),
+        getZones: () => ZONES.map((z) => ({ ...z })),
+        isWalkableTile: (tx, ty) => {
+          const TW = tilePx()
+          return isWalkable(HUB_MAP, (tx + 0.5) * TW, (ty + 0.5) * TW)
+        },
+        getCritters: () => critters.map((c) => ({ x: c.x, y: c.y, animFrame: c.animFrame, state: c.state, type: c.type })),
+        stepCritters: (ms) => {
+          const steps = Math.max(1, Math.round(ms / 16))
+          for (let i = 0; i < steps; i++) updateCritters(critters, 0.016, HUB_MAP, ZONES)
+          return critters.map((c) => ({ x: c.x, y: c.y, animFrame: c.animFrame }))
+        },
+        cameraAt: (px, py) => ({
+          x: clamp(px - cam.w / 2, 0, Math.max(0, world.w - cam.w)),
+          y: clamp(py - cam.h / 2, 0, Math.max(0, world.h - cam.h)),
+        }),
         setPos: (x, y) => { player.x = x; player.y = y; recomputeZone() },
         simulateMove: (dx, dy, ms) => {
           const steps = Math.max(1, Math.round(ms / 16))
           for (let i = 0; i < steps; i++) stepPlayer(0.016, dx, dy)
           return { x: player.x, y: player.y, facing: player.facing }
         },
-        // Composite an arbitrary descriptor and report whether a given target
-        // ramp color appears in the output sheet (proves the palette swap).
         compositeProbe: async (descriptor, targetHex) => {
           const before = getBuildCount()
           const sheet = await ensureComposite(descriptor)
@@ -390,6 +497,15 @@ export default function HubScene() {
       <button type="button" className="hub-back-btn" onClick={() => navigate('/')}>
         &larr; Back
       </button>
+
+      <div className="hub-top-right">
+        <button type="button" className="hub-ui-btn hub-customize-btn" onClick={openAvatar}>
+          Customize
+        </button>
+        <button type="button" className="hub-ui-btn hub-quickrace-btn" onClick={quickRace}>
+          Quick Race
+        </button>
+      </div>
 
       {activeZone && (
         <button

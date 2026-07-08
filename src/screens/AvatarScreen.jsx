@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { HUB } from '../data/tuning.js'
 import {
   AVATAR_SLOTS, AVATAR_STYLES, SLOT_FIELDS,
   colorList, findStyle, normalizeAvatar, randomAvatar,
 } from '../data/avatarManifest.js'
 import { ensureComposite, getComposite, descriptorKey } from '../engine/avatarComposite.js'
-import { getAvatar, setAvatar } from '../data/saves.js'
+import { getAvatar, setAvatar, getOrigin } from '../data/saves.js'
 import './AvatarScreen.css'
 
 // Basic avatar customization. The look is a plain descriptor; the preview and
@@ -14,12 +14,11 @@ import './AvatarScreen.css'
 // from the manifest, color swatches from the generated ramp data — no
 // hardcoded filenames or colors here.
 
-const SLOT_LABELS = { body: 'Skin', outfit: 'Outfit', hair: 'Hair' }
+const SLOT_LABELS = { body: 'Skin', outfit: 'Outfit', hair: 'Hair', hat: 'Hat' }
 
 export default function AvatarScreen() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const returnTo = location.state?.returnTo || '/'
+  const returnTo = getOrigin() // reload-proof origin (defaults to the hub)
 
   const [descriptor, setDescriptor] = useState(() => normalizeAvatar(getAvatar()))
   const descriptorRef = useRef(descriptor)
