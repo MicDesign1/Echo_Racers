@@ -1,14 +1,16 @@
-// Dev-only helper: render the forest atlas upscaled with a labeled 16px grid,
-// so tile cells can be picked by (col,row) for hand-authoring hubMap.js.
-// Not part of the game or the verify suite.  Run: node scripts/inspect-tileset.mjs
+// Dev-only helper: render an atlas (any file under public/sprites/hub/tiles/)
+// upscaled with a labeled 16px grid, so tile cells can be picked by (col,row)
+// for hand-authoring/verifying hubMap.js data. Not part of the game or the
+// verify suite. Run: node scripts/inspect-tileset.mjs [filename.png]
 import { chromium } from 'playwright'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const OUT = path.join(__dirname, 'verify-screenshots', 'tileset-grid.png')
+const ATLAS_FILE = process.argv[2] || 'forest-summer.png'
+const OUT = path.join(__dirname, 'verify-screenshots', `tileset-grid-${path.parse(ATLAS_FILE).name}.png`)
 const PORT = process.env.PORT || '5177'
-const ATLAS = `http://localhost:${PORT}/sprites/hub/tiles/forest-summer.png`
+const ATLAS = `http://localhost:${PORT}/sprites/hub/tiles/${ATLAS_FILE}`
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1100, height: 1100 } })

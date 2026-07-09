@@ -137,26 +137,76 @@ cropping with a 16px grid overlay.
 
 **Usable clean house: `cols 4-11, rows 2-7` (8x6 tiles = 128x96px).** Crop
 exactly that rectangle — anything outside it is a stray swatch or clipped.
-- Rows 2-5 (roof, pitched, two gables + a small side wing): decorOver —
-  entities should walk behind the eave overhang.
-- Rows 6-7 (log-cabin walls: two shuttered windows, one green double door):
-  decorUnder + blocked (walls are solid).
+It's actually TWO gabled sections side by side (a smaller one at cols 4-7
+with one shuttered window, a taller one at cols 8-11 with another window),
+plus a visually distinct third mini-gable at cols 12-14 with the sheet's
+ONE green double door — confirmed on real pixels via
+`node scripts/inspect-tileset.mjs lodge.png`. Col 15 and rows 0-1 (cols 1-3:
+brick swatch, cols 12-15 row0: plank swatch) are stray material, not part of
+any usable building section.
+- **Rows 2-5 (roof, pitched):** decorOver — entities should walk behind the
+  eave overhang, same as tree canopy. Walkability rule is ROW-based
+  (independent of column) since the roof shape is continuous across the
+  whole sheet.
+- **Rows 6-7 (log-cabin walls, incl. the windows and the door):** blocked,
+  regardless of layer — a window is still a solid wall from the outside.
+  hub.tmj's first lodge placement (Hub map-quality rework, step 2 v2) only
+  used the cols 4-7 windowed section; the door (cols 12-14) wasn't placed
+  anywhere in that export, so the in-game "Lodge" zone sits at the window
+  wall's front, not at literal door art — noted, not improvised around.
 
 The OTHER timber file, `home interiors, timber roof.png` (512x256), is an
 annotated INTERIOR wall/floor tileset with permanent purple guide-arrow
 overlays baked into the pixels (labels like "Basic wall top", "Inside
 corners" are literally drawn on it) — it is documentation, not clean usable
-tile art, and isn't needed for an exterior landmark anyway. Not used.
+tile art, and isn't needed for an exterior landmark anyway. Not used. Always
+confirm which of the two files a `.tmj`'s tileset entry actually points to
+before trusting it — the map format only stores an image path.
 
-**Engine note:** the tilemap engine's `ground`/`decorUnder`/`decorOver` arrays
-assume ONE atlas (tile id = row*16+col into that single image). Rather than
-inventing an ID-offset scheme to smuggle a second atlas through those arrays,
-the house is added as its OWN small fixed-position stamp (a second, separate
-image + a dedicated draw call), the same way critters already sit outside the
-tile-layer system — this is the "register a second atlas" the brief allows
-without a full engine rewrite.
+**Engine note (updated):** the tilemap engine now supports multiple atlases
+natively — `HUB.tile.atlases` (tuning.js) lists each atlas in order, and
+tile ids live in ONE unified space spanning all of them concatenated
+(atlas 0 ids `0..count-1`, atlas 1 starts right after, etc); see
+`engine/tilemap.js` `resolveAtlas()`. This replaced the earlier plan to bolt
+the house on as a separate fixed-position stamp outside the tile-layer
+system — Mic's Tiled authoring places lodge tiles directly in the normal
+decor-under/decor-over layers mixed with forest tiles, so the importer and
+renderer needed to follow that, not work around it. Still not a full engine
+rewrite: `drawLayer()` just picks which image to sample per tile id.
 
 ## Known atlas limitations (don't improvise substitutes)
 - No flat beach/sand water edge — lake must be cliff-rimmed.
 - No dedicated tree-wall supertile connectors — tree borders stay
   individually-stamped trees, just densely spaced.
+
+## Small gaps found importing the first Tiled-authored map (hub.tmj)
+- `A(0,9)` — a fourth bush color variant (dark olive), same family as
+  `A(0,8)`/`A(1,8)`/`A(2,8)`. Non-blocking decor.
+- `A(1,9)` is a genuinely blank/transparent atlas cell (confirmed on pixels,
+  not just unused in practice). If a layer references it directly instead of
+  a real grass/fill tile, it renders as a hole — check for this in Tiled
+  before re-exporting, not something to fix in the importer.
+- `A(11,5)`/`A(15,5)`/`A(11,6)`/`A(15,6)` (just outside the tree
+  canopy/trunk block) are also blank — harmless if referenced (draws
+  nothing), but not tree material either.
+- The cliff's "second full repeat" (rows 12-15) was confirmed on real
+  pixels: same cap→body→base/water sequence as rows 4-11, not a distinct
+  tile set.
+- **Correction (found via playtesting, not pixels):** rows 0-3 (the "rounded
+  grassy cap") are NOT open ground. They only supply the mound's edge/corner
+  art — per this doc's own note, the interior is "mostly transparent... just
+  fill with plain grass there," meaning an actually-walkable hilltop would
+  be built from plain grass tiles (col 0), never the rows-0-3 rim tiles
+  themselves. Mic's map uses a few rows-0-3 tiles as a decorative top edge
+  on the wall beside the cave; treating them as walkable let the player
+  climb onto the wall through that gap. **The entire cols 5-10 cliff family
+  (rows 0-15) is blocking, with no walkable exception** — this replaces the
+  earlier (wrong) rule that rows 0-3 were open ground.
+
+## Small gaps found importing the v2 map (hub.tmj with lodge)
+- `A(3,8)`/`A(3,9)` — plain grey pebble decor, same family as `A(4,6)`/`A(4,7)`.
+  Non-blocking.
+- `A(2,9)` is blank/transparent, same category as `A(1,9)`.
+- `A(15,7)`..`A(15,10)` — plain grass, just background to the right of the
+  cave (the cave block itself is only cols 11-14). Non-blocking, not cave
+  material.

@@ -11,8 +11,8 @@ import { tilePx, worldSize, tileCenter, isWalkable, drawLayer } from '../engine/
 import './HubScene.css'
 
 // The hub is the game's home: a tiled forest the player walks around, with a
-// camera that follows and clamps to the map. Interaction zones (Trial Gate ->
-// Practice, Mirror -> Avatar) are placed in hubMap.js; terrain + walkability
+// camera that follows and clamps to the map. Interaction zones (Races ->
+// Practice, Lodge -> Avatar) are placed in hubMap.js; terrain + walkability
 // are DATA there too. The character is a palette-composited avatar. Every
 // number lives in HUB (tuning.js) or hubMap.js — nothing is invented here.
 
@@ -23,14 +23,18 @@ function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v
 }
 
-// The forest atlas is loaded once at module scope and shared across mounts.
-let atlasImg = null
-function getAtlas() {
-  if (!atlasImg) {
-    atlasImg = new Image()
-    atlasImg.src = HUB.tile.atlasSrc
+// Tile atlases (forest + lodge) are loaded once at module scope and shared
+// across mounts, one Image per entry in HUB.tile.atlases (same order/index).
+let atlasImgs = null
+function getAtlases() {
+  if (!atlasImgs) {
+    atlasImgs = HUB.tile.atlases.map((a) => {
+      const img = new Image()
+      img.src = a.src
+      return img
+    })
   }
-  return atlasImg
+  return atlasImgs
 }
 
 // Critter sprite sheets are loaded once at module scope (like the atlas).
@@ -46,9 +50,13 @@ function getCritterImg(src) {
 }
 
 // Interaction zones in WORLD px (tile placement + radius come from the map).
+// labelTile is a separate, purely-visual anchor (above the cave / below the
+// lodge) — distinct from the trigger position so the label can sit somewhere
+// legible without moving where the zone actually activates.
 const ZONES = HUB_MAP.zones.map((z) => {
   const c = tileCenter(z.tx, z.ty)
-  return { id: z.id, label: z.label, action: z.action, radius: z.radius, x: c.x, y: c.y }
+  const lc = tileCenter(z.labelTile.tx, z.labelTile.ty)
+  return { id: z.id, label: z.label, action: z.action, radius: z.radius, x: c.x, y: c.y, labelX: lc.x, labelY: lc.y }
 })
 
 // A saved spot is only safe to restore if the player would be VISIBLE and free
@@ -61,8 +69,8 @@ function isVisibleSpot(worldX, worldY) {
   const tx = Math.floor(worldX / TW)
   const ty = Math.floor(worldY / TW)
   if (tx < 0 || ty < 0 || tx >= HUB_MAP.w || ty >= HUB_MAP.h) return false
-  const over = HUB_MAP.decorOver[ty * HUB_MAP.w + tx]
-  return over == null || over < 0
+  const i = ty * HUB_MAP.w + tx
+  return HUB_MAP.decorOver.every((layer) => layer[i] == null || layer[i] < 0)
 }
 
 // The ONE plain, serializable hub-player state object (position/facing/anim);
@@ -74,7 +82,13 @@ function createPlayerState() {
   let y = spawn.y
   let facing = 'down'
   const saved = getHubState()
-  if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+  // A saved position only means anything for the exact map it was saved
+  // against — re-importing hub.tmj (even "same elements, moved around")
+  // can leave an old position technically walkable and uncovered on the
+  // NEW map while no longer making sense (e.g. wedged against terrain that
+  // moved next to it), so a mismatched/missing mapVersion falls back to
+  // spawn same as an out-of-bounds or blocked position would.
+  if (saved && saved.mapVersion === HUB_MAP.mapVersion && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
     const sx = clamp(saved.x, 0, world.w)
     const sy = clamp(saved.y, 0, world.h)
     if (isVisibleSpot(sx, sy)) {
@@ -127,7 +141,7 @@ export default function HubScene() {
     const ctx = canvas.getContext('2d')
     const player = playerRef.current
     const avatar = avatarRef.current
-    const atlas = getAtlas()
+    const atlases = getAtlases()
     const world = worldSize(HUB_MAP)
     const cam = { x: 0, y: 0, w: 0, h: 0 }
 
@@ -221,7 +235,7 @@ export default function HubScene() {
     }
 
     function saveNow() {
-      setHubState({ x: player.x, y: player.y, facing: player.facing })
+      setHubState({ x: player.x, y: player.y, facing: player.facing, mapVersion: HUB_MAP.mapVersion })
     }
     let lastSave = performance.now()
     let dirtySinceSave = false
@@ -291,25 +305,30 @@ export default function HubScene() {
       ctx.fillRect(0, 0, W, H)
       ctx.imageSmoothingEnabled = false
 
-      drawLayer(ctx, HUB_MAP, HUB_MAP.ground, atlas, cam.x, cam.y, W, H)
-      drawLayer(ctx, HUB_MAP, HUB_MAP.decorUnder, atlas, cam.x, cam.y, W, H)
+      drawLayer(ctx, HUB_MAP, HUB_MAP.ground, atlases, cam.x, cam.y, W, H)
+      // decorUnder/decorOver are each an ARRAY of layers (not one flattened
+      // array) — Tiled lets multiple tiles genuinely stack with transparency
+      // at the same cell (e.g. a bush's transparent corners revealing a
+      // cliff face drawn under it), which collapsing to a single winner-
+      // takes-all tile per cell would silently destroy. Drawn in stacking
+      // order, same as Tiled itself would composite them.
+      for (const layer of HUB_MAP.decorUnder) drawLayer(ctx, HUB_MAP, layer, atlases, cam.x, cam.y, W, H)
 
-      // Interaction zones (drawn on the ground, under entities).
+      // Interaction zone labels (drawn on the ground, under entities) — no
+      // trigger-radius circle anymore, just legible text at each zone's
+      // label anchor (above the cave, below the lodge). A stroke gives the
+      // text contrast against the busy grass texture without a fill circle.
       for (const z of ZONES) {
-        const zx = z.x - cam.x
-        const zy = z.y - cam.y
-        ctx.beginPath()
-        ctx.arc(zx, zy, z.radius, 0, Math.PI * 2)
-        ctx.fillStyle = HUB.zoneFill
-        ctx.fill()
-        ctx.lineWidth = 3
-        ctx.strokeStyle = HUB.zoneRing
-        ctx.stroke()
-        ctx.fillStyle = HUB.zoneLabelColor
+        const lx = z.labelX - cam.x
+        const ly = z.labelY - cam.y
         ctx.font = HUB.zoneLabelFont
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillText(z.label, zx, zy)
+        ctx.lineWidth = 4
+        ctx.strokeStyle = HUB.zoneLabelStroke
+        ctx.strokeText(z.label, lx, ly)
+        ctx.fillStyle = HUB.zoneLabelColor
+        ctx.fillText(z.label, lx, ly)
       }
 
       // Entities (player + critters) are depth-sorted by feet-Y so nearer ones
@@ -319,8 +338,9 @@ export default function HubScene() {
       entities.sort((a, b) => a.y - b.y)
       for (const e of entities) e.draw()
 
-      // Decor-over (tree canopies) draws AFTER entities -> walk-behind.
-      drawLayer(ctx, HUB_MAP, HUB_MAP.decorOver, atlas, cam.x, cam.y, W, H)
+      // Decor-over (tree canopies, roof, cliff caps) draws AFTER entities ->
+      // walk-behind. Array of layers, same reasoning as decorUnder above.
+      for (const layer of HUB_MAP.decorOver) drawLayer(ctx, HUB_MAP, layer, atlases, cam.x, cam.y, W, H)
     }
 
     // Player: composited avatar, bottom-center anchored, camera-corrected.
@@ -388,7 +408,7 @@ export default function HubScene() {
           activeZone: activeZoneRef.current?.id ?? null,
           composited: !!getComposite(avatar),
           buildCount: getBuildCount(),
-          atlasLoaded: !!(atlas.complete && atlas.naturalWidth > 0),
+          atlasLoaded: atlases.every((a) => a.complete && a.naturalWidth > 0),
           camX: cam.x,
           camY: cam.y,
           viewW: cam.w,

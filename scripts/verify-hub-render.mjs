@@ -21,6 +21,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { AVATAR_PALETTES } from '../src/data/avatarPalettes.js'
 import { encodeBody } from '../src/data/avatarManifest.js'
+import { HUB_MAP } from '../src/data/hubMap.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const OUT_DIR = path.join(__dirname, 'verify-screenshots')
@@ -63,24 +64,58 @@ async function main() {
 
   // 2. Map size.
   const info = await page.evaluate(() => window.__ECHO_HUB_TEST__.getMapInfo())
-  if (info.w !== 40 || info.h !== 28) throw new Error(`map size ${info.w}x${info.h}, expected 40x28`)
+  if (info.w !== 31 || info.h !== 21) throw new Error(`map size ${info.w}x${info.h}, expected 31x21`)
   console.log(`  map: ${info.w}x${info.h} tiles, ${info.tilePx}px/tile, spawn (${info.spawn.tx},${info.spawn.ty})`)
+
+  // 2b. Reachability: spawn and every zone must sit on walkable ground, all
+  // in the SAME connected component — otherwise a zone could be technically
+  // "walkable" but unreachable from spawn. Checked directly against the data
+  // (not the page) so it stays a hard permanent guard, not a rendering probe.
+  {
+    const { w, h, walk: grid, spawn, zones } = HUB_MAP
+    const idx = (x, y) => y * w + x
+    const inb = (x, y) => x >= 0 && y >= 0 && x < w && y < h
+    const seen = new Uint8Array(w * h)
+    const stack = [[spawn.tx, spawn.ty]]
+    seen[idx(spawn.tx, spawn.ty)] = 1
+    while (stack.length) {
+      const [x, y] = stack.pop()
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy
+        if (!inb(nx, ny)) continue
+        const ni = idx(nx, ny)
+        if (seen[ni] || grid[ni] !== 1) continue
+        seen[ni] = 1
+        stack.push([nx, ny])
+      }
+    }
+    if (grid[idx(spawn.tx, spawn.ty)] !== 1) throw new Error(`reachability: spawn (${spawn.tx},${spawn.ty}) is not walkable`)
+    for (const z of zones) {
+      if (grid[idx(z.tx, z.ty)] !== 1) throw new Error(`reachability: zone '${z.id}' (${z.tx},${z.ty}) is not walkable`)
+      if (!seen[idx(z.tx, z.ty)]) throw new Error(`reachability: zone '${z.id}' (${z.tx},${z.ty}) is not reachable from spawn`)
+    }
+    console.log(`  reachability: spawn and all ${zones.length} zone(s) walkable and mutually reachable`)
+  }
 
   // 3. Walkability grid.
   const walk = await page.evaluate((spawn) => {
     const H = window.__ECHO_HUB_TEST__
     return {
       spawn: H.isWalkableTile(spawn.tx, spawn.ty),
-      water: H.isWalkableTile(20, 26),
-      tree: H.isWalkableTile(13, 13),
-      border: H.isWalkableTile(0, 0),
+      water: H.isWalkableTile(10, 18),
+      tree: H.isWalkableTile(22, 2),
+      edgeTree: H.isWalkableTile(3, 0),
+      lodgeRoof: H.isWalkableTile(19, 11),
+      lodgeWall: H.isWalkableTile(19, 14),
     }
   }, info.spawn)
   if (!walk.spawn) throw new Error('walkability: spawn/path tile should be walkable')
-  if (walk.water) throw new Error('walkability: water tile (20,26) should be blocked')
-  if (walk.tree) throw new Error('walkability: tree-trunk tile (13,13) should be blocked')
-  if (walk.border) throw new Error('walkability: border tile (0,0) should be blocked')
-  console.log('  walkability: path walkable; water / tree / border blocked')
+  if (walk.water) throw new Error('walkability: cliff/water tile (10,18) should be blocked')
+  if (walk.tree) throw new Error('walkability: tree-trunk tile (22,2) should be blocked')
+  if (walk.edgeTree) throw new Error('walkability: map-edge tree tile (3,0) should be blocked')
+  if (!walk.lodgeRoof) throw new Error('walkability: lodge roof tile (19,11) should be walkable (walk-under, like tree canopy)')
+  if (walk.lodgeWall) throw new Error('walkability: lodge wall tile (19,14) should be blocked')
+  console.log('  walkability: path walkable; cliff-water / tree / edge-tree blocked; lodge roof walkable, lodge wall blocked')
 
   // 4. Zones trigger inside radius, clear just outside.
   const zones = await page.evaluate(() => window.__ECHO_HUB_TEST__.getZones())
@@ -168,7 +203,7 @@ async function main() {
   // 6. Movement + facing on open ground; cannot cross into water.
   const facings = await page.evaluate(() => {
     const H = window.__ECHO_HUB_TEST__
-    const open = { x: 25.5 * 48, y: 20.5 * 48 } // open interior grass
+    const open = { x: 10.5 * 48, y: 9.5 * 48 } // open interior grass
     const out = {}
     H.setPos(open.x, open.y); out.right = H.simulateMove(1, 0, 400)
     H.setPos(open.x, open.y); out.left = H.simulateMove(-1, 0, 400)
@@ -185,14 +220,14 @@ async function main() {
 
   const water = await page.evaluate(() => {
     const H = window.__ECHO_HUB_TEST__
-    H.setPos(25.5 * 48, 23 * 48) // grass just above the bottom lake (row 25 = water)
+    H.setPos(14.5 * 48, 15.5 * 48) // grass just above the cliff/water shoreline (row 17 = blocked)
     const start = H.getState().y
     const end = H.simulateMove(0, 1, 2500)
-    return { start, endY: end.y, waterTop: 25 * 48 }
+    return { start, endY: end.y, cliffTop: 17 * 48 }
   })
-  if (!(water.endY > water.start)) throw new Error(`collision: player did not walk toward water (${water.start} -> ${water.endY})`)
-  if (water.endY >= water.waterTop) throw new Error(`collision: player crossed into water (endY ${water.endY.toFixed(1)} >= ${water.waterTop})`)
-  console.log(`  collision: stopped at lake edge (endY=${water.endY.toFixed(1)}, water=${water.waterTop})`)
+  if (!(water.endY > water.start)) throw new Error(`collision: player did not walk toward the shoreline (${water.start} -> ${water.endY})`)
+  if (water.endY >= water.cliffTop) throw new Error(`collision: player crossed into the cliff/water (endY ${water.endY.toFixed(1)} >= ${water.cliffTop})`)
+  console.log(`  collision: stopped at the shoreline (endY=${water.endY.toFixed(1)}, cliffTop=${water.cliffTop})`)
 
   // 7. Camera clamps at both corners.
   const world = await page.evaluate(() => window.__ECHO_HUB_TEST__.getWorld())
@@ -208,7 +243,7 @@ async function main() {
   console.log(`  camera: clamps (0,0) at top-left and (${expX},${expY}) at bottom-right`)
 
   // 8. Position persists across reload.
-  const target = { x: 25.5 * 48, y: 20.5 * 48 }
+  const target = { x: 10.5 * 48, y: 9.5 * 48 }
   await page.evaluate((t) => { const H = window.__ECHO_HUB_TEST__; H.setPos(t.x, t.y); H.save() }, target)
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForFunction(() => !!window.__ECHO_HUB_TEST__, null, { timeout: 8000 })
@@ -261,7 +296,7 @@ async function main() {
   if (npcState0.spriteWalkFrames !== 4) throw new Error(`expected npc walkFrames 4, got ${npcState0.spriteWalkFrames}`)
   console.log('  standalone body: sprite grid is 32px/4-frame (not the 64px/6-frame composited grid)')
 
-  const npcOpen = { x: 25.5 * 48, y: 20.5 * 48 }
+  const npcOpen = { x: 10.5 * 48, y: 9.5 * 48 }
   const npcFacings = {}
   for (const [dir, vec] of Object.entries({ right: [1, 0], left: [-1, 0], down: [0, 1], up: [0, -1] })) {
     await page.evaluate((p) => window.__ECHO_HUB_TEST__.setPos(p.x, p.y), npcOpen)

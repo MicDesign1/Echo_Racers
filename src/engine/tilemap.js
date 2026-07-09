@@ -1,8 +1,31 @@
 // Minimal tile renderer for the hub. Pure drawing of STORED tile choices —
 // no autotiling / edge logic (the map in data/hubMap.js already holds every
-// chosen tile). A layer is a flat array (length map.w*map.h) of atlas tile
-// ids, where id = atlasRow*atlasCols + atlasCol, and -1 (or null) = empty.
+// chosen tile). A layer is a flat array (length map.w*map.h) of tile ids in
+// ONE unified id space spanning every atlas in HUB.tile.atlases, in order
+// (atlas 0 ids 0..count-1, atlas 1 right after, etc) — -1 (or null) = empty.
 import { HUB } from '../data/tuning.js'
+
+// Precomputed once: which unified-id range each atlas owns.
+const ATLAS_RANGES = (() => {
+  let offset = 0
+  return HUB.tile.atlases.map((a) => {
+    const range = { start: offset, cols: a.cols }
+    offset += a.count
+    return range
+  })
+})()
+
+// Resolve a unified tile id to { atlasIndex, localId }, or null if it falls
+// outside every registered atlas (treated as empty rather than throwing, so
+// a stray/future id never crashes rendering).
+function resolveAtlas(id) {
+  for (let i = 0; i < ATLAS_RANGES.length; i++) {
+    const r = ATLAS_RANGES[i]
+    const count = HUB.tile.atlases[i].count
+    if (id >= r.start && id < r.start + count) return { atlasIndex: i, localId: id - r.start, cols: r.cols }
+  }
+  return null
+}
 
 // World px per tile = source tile size * integer draw scale.
 export function tilePx() {
@@ -31,11 +54,11 @@ export function isWalkable(map, worldX, worldY) {
 }
 
 // Draw one layer, culled to the visible camera rect for performance.
-export function drawLayer(ctx, map, layer, atlasImg, camX, camY, viewW, viewH) {
-  if (!atlasImg || !atlasImg.complete || atlasImg.naturalWidth === 0) return
+// `atlasImgs` is an array of loaded Image objects, index-matched to
+// HUB.tile.atlases (one per registered atlas).
+export function drawLayer(ctx, map, layer, atlasImgs, camX, camY, viewW, viewH) {
   const TW = tilePx()
   const T = HUB.tile.size
-  const AC = HUB.tile.atlasCols
   const minTx = Math.max(0, Math.floor(camX / TW))
   const maxTx = Math.min(map.w - 1, Math.floor((camX + viewW) / TW))
   const minTy = Math.max(0, Math.floor(camY / TW))
@@ -44,8 +67,12 @@ export function drawLayer(ctx, map, layer, atlasImg, camX, camY, viewW, viewH) {
     for (let tx = minTx; tx <= maxTx; tx++) {
       const id = layer[ty * map.w + tx]
       if (id == null || id < 0) continue
-      const sx = (id % AC) * T
-      const sy = Math.floor(id / AC) * T
+      const resolved = resolveAtlas(id)
+      if (!resolved) continue
+      const atlasImg = atlasImgs[resolved.atlasIndex]
+      if (!atlasImg || !atlasImg.complete || atlasImg.naturalWidth === 0) continue
+      const sx = (resolved.localId % resolved.cols) * T
+      const sy = Math.floor(resolved.localId / resolved.cols) * T
       ctx.drawImage(atlasImg, sx, sy, T, T, Math.round(tx * TW - camX), Math.round(ty * TW - camY), TW, TW)
     }
   }

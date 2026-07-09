@@ -459,7 +459,7 @@ export const CONTROLS = {
 
 // Walkable hub scene (see screens/HubScene.jsx). The hub is the game's home:
 // a tiled forest the player walks around, with interaction zones that open
-// Practice ("Trial Gate") and avatar customization ("Mirror"). The map itself
+// Practice ("Races") and avatar customization ("Lodge"). The map itself
 // (terrain, walkability, zone/spawn placement) is DATA in src/data/hubMap.js;
 // this block holds only the render/feel constants the scene + tilemap use.
 // EVERY number the scene uses lives here or in hubMap.js.
@@ -469,15 +469,20 @@ export const CONTROLS = {
 export const HUB = {
   bgColor: '#20301c', // shown behind the map if the view is larger than it
 
-  // Forest tileset (Mana Seed "Seasonal Forest" summer atlas). 16px source
-  // tiles in a 16-wide atlas, drawn at an integer `scale` (imageSmoothing off)
-  // so pixels stay crisp; scale is tuned to sit right next to the character
-  // draw size (a ~2-tile-tall character over 48px tiles).
+  // Tilesets (Mana Seed "Seasonal Forest" summer atlas + the lodge/timber
+  // sheet). 16px source tiles, each atlas 16 cols wide, drawn at an integer
+  // `scale` (imageSmoothing off) so pixels stay crisp; scale is tuned to sit
+  // right next to the character draw size (a ~2-tile-tall character over
+  // 48px tiles). Map data uses ONE unified tile-id space across all atlases,
+  // concatenated in this array's order (atlas 0 ids 0..count-1, atlas 1
+  // starts right after, etc) — see engine/tilemap.js resolveAtlas().
   tile: {
     size: 16, // source tile px
-    atlasCols: 16, // atlas is 16 tiles wide (256px)
     scale: 3, // integer draw scale -> 48 world px per tile
-    atlasSrc: '/sprites/hub/tiles/forest-summer.png',
+    atlases: [
+      { src: '/sprites/hub/tiles/forest-summer.png', cols: 16, count: 256 },
+      { src: '/sprites/hub/tiles/lodge.png', cols: 16, count: 128 },
+    ],
   },
 
   player: {
@@ -540,13 +545,14 @@ export const HUB = {
   // body -> outfit -> hair (Mana Seed 0bas < 1out < 4har), baked into the
   // composited sheet, so this scene just draws the one cached sheet.
 
-  // Interaction-zone STYLING (positions/labels/actions/radii are per-map in
-  // hubMap.js). Labels are placeholders per the brief — no invented location
-  // names ("Trial Gate", "Mirror" are stand-ins pending story-side naming).
-  zoneFill: 'rgba(196, 154, 60, 0.20)', // Aged Gold, translucent
-  zoneRing: '#C49A3C', // Aged Gold
+  // Interaction-zone STYLING (positions/labels/actions/radii, and the label's
+  // own anchor tile, are per-map in hubMap.js). Labels are placeholders per
+  // the brief — no invented location names ("Races", "Lodge" are stand-ins
+  // pending story-side naming). No trigger-radius circle is drawn; the
+  // stroke is what keeps the label legible over the busy grass texture.
   zoneLabelFont: "600 22px 'Cinzel', Georgia, serif",
   zoneLabelColor: '#3a2a12',
+  zoneLabelStroke: '#FFF8E7', // Cream
 
   // Avatar customization preview (screens/AvatarScreen.jsx): the composited
   // character walks in place, slowly cycling facings.
@@ -561,6 +567,10 @@ export const HUB = {
   // wild critters that gently wander open ground — never chase, block, or
   // startle. Sheet layout is in data/critters.js; this is just their motion feel.
   critter: {
+    tilesPerCritter: 175, // population density: one critter per this many
+    // walkable tiles (calibrated from the original hand-authored hub map:
+    // 528 walkable tiles / 3 critters). Importer uses this to scale count
+    // with map size instead of a hardcoded critter count.
     speed: 26, // world px/sec — a slow, unhurried glide
     animFrameMs: 220, // ms per idle-bob frame (calm, not twitchy)
     idleMs: [1400, 4200], // random pause between wanders

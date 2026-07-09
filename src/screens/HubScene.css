@@ -76,7 +76,7 @@
   background: rgba(92, 58, 30, 0.86);
 }
 
-/* Interaction prompt shown while standing in the Trial Gate zone. It's a real
+/* Interaction prompt shown while standing in a zone (Races/Lodge). It's a real
    button so a tap enters on touch; Space also enters (see HubScene keydown). */
 .hub-prompt {
   position: absolute;
