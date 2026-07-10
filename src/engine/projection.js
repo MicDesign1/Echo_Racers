@@ -52,3 +52,19 @@ export function renderLaneStripe(ctx, s1, s2, color) {
   trap(ctx, s1.sx - s1.sw * half, s1.sy, s1.sw * ROAD.laneWidthFraction,
     s2.sx - s2.sw * half, s2.sy, s2.sw * ROAD.laneWidthFraction, color)
 }
+
+// Finish-line ground marking: a checkerboard overlay across the full road
+// width, drawn on top of an already-rendered finish segment (see track.js's
+// isFinishLine flag) — replaces the old solid gold band so it reads as a
+// deliberate finish pattern rather than just another surface tint.
+export function renderFinishCheckers(ctx, s1, s2, cols, colorA, colorB) {
+  for (let c = 0; c < cols; c++) {
+    const t0 = c / cols
+    const t1 = (c + 1) / cols
+    const x1 = s1.sx - s1.sw + t0 * s1.sw * 2
+    const w1 = (t1 - t0) * s1.sw * 2
+    const x2 = s2.sx - s2.sw + t0 * s2.sw * 2
+    const w2 = (t1 - t0) * s2.sw * 2
+    trap(ctx, x1, s1.sy, w1, x2, s2.sy, w2, c % 2 === 0 ? colorA : colorB)
+  }
+}

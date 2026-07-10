@@ -7,6 +7,10 @@
  * and near-zone (direct projection) branches share the exact same
  * carWidth = playerChassisWidth * zPlayer / z formula, there should be no
  * seam, no flicker, and strictly monotonic sizing across the whole sweep.
+ * The exhaustive sweep runs on Circuit One (the reference track, guaranteed
+ * byte-identical to pre-refactor); every other track in data/tracks.js gets
+ * a lighter track-agnostic smoke test (positions scaled off its own actual
+ * length) checking the same placement invariants.
  * Prereq: dev server running (Vite port auto-detected from 5173 upward)
  * Run: node scripts/verify-opponents-render.mjs
  */
@@ -24,6 +28,15 @@ const OUT_DIR = path.join(__dirname, 'verify-screenshots')
 // overlap check + a full-field draw-order screenshot on top of the normal
 // single-rival sweep. Unset => the original 3-rival default, unchanged.
 const RIVALS = process.env.RIVALS != null ? Math.max(1, Math.min(8, parseInt(process.env.RIVALS, 10))) : null
+
+// The exhaustive sweep above (hardcoded FLAT_POS/HILL_POS/CREST_POS) targets
+// Circuit One's specific geometry and stays exactly as it was — it's the
+// thorough regression check against the one track guaranteed byte-identical
+// to pre-refactor. Every OTHER track (data/tracks.js) gets a lighter,
+// track-agnostic smoke test below: same depth-projection math (it doesn't
+// care which course is loaded), positions computed from each track's own
+// actual length rather than assumed hill/crest locations.
+const OTHER_TRACK_IDS = ['long-circuit-1', 'winding-circuit-1', 'highland-circuit-1', 'coastal-circuit-1']
 
 const FLAT_POS = 6000
 const HILL_POS = 40000
@@ -464,6 +477,55 @@ async function fullFieldShot(page, count) {
   return st.opponents.length
 }
 
+// Track-agnostic smoke test: loads one specific track (?track=), places a
+// rival at a handful of deltas scaled off that track's OWN actual length
+// (so it works regardless of layout), and confirms opponent placement never
+// goes null/NaN and carWidth stays monotonic through a near approach — the
+// same depth-projection invariants the exhaustive sweep checks above, just
+// without assuming where any hill or crest happens to fall.
+async function smokeTestTrack(port, trackId) {
+  const url = `http://localhost:${port}/race?verify=1&track=${trackId}`
+  const browser = await chromium.launch()
+  const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
+  await page.goto(url, { waitUntil: 'networkidle' })
+  await page.waitForFunction(() => !!window.__ECHO_RACE_TEST__, null, { timeout: 8000 })
+
+  const config = await page.evaluate(() => window.__ECHO_RACE_TEST__.getRaceConfig())
+  if (config.trackId !== trackId) throw new Error(`smoke ${trackId}: track did not load (got ${config.trackId})`)
+
+  const { trackLength } = await page.evaluate(() => window.__ECHO_RACE_TEST__.getRaceState())
+  if (!Number.isFinite(trackLength) || trackLength <= 0) throw new Error(`smoke ${trackId}: bad trackLength ${trackLength}`)
+
+  // A handful of world positions spanning the whole course, so every
+  // section (whatever it is) gets at least one sample.
+  const positions = [0.05, 0.3, 0.55, 0.8].map((f) => Math.round(f * trackLength))
+  const deltas = [6000, 1500, 500, 100, 0, -80, -250]
+
+  let prevWidth = -Infinity
+  let sawReset = false
+  for (const pos of positions) {
+    prevWidth = -Infinity // width only needs to be monotonic within one far->near sweep
+    for (const delta of deltas) {
+      await setScenario(page, pos, delta)
+      const metrics = await page.evaluate(() => window.__ECHO_RACE_TEST__.getMetrics())
+      const rival = metrics?.rival
+      if (!rival) throw new Error(`smoke ${trackId} pos=${pos} delta=${delta}: rival culled unexpectedly`)
+      if (!Number.isFinite(rival.carWidth) || !Number.isFinite(rival.sy)) {
+        throw new Error(`smoke ${trackId} pos=${pos} delta=${delta}: non-finite placement (w=${rival.carWidth}, sy=${rival.sy})`)
+      }
+      if (rival.carWidth < prevWidth - 1) {
+        throw new Error(`smoke ${trackId} pos=${pos} delta=${delta}: width not non-decreasing (${rival.carWidth.toFixed(1)} < prev ${prevWidth.toFixed(1)})`)
+      }
+      prevWidth = rival.carWidth
+      sawReset = true
+    }
+  }
+  if (!sawReset) throw new Error(`smoke ${trackId}: no samples taken`)
+
+  await browser.close()
+  console.log(`  smoke ${trackId}: trackLength=${trackLength.toFixed(0)}, ${positions.length * deltas.length} placements OK`)
+}
+
 async function main() {
   const PORT = await discoverPort()
   const BASE_URL = `http://localhost:${PORT}/race?verify=1${RIVALS != null ? `&rivals=${RIVALS}` : ''}`
@@ -570,6 +632,12 @@ async function main() {
   }
 
   await browser.close()
+
+  console.log('checking opponent placement on every other track...')
+  for (const trackId of OTHER_TRACK_IDS) {
+    await smokeTestTrack(PORT, trackId)
+  }
+  console.log('PASS opponent render on all tracks')
 }
 
 main().catch((err) => {

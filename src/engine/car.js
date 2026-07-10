@@ -89,12 +89,16 @@ function drawCombatAura(ctx, carWidth, carHeight, fx, glowRGB, time) {
 // draw an image instead — the call site (RaceTrack.jsx) already passes
 // everything a sprite-based version would need and shouldn't need to change.
 // `fx` (optional) carries combat feedback: { flash, charged, wobbleAngle }.
+// `state.lift` (optional, default 0) is a hill-crest air-time offset — a
+// FRACTION of carHeight (see engine/airtime.js airLiftFraction) — that
+// raises the chassis above its own ground shadow, which stays put at
+// groundY; the gap between the two is what reads as "left the road."
 export function drawCar(ctx, width, height, state, colors, fx) {
-  const { steer, driftAngle, speedPercent, boosting, time } = state
+  const { steer, driftAngle, speedPercent, boosting, time, lift = 0 } = state
   const { groundY, chassisWidth: carWidth } = getPlayerAnchor(width, height)
   const carHeight = carWidth * CAR.heightFraction
   const cx = width / 2
-  const cy = groundY - carHeight * CAR.chassisBottomFraction
+  const cy = groundY - carHeight * CAR.chassisBottomFraction - carHeight * lift
 
   drawGroundShadow(ctx, cx, groundY, carWidth)
 
@@ -213,7 +217,9 @@ export function drawChassis(ctx, carWidth, carHeight, time, palette) {
 // placement. `lean` is a steer-like -1..1 value for a bit of banking motion.
 // `fx` (optional) carries combat feedback: { flash, charged, wobbleAngle } —
 // identical to the player's, so a rival's hits/charge read the same way.
-export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth, fx) {
+// `lift` (optional, default 0) is the same hill-crest air-time offset
+// drawCar takes — a fraction of carHeight, leaving the ground shadow at sy.
+export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth, fx, lift = 0) {
   const carHeight = carWidth * CAR.heightFraction
   if (carWidth < 2 || sy - carHeight > clipY || sy < 0) return
 
@@ -224,7 +230,7 @@ export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clip
 
   drawGroundShadow(ctx, sx, sy, carWidth)
 
-  const pivotY = sy - carHeight * CAR.chassisBottomFraction
+  const pivotY = sy - carHeight * CAR.chassisBottomFraction - carHeight * lift
   ctx.translate(sx, pivotY)
   ctx.rotate(lean * CAR.steerRotationFactor + (fx ? fx.wobbleAngle : 0))
   drawChassis(ctx, carWidth, carHeight, time, palette)

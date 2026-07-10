@@ -18,6 +18,10 @@
  * range but OUTSIDE collision range — combat fires with no collision
  * speed-penalty confounding the measurement.
  *
+ * Runs the full suite once per track in data/tracks.js (combat is
+ * position/gap-based, not geometry-based, so the same scenarios apply
+ * unchanged everywhere via ?track=).
+ *
  * Prereq: dev server running (Vite port auto-detected from 5173 upward)
  * Run: node scripts/verify-combat.mjs
  */
@@ -217,17 +221,18 @@ async function timeTrialGatePass(page) {
   return { eventsInTimeTrial: after.events - baseline.events, mode: after.mode }
 }
 
-async function main() {
-  const PORT = await discoverPort()
-  const BASE_URL = `http://localhost:${PORT}/race?verify=1`
-  console.log(`Using dev server at ${BASE_URL}`)
-  await mkdir(OUT_DIR, { recursive: true })
-
+// Combat ranges/cooldowns/speed-penalties are all delta/gap-based (see
+// COMBAT + OPPONENTS.collision in tuning.js) — none of it depends on track
+// geometry, only on a valid world position deep enough not to collide with
+// the starting grid. So the whole suite just re-runs unchanged against
+// every track (data/tracks.js) via ?track=, rather than needing a separate
+// lighter smoke test the way the render regression does.
+async function runCombatSuite(baseUrl, label) {
   const browser = await chromium.launch()
   const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' })
+  await page.goto(baseUrl, { waitUntil: 'networkidle' })
   const ok = await page.evaluate(() => !!window.__ECHO_RACE_TEST__?.getCombatState)
-  if (!ok) throw new Error(`combat verify hook missing at ${BASE_URL}`)
+  if (!ok) throw new Error(`combat verify hook missing at ${baseUrl}`)
 
   const pvr = await playerVsRivalPass(page)
   const rvr = await rivalVsRivalPass(page)
@@ -247,7 +252,7 @@ async function main() {
   if (cdg.eventsWhileCounting !== 0) problems.push(`(d) ${cdg.eventsWhileCounting} combat events fired during countdown`)
   if (ttg.eventsInTimeTrial !== 0) problems.push(`(d) ${ttg.eventsInTimeTrial} combat events fired in time-trial`)
 
-  console.log('\n--- combat verification ---')
+  console.log(`\n--- combat verification: ${label} ---`)
   console.log(`(a) events fired alongside rival: ${pvr.eventsFired}`)
   for (const d of pvr.drops) {
     console.log(`    speed drop @frame ${d.i}: ${d.before.toFixed(0)} -> ${d.after.toFixed(0)} (${(d.pct * 100).toFixed(1)}%)`)
@@ -259,13 +264,29 @@ async function main() {
   console.log(`(d) events in time-trial: ${ttg.eventsInTimeTrial} (mode after=${ttg.mode})`)
 
   await browser.close()
+  return problems
+}
 
-  if (problems.length) {
+const ALL_TRACK_IDS = ['trial-circuit-1', 'long-circuit-1', 'winding-circuit-1', 'highland-circuit-1', 'coastal-circuit-1']
+
+async function main() {
+  const PORT = await discoverPort()
+  await mkdir(OUT_DIR, { recursive: true })
+
+  const allProblems = []
+  for (const trackId of ALL_TRACK_IDS) {
+    const BASE_URL = `http://localhost:${PORT}/race?verify=1&track=${trackId}`
+    console.log(`Using dev server at ${BASE_URL}`)
+    const problems = await runCombatSuite(BASE_URL, trackId)
+    for (const p of problems) allProblems.push(`[${trackId}] ${p}`)
+  }
+
+  if (allProblems.length) {
     console.error('\nFAIL combat verification:')
-    for (const p of problems) console.error('  - ' + p)
+    for (const p of allProblems) console.error('  - ' + p)
     process.exit(1)
   }
-  console.log('\nPASS combat verification')
+  console.log('\nPASS combat verification (all tracks)')
 }
 
 main().catch((err) => {

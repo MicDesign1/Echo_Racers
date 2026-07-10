@@ -60,3 +60,49 @@ export function drawRoadsideSprite(ctx, x, yBase, roadHalfWidthPx, clipY, canvas
 
   ctx.restore()
 }
+
+// Overhead finish-line banner spanning the two finish pillars (see
+// ROAD.finishLine.pillarOffsetLeft/Right in tuning.js — the same offsets the
+// pillar sprites at segment 0 use, so the banner lines up exactly between
+// them). Unlike a pillar/stone, a banner needs BOTH edge x-positions at
+// once, so it reads the frame slot directly instead of a single pre-offset
+// screen x (see RaceTrack.jsx's sprite-draw loop special-casing this type).
+// Drawn/clipped through the exact same projected-slot + hill-crest-clip path
+// as every other roadside sprite, so it scales up naturally on approach and
+// clips correctly near a crest, same as a pillar would.
+export function drawFinishBanner(ctx, slot, sprite, canvasWidth, canvasHeight, colors, time) {
+  const { s1x: x, s1y: yBase, s1w: roadHalfWidthPx, clip: clipY } = slot
+  const xLeft = x + roadHalfWidthPx * sprite.leftOffset
+  const xRight = x + roadHalfWidthPx * sprite.rightOffset
+  const postH = roadHalfWidthPx * ROADSIDE.pillarHeightFraction
+  const yTop = yBase - postH
+  if (yTop > canvasHeight || yBase < 0 || postH < 2) return
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(0, 0, canvasWidth, clipY)
+  ctx.clip()
+
+  // Cloth: a straight top edge (hung taut between the two posts) and a
+  // gently sagging bottom edge (a soft catenary approximation), so it reads
+  // as a real hanging banner rather than a rigid plank.
+  const clothH = postH * 0.32
+  const sag = clothH * 0.35
+  const cloth = ctx.createLinearGradient(0, yTop, 0, yTop + clothH)
+  cloth.addColorStop(0, colors.finishBannerCloth[0])
+  cloth.addColorStop(1, colors.finishBannerCloth[1])
+  ctx.fillStyle = cloth
+  ctx.beginPath()
+  ctx.moveTo(xLeft, yTop)
+  ctx.lineTo(xRight, yTop)
+  ctx.lineTo(xRight, yTop + clothH)
+  ctx.quadraticCurveTo((xLeft + xRight) / 2, yTop + clothH + sag, xLeft, yTop + clothH)
+  ctx.closePath()
+  ctx.fill()
+
+  ctx.strokeStyle = colors.finishBannerTrim
+  ctx.lineWidth = Math.max(1, postH * 0.05)
+  ctx.stroke()
+
+  ctx.restore()
+}

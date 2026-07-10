@@ -1,6 +1,7 @@
-import { ROAD, RACE, OPPONENTS, activeDifficulty } from '../data/tuning.js'
+import { ROAD, RACE, OPPONENTS, AIR, activeDifficulty } from '../data/tuning.js'
 import { seg } from './track.js'
 import { getPlayerAnchor } from './car.js'
+import { updateAirtime, createAirState } from './airtime.js'
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
@@ -64,6 +65,9 @@ export function createOpponents() {
       laps: 0,
       finished: false,
       place: null,
+      // Hill-crest air time (see engine/airtime.js) — identical fields/rules
+      // to the player's own, so rivals launch off the same crests.
+      ...createAirState(),
     }
   })
 }
@@ -90,16 +94,24 @@ function targetSpeedFor(o, playerPos, trackLength) {
 
 export function updateOpponents(g, dt, trackLength) {
   for (const o of g.opponents) {
+    // Symmetric with the player (engine/airtime.js): check/advance this
+    // rival's own air-time state off its own position/speed before applying
+    // this frame's accel/steer, so the lock factors below take effect the
+    // same frame a launch arms.
+    updateAirtime(o, o.pos, o.speed / RACE.maxSpeed, dt)
+    const accelLock = o.airborne ? AIR.accelLockFactor : 1
+    const steerLock = o.airborne ? AIR.steerLockFactor : 1
+
     const targetSpeed = targetSpeedFor(o, g.pos, trackLength)
-    if (o.speed < targetSpeed) o.speed = Math.min(targetSpeed, o.speed + OPPONENTS.accel * dt)
-    else o.speed = Math.max(targetSpeed, o.speed - OPPONENTS.brake * dt)
+    if (o.speed < targetSpeed) o.speed = Math.min(targetSpeed, o.speed + OPPONENTS.accel * accelLock * dt)
+    else o.speed = Math.max(targetSpeed, o.speed - OPPONENTS.brake * accelLock * dt)
 
     o.wanderPhase += dt
     const wander = Math.sin(o.wanderPhase * OPPONENTS.laneWanderRate * Math.PI * 2 + o.rivalIndex * 2.4) * OPPONENTS.laneWanderAmplitude
     const baseLane = OPPONENTS.laneOffsets[o.rivalIndex % OPPONENTS.laneOffsets.length]
     const laneTarget = clamp(baseLane + wander, -OPPONENTS.laneBound, OPPONENTS.laneBound)
     const prevX = o.x
-    o.x += (laneTarget - o.x) * Math.min(1, dt * OPPONENTS.steerEaseRate)
+    o.x += (laneTarget - o.x) * Math.min(1, dt * OPPONENTS.steerEaseRate * steerLock)
     o.x = clamp(o.x, -OPPONENTS.laneBound, OPPONENTS.laneBound)
 
     const leanTarget = dt > 0 ? clamp((o.x - prevX) / (dt * OPPONENTS.leanNormalizer), -1, 1) : 0

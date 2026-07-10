@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ROAD, RACE, DRIFT, PARALLAX, RESULTS, OPPONENTS, COMBAT, CONTROLS, DIFFICULTY, activeTrackId } from '../data/tuning.js'
-import { trackLength, seg } from '../engine/track.js'
-import { project, renderRoadSegment, renderLaneStripe } from '../engine/projection.js'
+import { ROAD, RACE, DRIFT, PARALLAX, RESULTS, OPPONENTS, COMBAT, CONTROLS, DIFFICULTY, AIR, activeTrackId } from '../data/tuning.js'
+import { activeTrack, TRACKS } from '../data/tracks.js'
+import { trackLength, seg, loadTrack } from '../engine/track.js'
+import { project, renderRoadSegment, renderLaneStripe, renderFinishCheckers } from '../engine/projection.js'
 import { drawParallax } from '../engine/background.js'
-import { drawRoadsideSprite } from '../engine/roadside.js'
+import { drawRoadsideSprite, drawFinishBanner } from '../engine/roadside.js'
 import { drawCar, drawOpponentCar, getCreatureAnchor } from '../engine/car.js'
 import { createOpponents, updateOpponents, getOpponentScreenPlacement, computePlayerDepth, computePlayerPlace, startGridSlot } from '../engine/opponents.js'
+import { updateAirtime, airLiftFraction, createAirState } from '../engine/airtime.js'
 import { updateCombat, wobbleAngle } from '../engine/combat.js'
 import { drawAttackBolt, drawPlayerHitEdge } from '../engine/combatfx.js'
 import * as audio from '../engine/audio.js'
@@ -29,12 +31,14 @@ const audioDebug = typeof window !== 'undefined' && new URLSearchParams(window.l
 // WITHOUT this param, so this debug read never ships to normal play.
 const forceTouch = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('touch')
 
-// Difficulty/count/mode overrides for verification ONLY — no player UI yet.
-// Applied to the practice config at load so they survive the page reloads the
-// verify scripts perform (e.g. ?verify=1&rivals=8&difficulty=Ace). Gated on
-// verify mode so nothing here ships to normal play. Also see the setDifficulty
-// / setRivalCount / setRaceMode hooks on window.__ECHO_RACE_TEST__ below for
-// changing these live within a session.
+// Difficulty/count/mode/track overrides for verification ONLY — no player UI
+// yet drives track/mode this way (track has a real picker; this is for the
+// regression scripts). Applied to the practice config at load so they
+// survive the page reloads the verify scripts perform (e.g.
+// ?verify=1&rivals=8&difficulty=Ace&track=winding-circuit-1). Gated on
+// verify mode so nothing here ships to normal play. Also see the
+// setDifficulty/setRivalCount/setRaceMode hooks on window.__ECHO_RACE_TEST__
+// below for changing these live within a session.
 if (verifyMode && typeof window !== 'undefined') {
   const q = new URLSearchParams(window.location.search)
   const rc = q.get('rivals')
@@ -45,6 +49,8 @@ if (verifyMode && typeof window !== 'undefined') {
   if (d && DIFFICULTY[d]) RACE.practice.difficulty = d
   const rm = q.get('racemode')
   if (rm === 'practice' || rm === 'trial') RACE.raceMode = rm
+  const tk = q.get('track')
+  if (tk && TRACKS.some((t) => t.id === tk)) RACE.practice.trackId = tk
 } else if (typeof window !== 'undefined') {
   // Outside verify mode, hydrate RACE.practice from the player's last-used
   // Practice choices so a direct load / refresh of /race (i.e. not arriving
@@ -56,6 +62,7 @@ if (verifyMode && typeof window !== 'undefined') {
   if (DIFFICULTY[saved.difficulty]) RACE.practice.difficulty = saved.difficulty
   const n = Number(saved.rivalCount)
   if (Number.isFinite(n)) RACE.practice.rivalCount = Math.max(1, Math.min(RACE.maxRivalCount, Math.round(n)))
+  if (TRACKS.some((t) => t.id === saved.trackId)) RACE.practice.trackId = saved.trackId
 }
 
 // The countdown ceremony is a real-player affordance — verify mode drives
@@ -122,6 +129,9 @@ function createInitialGameState() {
     // simulation never depends on them.
     drifting: false,
     audioEvents: [],
+    // Hill-crest air time (engine/airtime.js) — identical fields/rules to
+    // every rival's own, so the player launches off the same crests.
+    ...createAirState(),
     opponents: createOpponents(),
   }
 }
@@ -173,6 +183,18 @@ export default function RaceTrack() {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
+    // Load the selected track's segments (rebuilds the live track.js
+    // singleton every existing trackLength/seg import reads) and sync the
+    // few globals still read as plain values (RACE.lapCount) before
+    // anything else touches them. trackColors merges this track's
+    // sky/grass/rumble/road look over the shared COLORS palette (car/HUD/
+    // pillar/stone/etc colors aren't track-specific) — recomputed here
+    // rather than every frame since it only changes when the track does.
+    let currentTrack = activeTrack()
+    loadTrack(currentTrack)
+    RACE.lapCount = currentTrack.lapCount
+    let trackColors = { ...COLORS, sky: currentTrack.palette.sky, grass: currentTrack.palette.grass, grassAlt: currentTrack.palette.grassAlt, shoulder: currentTrack.palette.rumble }
+
     gameRef.current.bestLapTime = getBestTimes(activeTrackId()).bestLap
 
     function showBanner(lapTime, bestTime, isRecord) {
@@ -183,11 +205,16 @@ export default function RaceTrack() {
 
     // "Race Again": a full reset (positions, opponents, timers) rather than
     // patching individual fields, so it can never leave a stray field from
-    // the finished race behind.
+    // the finished race behind. Re-resolves the track too (harmless no-op
+    // if the selection hasn't changed, correct if it somehow has).
     function resetRace() {
       clearTimeout(bannerTimeoutRef.current)
       setBanner(null)
       setRaceResult(null)
+      currentTrack = activeTrack()
+      loadTrack(currentTrack)
+      RACE.lapCount = currentTrack.lapCount
+      trackColors = { ...COLORS, sky: currentTrack.palette.sky, grass: currentTrack.palette.grass, grassAlt: currentTrack.palette.grassAlt, shoulder: currentTrack.palette.rumble }
       const fresh = createInitialGameState()
       fresh.bestLapTime = getBestTimes(activeTrackId()).bestLap
       gameRef.current = fresh
@@ -299,15 +326,22 @@ export default function RaceTrack() {
       const touch = touchRef.current
       const spct = g.speed / RACE.maxSpeed
 
+      // Hill-crest air time (engine/airtime.js): check/advance BEFORE this
+      // frame's accel/steer so a launch's lock applies the same frame it
+      // arms. Identical call/rules to each rival's own (updateOpponents).
+      updateAirtime(g, g.pos, spct, dt)
+      const airAccelLock = g.airborne ? AIR.accelLockFactor : 1
+      const airSteerLock = g.airborne ? AIR.steerLockFactor : 1
+
       // Throttle: keyboard OR touch. The touch buttons set the same flags,
       // so 'autoAccel' just holds touch.up true (its combined button drops
       // it while braking). Keyboard order is preserved (accel wins ties).
       const accelInput = keys.up || touch.up
       const brakeInput = keys.down || touch.down
       if (accelInput) {
-        g.speed += RACE.accel * dt * (RACE.accelLowSpeedBoost - RACE.accelSpeedTaper * spct)
+        g.speed += RACE.accel * airAccelLock * dt * (RACE.accelLowSpeedBoost - RACE.accelSpeedTaper * spct)
       } else if (brakeInput) {
-        g.speed -= RACE.brakeDecel * dt
+        g.speed -= RACE.brakeDecel * airAccelLock * dt
       } else {
         g.speed -= RACE.friction * dt
       }
@@ -326,13 +360,19 @@ export default function RaceTrack() {
       let steerTarget = touch.steerActive ? touch.steer : keySteer
       steerTarget = Math.max(-1, Math.min(1, steerTarget))
       g.steer += (steerTarget - g.steer) * Math.min(1, dt * RACE.steerEaseRate)
-      g.playerX += g.steer * RACE.steerRate * dt * spct
+      g.playerX += g.steer * RACE.steerRate * dt * spct * airSteerLock
 
+      // No wheels on the road while airborne: curve centrifugal pull is
+      // suspended outright (not just reduced) rather than merely locked.
       const curve = seg(Math.floor(g.pos / ROAD.segmentLength)).curve
-      g.playerX -= curve * RACE.centrifugalStrength * spct * spct * dt
+      if (!g.airborne) {
+        g.playerX -= curve * RACE.centrifugalStrength * spct * spct * dt
+      }
       g.playerX = Math.max(-RACE.playerXMax, Math.min(RACE.playerXMax, g.playerX))
 
-      const drifting = (keys.drift || touch.drift) && Math.abs(g.steer) > DRIFT.minSteer && spct > DRIFT.minSpeedPercent
+      // A fresh drift can't be initiated mid-air either; an in-progress
+      // drift's angle still eases back to 0 via the settle branch below.
+      const drifting = !g.airborne && (keys.drift || touch.drift) && Math.abs(g.steer) > DRIFT.minSteer && spct > DRIFT.minSpeedPercent
       g.drifting = drifting
       if (drifting) {
         g.driftAngle += (g.steer * DRIFT.angleTargetFactor - g.driftAngle) * Math.min(1, dt * DRIFT.angleEaseRate)
@@ -417,12 +457,12 @@ export default function RaceTrack() {
       g.bgSkew += baseSegment.curve * spct * PARALLAX.skewRate
 
       const horizonY = height * PARALLAX.horizonFraction
-      ctx.fillStyle = linearGradient(ctx, 0, 0, 0, horizonY, COLORS.sky)
+      ctx.fillStyle = linearGradient(ctx, 0, 0, 0, horizonY, trackColors.sky)
       ctx.fillRect(0, 0, width, horizonY)
-      ctx.fillStyle = COLORS.grass
+      ctx.fillStyle = trackColors.grass
       ctx.fillRect(0, horizonY, width, height - horizonY)
 
-      drawParallax(ctx, width, height, g.bgSkew, COLORS)
+      drawParallax(ctx, width, height, g.bgSkew, trackColors)
 
       let clip = height
       let x = 0
@@ -450,9 +490,11 @@ export default function RaceTrack() {
 
         if (P2.sy >= P1.sy || P2.sy >= clip) continue
 
-        renderRoadSegment(ctx, width, P1, P2, n % 2, COLORS, s.roadColor)
-        if (i % ROAD.laneDashPeriod < ROAD.laneDashOn) {
-          renderLaneStripe(ctx, P1, P2, COLORS.laneStripe)
+        renderRoadSegment(ctx, width, P1, P2, n % 2, trackColors, s.roadColor)
+        if (s.isFinishLine) {
+          renderFinishCheckers(ctx, P1, P2, ROAD.finishLine.checkerCols, trackColors.finishCheckerA, trackColors.finishCheckerB)
+        } else if (i % ROAD.laneDashPeriod < ROAD.laneDashOn) {
+          renderLaneStripe(ctx, P1, P2, trackColors.laneStripe)
         }
 
         clip = Math.min(clip, P2.sy)
@@ -471,8 +513,12 @@ export default function RaceTrack() {
         const s = seg(slot.segIndex)
         if (s.sprites.length) {
           for (const sprite of s.sprites) {
+            if (sprite.type === 'finishBanner') {
+              drawFinishBanner(ctx, slot, sprite, width, height, trackColors, time)
+              continue
+            }
             const sx = slot.s1x + slot.s1w * sprite.offset
-            drawRoadsideSprite(ctx, sx, slot.s1y, slot.s1w, slot.clip, width, height, sprite, COLORS, time)
+            drawRoadsideSprite(ctx, sx, slot.s1y, slot.s1w, slot.clip, width, height, sprite, trackColors, time)
           }
         }
         for (const { o, place } of beforePlayer) {
@@ -488,6 +534,7 @@ export default function RaceTrack() {
             place.clip,
             width,
             combatFx(o.attackCooldown, o.wobble, o.hitFlash),
+            airLiftFraction(o),
           )
         }
       }
@@ -498,7 +545,8 @@ export default function RaceTrack() {
         speedPercent: spct,
         boosting: g.boost > 0,
         time,
-      }, COLORS, combatFx(g.playerAttackCooldown, g.playerWobble, g.playerHitFlash))
+        lift: airLiftFraction(g),
+      }, trackColors, combatFx(g.playerAttackCooldown, g.playerWobble, g.playerHitFlash))
 
       for (const { o, place } of afterPlayer.sort((a, b) => b.place.cameraZ - a.place.cameraZ)) {
         drawOpponentCar(
@@ -512,6 +560,7 @@ export default function RaceTrack() {
           place.clip,
           width,
           combatFx(o.attackCooldown, o.wobble, o.hitFlash),
+          airLiftFraction(o),
         )
       }
 
@@ -537,7 +586,7 @@ export default function RaceTrack() {
             : rivalById[a.toRivalIndex]
           if (!from || !toEntry) continue
           const glowRGB = a.fromPlayer
-            ? COLORS.intakeGlowRGB
+            ? trackColors.intakeGlowRGB
             : OPPONENT_PALETTES[a.fromRivalIndex].intakeGlowRGB
           drawAttackBolt(ctx, from, toEntry.pt, Math.min(1, a.elapsed / a.duration), glowRGB, toEntry.carWidth)
         }
@@ -577,14 +626,14 @@ export default function RaceTrack() {
         lapCount: RACE.lapCount,
         place: RACE.mode === 'race' ? computePlayerPlace(g, trackLength) : null,
         muted: audio.isMuted(),
-      }, COLORS)
+      }, trackColors)
 
       const vignette = ctx.createRadialGradient(
         width / 2, horizonY, height * PARALLAX.vignetteInnerRadiusFraction,
         width / 2, horizonY, height * PARALLAX.vignetteOuterRadiusFraction
       )
-      vignette.addColorStop(0, COLORS.vignetteInner)
-      vignette.addColorStop(1, COLORS.vignetteOuter)
+      vignette.addColorStop(0, trackColors.vignetteInner)
+      vignette.addColorStop(1, trackColors.vignetteOuter)
       ctx.fillStyle = vignette
       ctx.fillRect(0, 0, width, height)
 
@@ -592,7 +641,7 @@ export default function RaceTrack() {
       // it's unmissable mid-drift. Only fires when the player was the
       // victim (see combat.js landHit arming playerHitEdgePulse).
       if (RACE.mode === 'race' && g.playerHitEdgePulse > 0) {
-        drawPlayerHitEdge(ctx, width, height, g.playerHitEdgePulse / COMBAT.edgePulseDuration, COLORS.resonanceGlowRGB)
+        drawPlayerHitEdge(ctx, width, height, g.playerHitEdgePulse / COMBAT.edgePulseDuration, trackColors.resonanceGlowRGB)
       }
     }
 
@@ -643,6 +692,7 @@ export default function RaceTrack() {
           speed: g.speed,
           maxSpeed: RACE.maxSpeed,
           drifting: g.drifting,
+          airborne: g.airborne,
           rivals: g.opponents.map((o) => {
             let gap = ((o.pos - g.pos) % trackLength + trackLength) % trackLength
             if (gap > trackLength / 2) gap -= trackLength
@@ -706,6 +756,19 @@ export default function RaceTrack() {
           }
         },
         getMetrics: () => verifyMetricsRef.current,
+        // Hill-crest air-time verification hook (track length/hill-smoothing/
+        // air-time pass) — read-only, exercises engine/airtime.js's real
+        // state without parsing pixels.
+        getAirState: () => {
+          const g = gameRef.current
+          return {
+            playerAirborne: g.airborne,
+            playerAirTime: g.airTime,
+            playerAirDuration: g.airDuration,
+            playerLift: airLiftFraction(g),
+            opponents: g.opponents.map((o) => ({ rivalIndex: o.rivalIndex, airborne: o.airborne, lift: airLiftFraction(o) })),
+          }
+        },
         // Read-only race-state accessor for verifying the race/placement
         // feature end-to-end without parsing the DOM overlay.
         getRaceState: () => {
@@ -741,6 +804,7 @@ export default function RaceTrack() {
           rivalCount: RACE.rivalCount,
           trackId: activeTrackId(),
           tiers: Object.keys(DIFFICULTY),
+          tracks: TRACKS.map((t) => t.id),
         }),
         setDifficulty(name) {
           if (!DIFFICULTY[name]) return false
@@ -753,6 +817,12 @@ export default function RaceTrack() {
           ;(RACE.raceMode === 'trial' ? RACE.trial : RACE.practice).rivalCount = count
           resetRaceRef.current?.()
           return count
+        },
+        setTrackId(id) {
+          if (!TRACKS.some((t) => t.id === id)) return false
+          ;(RACE.raceMode === 'trial' ? RACE.trial : RACE.practice).trackId = id
+          resetRaceRef.current?.()
+          return true
         },
         setRaceMode(mode) {
           if (mode !== 'practice' && mode !== 'trial') return false
@@ -1045,9 +1115,16 @@ export default function RaceTrack() {
             <button
               type="button"
               className="results-again-btn"
-              onClick={() => navigate('/practice')}
+              onClick={() => resetRaceRef.current?.()}
             >
               Race Again
+            </button>
+            <button
+              type="button"
+              className="results-again-btn results-setup-btn"
+              onClick={() => navigate('/practice')}
+            >
+              Race Setup
             </button>
             <button
               type="button"

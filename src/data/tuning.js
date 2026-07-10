@@ -27,6 +27,7 @@ export const ROAD = {
     widthSegments: 2,
     pillarOffsetLeft: -1.6,
     pillarOffsetRight: 1.6,
+    checkerCols: 8, // columns across the road width for the ground checker overlay
   },
 }
 
@@ -268,41 +269,88 @@ export const COMBAT = {
   chargeAlpha: 0.22, // peak alpha of the subtle ready aura
 }
 
-// Named curve strengths reused across track sections; sign convention:
-// negative = left, positive = right (see track.js).
-export const CURVE = {
-  EASY_LEFT: -2.4,
-  HILLTOP_RIGHT: 4.6,
-  HAIRPIN_LEFT: -3.0,
+// Track SHAPE (layout, curve/hill values) and per-track roadside prop
+// placement now live in data/tracks.js, one plain object per course — see
+// activeTrack() there. This is the "feel" half only: how curve-easing and
+// roadside sprites are drawn/sized, shared by every track.
+export const TRACK_FEEL = {
+  // Default fraction of a curve section's length spent easing in (and the
+  // same fraction easing back out) when a track's layout entry doesn't
+  // specify enter/leave explicitly. The original course's three curves
+  // don't use this default — they carry their exact original enter/leave
+  // counts so its behavior stays byte-identical — but every new track can
+  // just say "how sharp, how long" and let this fill in the ease shape.
+  curveEnterLeaveFraction: 0.3,
+
+  // Elevation smoothing: even though each layout section already eases its
+  // OWN elevation change in with a cosine curve, a short/steep section
+  // (big dy over few segments) can still produce a peak per-segment slope
+  // steep enough that the road-drawing hill-crest occlusion clip (see
+  // RaceTrack.jsx's render loop — it hides the far side of a real crest by
+  // tracking the nearest on-screen horizon reached so far) misfires on a
+  // steep but perfectly continuous downhill, mistaking it for cresting a
+  // hill and truncating the draw distance — a visible "the road just
+  // vanishes" pop, not a data discontinuity (confirmed: the raw elevation
+  // values here are already smooth). A box-blur pass over the final
+  // segment-height profile caps how steep any single segment-to-segment
+  // step can be, regardless of how sharp the source layout data is.
+  elevationSmoothingRadius: 6, // segments averaged each side, per pass
+  elevationSmoothingPasses: 3,
 }
 
-// The course layout: each entry is one addRoad() call in track.js — segment
-// counts for the ease-in/hold/ease-out phases, the curve strength, and the
-// elevation change (in segment-lengths) across the whole span.
-export const TRACK_LAYOUT = [
-  { enter: 25, hold: 25, leave: 25, curve: 0, dy: 0 }, // start/finish straight
-  { enter: 30, hold: 50, leave: 30, curve: CURVE.EASY_LEFT, dy: 0 }, // gentle left sweeper
-  { enter: 20, hold: 20, leave: 20, curve: 0, dy: 22 }, // climb
-  { enter: 25, hold: 40, leave: 25, curve: CURVE.HILLTOP_RIGHT, dy: 8 }, // curve along the hilltop
-  { enter: 20, hold: 20, leave: 20, curve: 0, dy: -30 }, // descend back to base height
-  { enter: 30, hold: 60, leave: 30, curve: CURVE.HAIRPIN_LEFT, dy: 0 }, // sweeping hairpin
-  { enter: 20, hold: 40, leave: 20, curve: 0, dy: 0 }, // straight home
-]
+// Hill-crest "air time" (track length/hill-smoothing/air-time pass). Cresting
+// a genuinely sharp hill at real speed briefly lifts the chassis off the
+// road — a wholesome whoosh, never a hazard: it carries no speed penalty, no
+// spinout, and no damage in either direction. Identical rules drive the
+// player and every AI rival (see engine/airtime.js), the same symmetric
+// pattern CLAUDE.md's COMBAT DESIGN uses for auto-attacks.
+//
+// Gate is two independent thresholds, both required: crestThreshold alone
+// keeps a fast-but-gentle crest grounded (Long Circuit's whole layout stays
+// under this by design — "long and flowing," never a dramatic crest), and
+// launchSpeedPercent alone keeps a slow-but-sharp crest grounded. Both
+// calibrated against the real built elevation profiles of all five tracks
+// (see the crestSharpness formula in engine/airtime.js) rather than guessed:
+// per-track peak crest sharpness came out to roughly 0.012 (Long, the
+// gentlest by design) up to 0.028 (Winding, the sharpest).
+export const AIR = {
+  sampleWindowSegments: 4, // segments each side used to estimate crest curvature
+  crestThreshold: 0.013, // minimum crestSharpness to count as "a real crest" at all
+  launchSpeedPercent: 0.6, // minimum speed (fraction of maxSpeed) to launch off a qualifying crest
+  relaunchCooldown: 0.35, // seconds after landing before another launch can arm
+  // Air duration scales with speed x crest sharpness (per the brief), so a
+  // barely-qualifying crest taken at minimum speed is a quick hop and the
+  // sharpest crest at full speed is the longest hang time, capped so a
+  // launch never feels like it "hangs."
+  airDurationBase: 0.18,
+  airDurationSpeedScale: 0.35, // extra seconds at speedPercent 1.0
+  airDurationCrestScale: 10, // extra seconds per unit of crestSharpness (values are O(0.01-0.03))
+  airDurationMax: 0.75,
+  // Visual lift, as a fraction of the chassis's own carHeight (so it scales
+  // correctly with perspective the same way carWidth already does for
+  // rivals — see engine/car.js). Snapshot at launch from that frame's speed,
+  // not re-scaled mid-arc.
+  liftHeightBaseFraction: 0.5,
+  liftHeightSpeedScaleFraction: 0.6,
+  // While airborne: steering/accel/brake keep only this fraction of their
+  // normal authority (a floaty, "no traction" feel) rather than locking
+  // completely; drifting and curve centrifugal pull are suspended outright
+  // since neither makes sense with no wheels on the road.
+  steerLockFactor: 0.4,
+  accelLockFactor: 0.5,
+  // Landing: a brief damped settle/bounce, purely visual — never a speed
+  // penalty, spinout, or damage event.
+  landingSettleDuration: 0.35,
+  landingBounceAmplitudeFraction: 0.14, // of carHeight
+  landingBounceCycles: 1.4,
+  landingDamping: 3.2, // decay rate over the settle's 0..1 progress
+}
 
-// Roadside pillars/stones, placed deterministically by segment index so the
-// track is identical every run (no per-segment randomness).
+// Roadside pillars/stones are placed deterministically by segment index
+// (segment index % modulo) — the actual modulo/remainder/offset "prop set +
+// density" is per-track data (data/tracks.js); these are only the shared
+// visual constants for how a placed sprite is drawn/sized.
 export const ROADSIDE = {
-  pillarModulo: 9,
-  pillarRemainderLeft: 3,
-  pillarRemainderRight: 7,
-  stoneModuloA: 13,
-  stoneRemainderA: 5,
-  stoneModuloB: 11,
-  stoneRemainderB: 8,
-  pillarOffsetLeft: -1.45,
-  pillarOffsetRight: 1.45,
-  stoneOffsetA: -2.3,
-  stoneOffsetB: 2.4,
   pillarHeightFraction: 0.9, // of the road's projected half-width at that point
   pillarWidthFraction: 0.13,
   stoneHeightFraction: 0.22,
@@ -621,6 +669,10 @@ export const AUDIO = {
     idleGain: 0.05,
     maxGain: 0.15,
     freqCurve: 0.8, // pitch = idle..max by speedPct^curve (<1 ramps in early)
+    // Brief upward lift on top of the speed-driven pitch while airborne (see
+    // AIR/engine/airtime.js) — a cheap, wholesome "whoosh" cue reusing the
+    // existing engine hum rather than a new sound.
+    airPitchLiftHz: 18,
   },
   // Rival hums: same character, quieter, and faded by proximity so a
   // rival alongside you is audible but never drowns your own machine.

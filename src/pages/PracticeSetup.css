@@ -155,36 +155,6 @@
   color: var(--cream);
 }
 
-/* Track placeholder — visibly present but disabled until themed tracks land. */
-.track-slot {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-md);
-  border-radius: 12px;
-  border: 2px dashed var(--river-stone);
-  background: rgba(138, 131, 120, 0.1);
-}
-
-.track-slot.is-disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.track-name {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--walnut);
-}
-
-.track-note {
-  font-family: var(--font-body);
-  font-style: italic;
-  font-size: 0.9rem;
-  color: var(--river-stone);
-}
-
 .setup-actions {
   display: flex;
   flex-direction: column;

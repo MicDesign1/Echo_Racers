@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { RACE, DIFFICULTY } from '../data/tuning.js'
+import { RACE, DIFFICULTY, TRACK_ID } from '../data/tuning.js'
+import { TRACKS } from '../data/tracks.js'
 import { getPracticeConfig, setPracticeConfig, getOrigin } from '../data/saves.js'
 import './PracticeSetup.css'
 
@@ -17,6 +18,16 @@ const TIER_BLURBS = {
   Ace: 'Ruthless — rivals match your top speed and never ease up.',
 }
 
+// Same treatment for tracks — plain, descriptive, no narrative framing.
+// Keyed by track id; falls back to the track's own label if one is missing.
+const TRACK_BLURBS = {
+  'trial-circuit-1': 'The original course — a balanced mix of sweepers and hills.',
+  'long-circuit-1': 'Long and flowing — sweeping curves, gentle hills, open road.',
+  'winding-circuit-1': 'Short and technical — sharp turns back to back.',
+  'highland-circuit-1': 'Hilly and stony — big climbs and a fast descent.',
+  'coastal-circuit-1': 'Open and rolling — wide curves along the water.',
+}
+
 const TIER_NAMES = Object.keys(DIFFICULTY)
 const RIVAL_COUNTS = Array.from({ length: RACE.maxRivalCount }, (_, i) => i + 1)
 
@@ -29,7 +40,8 @@ function initialChoices() {
   const rivalCount = Number.isFinite(rawCount)
     ? Math.max(1, Math.min(RACE.maxRivalCount, Math.round(rawCount)))
     : DEFAULT_RIVAL_COUNT
-  return { difficulty, rivalCount }
+  const trackId = TRACKS.some((t) => t.id === saved.trackId) ? saved.trackId : TRACK_ID
+  return { difficulty, rivalCount, trackId }
 }
 
 export default function PracticeSetup() {
@@ -38,18 +50,20 @@ export default function PracticeSetup() {
   // sessionStorage (defaults to the hub, the game's home). Survives a hard
   // reload mid-setup, unlike react-router location.state.
   const returnTo = getOrigin()
-  const [{ difficulty, rivalCount }, setChoices] = useState(initialChoices)
+  const [{ difficulty, rivalCount, trackId }, setChoices] = useState(initialChoices)
 
   const setDifficulty = (d) => setChoices((c) => ({ ...c, difficulty: d }))
   const setRivalCount = (n) => setChoices((c) => ({ ...c, rivalCount: n }))
+  const setTrackId = (id) => setChoices((c) => ({ ...c, trackId: id }))
 
   function startRace() {
     // Write the choices into the config Session 1 created (the single source
-    // opponents/grid/combat read through activeRaceConfig), then persist them
-    // as the next default and launch. trackId is left as-is — one track today.
+    // opponents/grid/combat — and now the active track, see data/tracks.js —
+    // read through activeRaceConfig), then persist them as the next default
+    // and launch.
     RACE.raceMode = 'practice'
-    RACE.practice = { ...RACE.practice, difficulty, rivalCount }
-    setPracticeConfig({ difficulty, rivalCount, trackId: RACE.practice.trackId })
+    RACE.practice = { ...RACE.practice, difficulty, rivalCount, trackId }
+    setPracticeConfig({ difficulty, rivalCount, trackId })
     // Origin persists in sessionStorage, so the race returns to the hub even
     // after a hard reload — no navigation state needed.
     navigate('/race')
@@ -97,14 +111,21 @@ export default function PracticeSetup() {
           </div>
         </section>
 
-        {/* Track selection placeholder — themed tracks don't exist yet. This
-            slot is where the future multi-track session wires real choices;
-            it's intentionally disabled so the layout is already in place. */}
         <section className="setup-section">
           <h2 className="setup-label">Track</h2>
-          <div className="track-slot is-disabled" aria-disabled="true">
-            <span className="track-name">Circuit One</span>
-            <span className="track-note">More tracks coming soon</span>
+          <div className="tier-list" role="group" aria-label="Track">
+            {TRACKS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`tier-card${t.id === trackId ? ' is-selected' : ''}`}
+                aria-pressed={t.id === trackId}
+                onClick={() => setTrackId(t.id)}
+              >
+                <span className="tier-name">{t.label}</span>
+                <span className="tier-blurb">{TRACK_BLURBS[t.id] || ''}</span>
+              </button>
+            ))}
           </div>
         </section>
 

@@ -20,10 +20,16 @@ export const COLORS = {
   shoulder: 'rgba(139, 105, 20, 0.55)',
   laneStripe: 'rgba(196, 154, 60, 0.8)',
 
-  // Start/finish road band — a flat, saturated gold that reads as a
-  // deliberate marker against the road's warm-brown surface, not just
-  // another surface-noise tint (see track.js finishLine handling).
-  finishLine: '#D9A94F',
+  // Start/finish ground marking — a checkered strip (not a solid band) so it
+  // reads as a deliberate finish pattern from a distance, drawn as an
+  // overlay on top of the normal road surface (see track.js's isFinishLine
+  // flag + projection.js renderFinishCheckers).
+  finishCheckerA: '#FFF8E7', // Cream
+  finishCheckerB: '#5C3A1E', // Walnut
+  // Overhead finish banner (brass posts + cream/gold cloth), sprite-scaled
+  // the same way roadside pillars are (see roadside.js drawFinishBanner).
+  finishBannerCloth: ['#FFF8E7', '#F2C879'], // Cream -> resonance-glow gold
+  finishBannerTrim: '#8B6914', // Brass
   resonanceGlow: '#F2C879', // canvas-side twin of the --resonance-glow CSS var, for HUD/results accents
   resonanceGlowRGB: '242, 200, 121', // same color as `resonanceGlow`, as an rgb triple for alpha-composited combat glows (player hit edge pulse)
 
@@ -103,14 +109,17 @@ export const OPPONENT_PALETTES = [
 ].map((palette) => ({ ...palette, canopy: COLORS.canopy, creature: COLORS.creature }))
 
 // Road surface base color + per-channel tint weights. `tone` is the
-// segment's tiny signed drift value; the result is one consistent brown
+// segment's tiny signed drift value; the result is one consistent color
 // family with a barely-perceptible shift — never an alternating band.
-const ROAD_BASE = [74, 50, 28]
+// `base` is an [r,g,b] triple — each track supplies its own (data/tracks.js
+// palette.road); the original warm-brown value is this module's default so
+// the first track needs no override to stay byte-identical.
+export const ROAD_BASE = [74, 50, 28]
 const ROAD_TONE_WEIGHT = [1, 0.8, 0.5]
-export function roadTone(tone) {
-  const r = (ROAD_BASE[0] + tone * ROAD_TONE_WEIGHT[0]) | 0
-  const g = (ROAD_BASE[1] + tone * ROAD_TONE_WEIGHT[1]) | 0
-  const b = (ROAD_BASE[2] + tone * ROAD_TONE_WEIGHT[2]) | 0
+export function roadTone(tone, base = ROAD_BASE) {
+  const r = (base[0] + tone * ROAD_TONE_WEIGHT[0]) | 0
+  const g = (base[1] + tone * ROAD_TONE_WEIGHT[1]) | 0
+  const b = (base[2] + tone * ROAD_TONE_WEIGHT[2]) | 0
   return `rgb(${r}, ${g}, ${b})`
 }
 

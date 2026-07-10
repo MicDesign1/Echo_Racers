@@ -663,7 +663,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -673,9 +673,9 @@
         "rival": {
           "delta": 6000,
           "cameraZ": 6981.995164779234,
-          "sx": 512.5308367731883,
+          "sx": 507.4732199793335,
           "carWidth": 27.848063202208795,
-          "sy": 263.20341566548774,
+          "sy": 394.2137229709412,
           "drawBeforePlayer": true
         }
       },
@@ -688,7 +688,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -698,9 +698,9 @@
         "rival": {
           "delta": 4000,
           "cameraZ": 4981.995164779234,
-          "sx": 537.633565581621,
+          "sx": 535.5115434498576,
           "carWidth": 39.02754543016588,
-          "sy": 286.55938755657644,
+          "sy": 411.96312717892397,
           "drawBeforePlayer": true
         }
       },
@@ -713,7 +713,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -723,9 +723,9 @@
         "rival": {
           "delta": 2500,
           "cameraZ": 3481.995164779234,
-          "sx": 575.3850104147634,
+          "sx": 574.555774386751,
           "carWidth": 55.840124246300014,
-          "sy": 331.54470296033185,
+          "sy": 438.6560679700347,
           "drawBeforePlayer": true
         }
       },
@@ -738,7 +738,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -748,9 +748,9 @@
         "rival": {
           "delta": 1500,
           "cameraZ": 2481.995164779234,
-          "sx": 625.902840664411,
+          "sx": 625.5928536624547,
           "carWidth": 78.3382036296524,
-          "sy": 389.7978854205346,
+          "sy": 474.375745924331,
           "drawBeforePlayer": true
         }
       },
@@ -763,7 +763,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -773,9 +773,9 @@
         "rival": {
           "delta": 1000,
           "cameraZ": 1981.995164779234,
-          "sx": 670.278034860206,
+          "sx": 670.13970152576,
           "carWidth": 98.10066446249157,
-          "sy": 438.1653684296475,
+          "sy": 505.75214586075174,
           "drawBeforePlayer": true
         }
       },
@@ -788,7 +788,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -798,9 +798,9 @@
         "rival": {
           "delta": 700,
           "cameraZ": 1681.995164779234,
-          "sx": 709.5667390383394,
+          "sx": 709.4985160598178,
           "carWidth": 115.5978606227494,
-          "sy": 479.3519464262807,
+          "sy": 533.5320377038763,
           "drawBeforePlayer": true
         }
       },
@@ -813,7 +813,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -823,9 +823,9 @@
         "rival": {
           "delta": 500,
           "cameraZ": 1481.995164779234,
-          "sx": 744.5961028591053,
+          "sx": 744.563400566175,
           "carWidth": 131.1981626169829,
-          "sy": 515.2875156457977,
+          "sy": 558.3002747488623,
           "drawBeforePlayer": true
         }
       },
@@ -838,7 +838,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -848,9 +848,9 @@
         "rival": {
           "delta": 350,
           "cameraZ": 1331.995164779234,
-          "sx": 777.7714600956234,
+          "sx": 777.7583832913972,
           "carWidth": 145.9727841118058,
-          "sy": 548.8183453495772,
+          "sy": 581.7575980474105,
           "drawBeforePlayer": true
         }
       },
@@ -863,7 +863,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -875,7 +875,7 @@
           "cameraZ": 1181.995164779234,
           "sx": 819.3669932072384,
           "carWidth": 164.49732487916202,
-          "sy": 590.3876247450809,
+          "sy": 611.168581055623,
           "drawBeforePlayer": true
         }
       },
@@ -888,7 +888,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -900,7 +900,7 @@
           "cameraZ": 1081.995164779234,
           "sx": 853.5045758167321,
           "carWidth": 179.7004727520756,
-          "sy": 623.9554803104922,
+          "sy": 635.3062657290025,
           "drawBeforePlayer": true
         }
       },
@@ -913,7 +913,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -925,7 +925,7 @@
           "cameraZ": 1031.995164779234,
           "sx": 873.0543077141219,
           "carWidth": 188.4069317978657,
-          "sy": 643.1789439101553,
+          "sy": 649.1293084847326,
           "drawBeforePlayer": true
         }
       },
@@ -938,7 +938,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -950,7 +950,7 @@
           "cameraZ": 1001.995164779234,
           "sx": 885.7206654746606,
           "carWidth": 194.04788512041122,
-          "sy": 655.6339109975831,
+          "sy": 658.0853190224873,
           "drawBeforePlayer": true
         }
       },
@@ -963,7 +963,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -988,7 +988,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1000,7 +1000,7 @@
           "cameraZ": 961.995164779234,
           "sx": 903.838039924236,
           "carWidth": 202.11644480656904,
-          "sy": 673.3186112490594,
+          "sy": 670.8955837848133,
           "drawBeforePlayer": false
         }
       },
@@ -1013,7 +1013,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1025,7 +1025,7 @@
           "cameraZ": 931.995164779234,
           "sx": 918.4466363121285,
           "carWidth": 208.62237270549042,
-          "sy": 687.4774501500053,
+          "sy": 681.224894362111,
           "drawBeforePlayer": false
         }
       },
@@ -1038,7 +1038,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1050,11 +1050,11 @@
           "cameraZ": 901.995164779234,
           "sx": 934.0269848972601,
           "carWidth": 215.56106974683937,
-          "sy": 702.5781237383519,
+          "sy": 692.2413024526081,
           "drawBeforePlayer": false
         }
       },
-      "visPx": 106
+      "visPx": 108
     },
     {
       "label": "hill",
@@ -1063,7 +1063,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1075,11 +1075,11 @@
           "cameraZ": 831.995164779234,
           "sx": 974.750645775504,
           "carWidth": 233.69732284187103,
-          "sy": 742.0480179377491,
+          "sy": 721.0358101442957,
           "drawBeforePlayer": false
         }
       },
-      "visPx": 75
+      "visPx": 96
     },
     {
       "label": "hill",
@@ -1088,7 +1088,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1100,11 +1100,11 @@
           "cameraZ": 731.995164779234,
           "sx": 1046.4383659988703,
           "carWidth": 265.6233975055408,
-          "sy": 811.0787160554642,
+          "sy": 771.7240971709182,
           "drawBeforePlayer": false
         }
       },
-      "visPx": 22
+      "visPx": 62
     },
     {
       "label": "hill",
@@ -1113,7 +1113,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1125,7 +1125,7 @@
           "cameraZ": 379.99516477923396,
           "sx": 1598.935671993737,
           "carWidth": 511.6776755284488,
-          "sy": 1336.3476168752381,
+          "sy": 1162.3787579753694,
           "drawBeforePlayer": false
         }
       },
@@ -1138,7 +1138,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1150,7 +1150,7 @@
           "cameraZ": 329.99516477923396,
           "sx": 1773.0193851236509,
           "carWidth": 589.2057320184219,
-          "sy": 1500.3268791965786,
+          "sy": 1285.468252107632,
           "drawBeforePlayer": false
         }
       },
@@ -1163,7 +1163,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1175,7 +1175,7 @@
           "cameraZ": 299.99516477923396,
           "sx": 1905.3234560339865,
           "carWidth": 648.1272548821672,
-          "sy": 1624.951541434778,
+          "sy": 1379.016585074536,
           "drawBeforePlayer": false
         }
       },
@@ -1188,7 +1188,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1200,7 +1200,7 @@
           "cameraZ": 269.99516477923396,
           "sx": 2067.0289581185098,
           "carWidth": 720.1426839820311,
-          "sy": 1777.2710690251258,
+          "sy": 1493.3538087706631,
           "drawBeforePlayer": false
         }
       },
@@ -1213,7 +1213,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1225,7 +1225,7 @@
           "cameraZ": 219.99516477923396,
           "sx": 2434.543616847761,
           "carWidth": 883.8150730331035,
-          "sy": 2123.453842514842,
+          "sy": 1753.2126583772044,
           "drawBeforePlayer": false
         }
       },
@@ -1238,7 +1238,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1250,7 +1250,7 @@
           "cameraZ": 199.99516477923396,
           "sx": 2633.0027765017867,
           "carWidth": 972.19871710857,
-          "sy": 2310.3937119367115,
+          "sy": 1893.537316718435,
           "drawBeforePlayer": false
         }
       },
@@ -1263,7 +1263,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1275,7 +1275,7 @@
           "cameraZ": 139.99516477923396,
           "sx": 3568.6077082625156,
           "carWidth": 1388.8697008421939,
-          "sy": 3189.4624238975675,
+          "sy": 2555.076157357334,
           "drawBeforePlayer": false
         }
       },
@@ -1288,7 +1288,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1300,7 +1300,7 @@
           "cameraZ": 109.99516477923396,
           "sx": 4419.174471225702,
           "carWidth": 1767.6689972375568,
-          "sy": 3988.023333973236,
+          "sy": 3156.4869998565573,
           "drawBeforePlayer": false
         }
       },
@@ -1542,7 +1542,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1554,7 +1554,7 @@
           "cameraZ": 978.995164779234,
           "sx": 895.9572587352382,
           "carWidth": 198.60674456970779,
-          "sy": 665.6804570892864,
+          "sy": 665.3233142572391,
           "drawBeforePlayer": false
         }
       },
@@ -1567,7 +1567,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1579,7 +1579,7 @@
           "cameraZ": 979.995164779234,
           "sx": 895.5021980627341,
           "carWidth": 198.40408362636074,
-          "sy": 665.2394064516302,
+          "sy": 665.0015541857715,
           "drawBeforePlayer": false
         }
       },
@@ -1592,7 +1592,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1604,7 +1604,7 @@
           "cameraZ": 980.995164779234,
           "sx": 895.0480651433705,
           "carWidth": 198.20183585720787,
-          "sy": 664.7992550042115,
+          "sy": 664.680450101373,
           "drawBeforePlayer": false
         }
       },
@@ -1617,7 +1617,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1629,7 +1629,7 @@
           "cameraZ": 981.495164779234,
           "sx": 894.8213457049494,
           "carWidth": 198.10086651830042,
-          "sy": 664.579515617957,
+          "sy": 664.520143427742,
           "drawBeforePlayer": false
         }
       },
@@ -1642,7 +1642,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1667,7 +1667,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1679,7 +1679,7 @@
           "cameraZ": 982.495164779234,
           "sx": 894.3685991046088,
           "carWidth": 197.89923614532773,
-          "sy": 664.1375180148134,
+          "sy": 664.2000195689153,
           "drawBeforePlayer": true
         }
       },
@@ -1692,7 +1692,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1704,7 +1704,7 @@
           "cameraZ": 982.995164779234,
           "sx": 894.142571238437,
           "carWidth": 197.79857479762427,
-          "sy": 663.9152623603281,
+          "sy": 664.0402018857635,
           "drawBeforePlayer": true
         }
       },
@@ -1717,7 +1717,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1729,7 +1729,7 @@
           "cameraZ": 983.995164779234,
           "sx": 893.6912046188274,
           "carWidth": 197.59755899807814,
-          "sy": 663.4714286633902,
+          "sy": 663.7210537708881,
           "drawBeforePlayer": true
         }
       },
@@ -1742,7 +1742,7 @@
       "metrics": {
         "playerPos": 40000,
         "playerX": 0,
-        "curve": 0,
+        "curve": -0.06144,
         "canvasH": 700,
         "playerWidth": 198,
         "playerGroundY": 664.36,
@@ -1754,7 +1754,7 @@
           "cameraZ": 984.995164779234,
           "sx": 893.2407544841628,
           "carWidth": 197.3969513544433,
-          "sy": 663.0284961560474,
+          "sy": 663.4025536756708,
           "drawBeforePlayer": true
         }
       },
@@ -1768,11 +1768,11 @@
   },
   "shimmer": {
     "frames": 120,
-    "visibleCount": 120
+    "visibleCount": 24
   },
   "natural": {
-    "bump": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-bump.png",
     "catching": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-catching.png",
+    "bump": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-bump.png",
     "passed": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-passed.png"
   }
 }
