@@ -157,7 +157,7 @@ export const CRITTER_SHEETS = {
     src: '/sprites/hub/critters/craftpix/pink-walk.png',
     frameWidth: 32,
     frameHeight: 32,
-    idleFrames: 4, // idle sheet 128×32
+    idleFrames: 1, // hold idle frame 0 only
     walkFrames: 6, // walk sheet 192×32
     get drawScale() { return HUB.npcSprite.drawScale },
     yOffset: 0,
@@ -169,8 +169,8 @@ export const CRITTER_SHEETS = {
     src: '/sprites/hub/critters/craftpix/owlet-walk.png',
     frameWidth: 32,
     frameHeight: 32,
-    idleFrames: 4,
-    walkFrames: 6,
+    idleFrames: 1, // hold idle frame 0 only
+    walkFrames: 4, // owlet-walk 128×32 = 4 frames
     get drawScale() { return HUB.npcSprite.drawScale },
     yOffset: 0,
     flipWhenLeft: true,
@@ -181,18 +181,17 @@ export const CRITTER_SHEETS = {
     src: '/sprites/hub/critters/craftpix/dude-walk.png',
     frameWidth: 32,
     frameHeight: 32,
-    idleFrames: 4,
+    idleFrames: 1, // hold idle frame 0 only
     walkFrames: 6,
     get drawScale() { return HUB.npcSprite.drawScale },
     yOffset: 0,
     flipWhenLeft: true,
   },
-  // CraftPix predator plants (craftpix-net-284465): 4-direction carnivorous plants.
-  // Idle: 256×256, 4×4 grid of 64px frames (4 idle frames per direction).
-  // Walk: 384×256, 6×4 grid of 64px frames (6 walk frames per direction).
+  // CraftPix predator plants: one-row side-view like blobs, flip when left.
+  // Idle: 256×64 (4 frames of 64×64). Walk: 384×64 (6 frames of 64×64).
   // Credit: craftpix.net/file-licenses/
   plant1: {
-    kind: 'plant4',
+    kind: 'blob',
     idleSrc: '/sprites/hub/critters/craftpix/plant1-idle.png',
     src: '/sprites/hub/critters/craftpix/plant1-walk.png',
     frameWidth: 64,
@@ -201,11 +200,10 @@ export const CRITTER_SHEETS = {
     walkFrames: 6,
     drawScale: 1.5,
     yOffset: 0,
-    // Row order determined by actual PNG inspection (don't assume)
-    rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
+    flipWhenLeft: true,
   },
   plant2: {
-    kind: 'plant4',
+    kind: 'blob',
     idleSrc: '/sprites/hub/critters/craftpix/plant2-idle.png',
     src: '/sprites/hub/critters/craftpix/plant2-walk.png',
     frameWidth: 64,
@@ -214,10 +212,10 @@ export const CRITTER_SHEETS = {
     walkFrames: 6,
     drawScale: 1.5,
     yOffset: 0,
-    rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
+    flipWhenLeft: true,
   },
   plant3: {
-    kind: 'plant4',
+    kind: 'blob',
     idleSrc: '/sprites/hub/critters/craftpix/plant3-idle.png',
     src: '/sprites/hub/critters/craftpix/plant3-walk.png',
     frameWidth: 64,
@@ -226,6 +224,6 @@ export const CRITTER_SHEETS = {
     walkFrames: 6,
     drawScale: 1.5,
     yOffset: 0,
-    rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
+    flipWhenLeft: true,
   },
 }
