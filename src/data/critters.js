@@ -187,4 +187,45 @@ export const CRITTER_SHEETS = {
     yOffset: 0,
     flipWhenLeft: true,
   },
+  // CraftPix predator plants (craftpix-net-284465): 4-direction carnivorous plants.
+  // Idle: 256×256, 4×4 grid of 64px frames (4 idle frames per direction).
+  // Walk: 384×256, 6×4 grid of 64px frames (6 walk frames per direction).
+  // Credit: craftpix.net/file-licenses/
+  plant1: {
+    kind: 'plant4',
+    idleSrc: '/sprites/hub/critters/craftpix/plant1-idle.png',
+    src: '/sprites/hub/critters/craftpix/plant1-walk.png',
+    frameWidth: 64,
+    frameHeight: 64,
+    idleFrames: 4,
+    walkFrames: 6,
+    drawScale: 1.5,
+    yOffset: 0,
+    // Row order determined by actual PNG inspection (don't assume)
+    rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
+  },
+  plant2: {
+    kind: 'plant4',
+    idleSrc: '/sprites/hub/critters/craftpix/plant2-idle.png',
+    src: '/sprites/hub/critters/craftpix/plant2-walk.png',
+    frameWidth: 64,
+    frameHeight: 64,
+    idleFrames: 4,
+    walkFrames: 6,
+    drawScale: 1.5,
+    yOffset: 0,
+    rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
+  },
+  plant3: {
+    kind: 'plant4',
+    idleSrc: '/sprites/hub/critters/craftpix/plant3-idle.png',
+    src: '/sprites/hub/critters/craftpix/plant3-walk.png',
+    frameWidth: 64,
+    frameHeight: 64,
+    idleFrames: 4,
+    walkFrames: 6,
+    drawScale: 1.5,
+    yOffset: 0,
+    rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
+  },
 }

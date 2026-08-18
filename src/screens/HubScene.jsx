@@ -204,6 +204,20 @@ export default function HubScene() {
         'npcManA', 'npcManB', 'npcWomanA', 'npcWomanB',
       ]
       
+      // Add plant types if their sprite files exist (both idle and walk must be present)
+      for (const plantType of ['plant1', 'plant2', 'plant3']) {
+        const sh = CRITTER_SHEETS[plantType]
+        if (sh) {
+          const idleImg = getCritterImg(sh.idleSrc)
+          const walkImg = getCritterImg(sh.src)
+          // Only add if both images loaded successfully (naturalWidth > 0 means loaded)
+          // Note: this check happens at mount time, so images loaded after mount won't appear until next load
+          if (idleImg.complete && idleImg.naturalWidth > 0 && walkImg.complete && walkImg.naturalWidth > 0) {
+            allWandererTypes.push(plantType)
+          }
+        }
+      }
+      
       // Shuffle the pool so adjacent spawns get different types
       const shuffled = [...allWandererTypes].sort(() => Math.random() - 0.5)
       
@@ -216,6 +230,13 @@ export default function HubScene() {
       // Try to add 1 extra wanderer per chunk on a walkable tile far from zones/spawn/other critters
       if (rawCritters.length > 0) {
         const extraWandererTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'blobPink', 'blobOwlet', 'blobDude']
+        
+        // Add plant types to extra pool if available
+        for (const plantType of ['plant1', 'plant2', 'plant3']) {
+          if (allWandererTypes.includes(plantType)) {
+            extraWandererTypes.push(plantType)
+          }
+        }
         const TW = tilePx()
         const world = worldSize(chunk)
         const zonePad = HUB.critter.zonePad
@@ -665,6 +686,8 @@ export default function HubScene() {
         const fh = sh.frameHeight
         const frames = c.moving ? sh.walkFrames : sh.idleFrames
         const col = c.animFrame % frames
+        // Clamp col so we don't sample beyond the image width
+        if (srcImg.naturalWidth > 0 && col * fw + fw > srcImg.naturalWidth) return
         sx = col * fw
         sy = 0
         dw = fw * sh.drawScale
@@ -680,6 +703,25 @@ export default function HubScene() {
         } else {
           ctx.drawImage(srcImg, sx, sy, fw, fh, dx, dy, dw, dh)
         }
+      } else if (sh.kind === 'plant4') {
+        // Plant4: 4-direction with separate idle/walk sheets (like NPC but with idleSrc/src)
+        const srcImg = c.moving ? img : getCritterImg(sh.idleSrc)
+        if (!(srcImg.complete && srcImg.naturalWidth > 0)) return
+        
+        const fw = sh.frameWidth
+        const fh = sh.frameHeight
+        const row = sh.rowForFacing[c.facing] || 0
+        const col = c.moving ? (c.animFrame % sh.walkFrames) : 0
+        // Clamp col so we don't sample beyond the image width
+        if (srcImg.naturalWidth > 0 && col * fw + fw > srcImg.naturalWidth) return
+        sx = col * fw
+        sy = row * fh
+        dw = fw * sh.drawScale
+        dh = fh * sh.drawScale
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+        
+        ctx.drawImage(srcImg, sx, sy, fw, fh, dx, dy, dw, dh)
       }
     }
 
