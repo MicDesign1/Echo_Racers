@@ -67,7 +67,7 @@ export function updateCritters(list, dt, map, zones) {
   for (const c of list) {
     const sheet = CRITTER_SHEETS[c.type]
     
-    // Animation: slimes/pumpkins always bob (idle or moving), NPCs/soldiers walk when moving
+    // Animation: slimes/pumpkins always bob (idle or moving), NPCs/soldiers/blobs/plants walk when moving
     if (sheet?.kind === 'slime' || sheet?.kind === 'pumpkin') {
       // Gentle bob/hop plays continuously (idle and moving both read as calm).
       c.animTime += dt * 1000
@@ -75,8 +75,8 @@ export function updateCritters(list, dt, map, zones) {
         c.animTime -= C.animFrameMs
         c.animFrame = (c.animFrame + 1) % (sheet.idleFrames || 1)
       }
-    } else if (sheet?.kind === 'npc' || sheet?.kind === 'soldier') {
-      // NPCs/soldiers cycle walk frames only when moving
+    } else if (sheet?.kind === 'npc' || sheet?.kind === 'soldier' || sheet?.kind === 'blob' || sheet?.kind === 'plant4') {
+      // NPCs/soldiers/blobs/plants cycle walk frames when moving, idle frames when idle
       if (c.moving) {
         c.animTime += dt * 1000
         const frameMs = sheet.kind === 'soldier' ? 200 : C.animFrameMs
@@ -85,8 +85,17 @@ export function updateCritters(list, dt, map, zones) {
           c.animFrame = (c.animFrame + 1) % (sheet.walkFrames || 4)
         }
       } else {
-        c.animFrame = 0 // idle is frame 0
-        c.animTime = 0
+        // Idle: cycle idleFrames (or hold at 0 if idleFrames is 1)
+        if ((sheet.idleFrames || 1) > 1) {
+          c.animTime += dt * 1000
+          while (c.animTime >= C.animFrameMs) {
+            c.animTime -= C.animFrameMs
+            c.animFrame = (c.animFrame + 1) % (sheet.idleFrames || 1)
+          }
+        } else {
+          c.animFrame = 0
+          c.animTime = 0
+        }
       }
     }
 
@@ -101,6 +110,8 @@ export function updateCritters(list, dt, map, zones) {
           c.state = 'walk'
           c.timer = rand(C.walkMs[0], C.walkMs[1])
           c.moving = true
+          c.animFrame = 0 // reset frame when entering walk
+          c.animTime = 0
         } else {
           c.timer = rand(C.idleMs[0], C.idleMs[1])
         }
@@ -113,23 +124,25 @@ export function updateCritters(list, dt, map, zones) {
         c.state = 'idle'
         c.timer = rand(C.idleMs[0], C.idleMs[1])
         c.moving = false
+        c.animFrame = 0 // reset frame when entering idle
+        c.animTime = 0
       } else {
         c.moving = true
-        // For NPCs/soldiers/pumpkins, update facing based on dominant movement direction
-        if (sheet?.kind === 'npc' || sheet?.kind === 'soldier') {
+        // For NPCs/soldiers/pumpkins/blobs/plants, update facing based on dominant movement direction
+        if (sheet?.kind === 'npc' || sheet?.kind === 'plant4' || sheet?.kind === 'soldier') {
           // Soldier only faces left/right (3q side-view)
           if (sheet.kind === 'soldier') {
             c.facing = dx > 0 ? 'right' : 'left'
           } else {
-            // NPC has 4-direction
+            // NPC and plant4 have 4-direction
             if (Math.abs(dx) > Math.abs(dy)) {
               c.facing = dx > 0 ? 'right' : 'left'
             } else {
               c.facing = dy > 0 ? 'down' : 'up'
             }
           }
-        } else if (sheet?.kind === 'pumpkin') {
-          // Pumpkin tracks facing for flip
+        } else if (sheet?.kind === 'pumpkin' || sheet?.kind === 'blob') {
+          // Pumpkin and blob track facing for flip (left/right from dx)
           c.facing = dx > 0 ? 'right' : 'left'
         }
         
