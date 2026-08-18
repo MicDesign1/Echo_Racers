@@ -194,16 +194,15 @@ export default function HubScene() {
       if (idx >= 0) order.splice(idx, 1)
       order.push(player.mapId)
     } else {
-      // Create fresh critters: slime palette mix + ~1 villager per chunk (if >=2 spawns)
+      // Create fresh critters: pumpkin mix + extra villager per chunk
       const rawCritters = createCritters(chunk)
       critters = rawCritters.map((c, i) => {
-        // Assign variety: slimes get palette variants, and some spawns become villagers
-        const slimeTypes = ['slime', 'slimeAmber', 'slimeGreen', 'slimePink', 'pumpkin']
-        const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier']
+        // Assign variety: pumpkin every other spawn, slimes on others
+        const slimeTypes = ['slime', 'pumpkin', 'slimeAmber', 'pumpkin', 'slimeGreen', 'pumpkin', 'slimePink']
         
-        // If this chunk has 2+ spawns, convert one to a villager/soldier (the first one)
+        // If this chunk has 2+ spawns, force the first one to pumpkin (so it's always visible)
         if (rawCritters.length >= 2 && i === 0) {
-          c.type = villagerTypes[Math.floor(Math.random() * villagerTypes.length)]
+          c.type = 'pumpkin'
         } else {
           // Round-robin slime palette variants + pumpkin
           c.type = slimeTypes[i % slimeTypes.length]
@@ -211,9 +210,9 @@ export default function HubScene() {
         return c
       })
       
-      // Try to add 1 extra villager/soldier per chunk on a walkable tile far from zones/spawn/other critters
+      // Try to add 1 extra villager per chunk on a walkable tile far from zones/spawn/other critters
       if (rawCritters.length > 0) {
-        const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier']
+        const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB']
         const TW = tilePx()
         const world = worldSize(chunk)
         const zonePad = HUB.critter.zonePad
