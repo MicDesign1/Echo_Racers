@@ -242,11 +242,11 @@ async function main() {
   if (HOME && HOME.neighbors && HOME.neighbors.east) {
     const transition = await page.evaluate(async (homeId) => {
       const H = window.__ECHO_HUB_TEST__
-      // Start at mid-height on the right edge of HOME, walk right
+      // Start near the right edge of HOME on a fully walkable row, walk right
       const startInfo = H.getMapInfo()
       if (startInfo.mapId !== homeId) throw new Error(`not on HOME (${startInfo.mapId})`)
       const TW = startInfo.tilePx
-      H.setPos((startInfo.w - 2) * TW, 7 * TW) // near right edge, mid-height (walkable area)
+      H.setPos((startInfo.w - 2) * TW, 5 * TW) // near right edge, row 5 (fully walkable)
       const before = H.getState()
       const beforeMapId = before.mapId
       const beforeX = before.x

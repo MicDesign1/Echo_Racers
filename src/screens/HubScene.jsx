@@ -210,7 +210,8 @@ export default function HubScene() {
 
     // Check if player would cross a chunk edge with this move, and if so,
     // transition to the neighbor chunk. Returns true if transitioned.
-    // Fires when feet are at a walkable edge tile AND the next step would leave the map.
+    // Fires when the desired position would go beyond the walkable boundary (where
+    // feetOk would fail solely due to out-of-bounds, not interior obstacles).
     function tryEdgeTransition(desiredX, desiredY) {
       const currentChunk = getCurrentChunk()
       const TW = tilePx()
@@ -218,34 +219,39 @@ export default function HubScene() {
       const chunkWorldW = currentChunk.w * TW
       const chunkWorldH = currentChunk.h * TW
       
+      // The walkable boundary is where the feet box can still be fully inside the map
+      const maxSafeX = chunkWorldW - f.width / 2
+      const minSafeX = f.width / 2
+      const maxSafeY = chunkWorldH
+      const minSafeY = f.height
+      
       // Extract col, row from current mapId (hub-col-row)
       const [,col, row] = player.mapId.split('-').map(Number)
       
-      // Check if desired position would cross a chunk boundary
+      // Check if desired position would go beyond the safe walkable boundary
       let newCol = col
       let newRow = row
       let newX = desiredX
       let newY = desiredY
       
-      // Left edge: trigger when feet-left would go negative
-      if (desiredX - f.width / 2 < 0 && col > 0) {
+      // Left edge: desiredX would go beyond the safe left boundary
+      if (desiredX < minSafeX && col > 0) {
         newCol = col - 1
         newX = chunkWorldW - f.width / 2 - 2
       } 
-      // Right edge: trigger when feet-right would exceed chunk width
-      else if (desiredX + f.width / 2 > chunkWorldW && col < 4) {
-        if (verifyMode) console.log(`tryEdgeTransition RIGHT: desiredX=${desiredX.toFixed(1)}, f.width/2=${(f.width/2).toFixed(1)}, chunkWorldW=${chunkWorldW}, col=${col}`)
+      // Right edge: desiredX would go beyond the safe right boundary
+      else if (desiredX > maxSafeX && col < 4) {
         newCol = col + 1
         newX = f.width / 2 + 2
       }
       
-      // Top edge: trigger when feet-top would go negative
-      if (desiredY - f.height < 0 && row > 0) {
+      // Top edge: desiredY would go beyond the safe top boundary
+      if (desiredY < minSafeY && row > 0) {
         newRow = row - 1
         newY = chunkWorldH - 2
       } 
-      // Bottom edge: trigger when feet-bottom would exceed chunk height
-      else if (desiredY > chunkWorldH && row < 4) {
+      // Bottom edge: desiredY would go beyond the safe bottom boundary
+      else if (desiredY > maxSafeY && row < 4) {
         newRow = row + 1
         newY = f.height + 2
       }
@@ -273,15 +279,9 @@ export default function HubScene() {
       const desiredX = player.x + ddx
       const desiredY = player.y + ddy
       
-      if (verifyMode && ddx > 0 && player.x > 1300) {
-        console.log(`tryMove RIGHT: player.x=${player.x.toFixed(1)}, ddx=${ddx.toFixed(2)}, desiredX=${desiredX.toFixed(1)}, mapId=${player.mapId}`)
-      }
-      
       // Try edge transition first (using unclamped desired position)
-      if (ddx !== 0 && tryEdgeTransition(desiredX, player.y)) {
-        if (verifyMode) console.log(`tryMove: transition happened, new mapId=${player.mapId}`)
-        return
-      }
+      // If a neighbor exists, treat leaving the map as a JUMP (not a wall)
+      if (ddx !== 0 && tryEdgeTransition(desiredX, player.y)) return
       if (ddy !== 0 && tryEdgeTransition(player.x, desiredY)) return
       
       // If no transition, do normal walkability check with clamped position
@@ -289,7 +289,6 @@ export default function HubScene() {
       const nx = clamp(desiredX, f.width / 2, world.w - f.width / 2)
       const ny = clamp(desiredY, f.height, world.h)
       if (ddx !== 0 && feetOk(nx, player.y)) player.x = nx
-      else if (verifyMode && ddx > 0 && player.x > 1300) console.log(`tryMove: feetOk failed at nx=${nx.toFixed(1)}`)
       if (ddy !== 0 && feetOk(player.x, ny)) player.y = ny
     }
 
