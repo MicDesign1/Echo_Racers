@@ -1,4 +1,69 @@
 import { CAR, COMBAT } from '../data/tuning.js'
+import { defaultVehicle } from '../data/vehicles.js'
+
+// Vehicle sprite loader — loads the 5-angle frames for a craft id
+// (data/vehicles.js) into a cache. Frames are optional; if a path is null or
+// the image fails to load, the corresponding cache entry stays null and the
+// engine falls back to the vector chassis (no crash, no blank car). Images
+// load asynchronously; the first few frames may draw vector until they land.
+const spriteCache = new Map()
+const loadingPromises = new Map()
+
+function loadVehicleSprites(vehicleId) {
+  if (spriteCache.has(vehicleId)) return spriteCache.get(vehicleId)
+  if (loadingPromises.has(vehicleId)) return loadingPromises.get(vehicleId)
+
+  const vehicle = defaultVehicle() // single craft for now; multi-craft later
+  const frames = {
+    straight: null,
+    slightLeft: null,
+    slightRight: null,
+    hardLeft: null,
+    hardRight: null,
+  }
+
+  const promises = Object.keys(frames).map((key) => {
+    const path = vehicle.frames[key]
+    if (!path) return Promise.resolve() // null path = intentionally missing
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        frames[key] = img
+        resolve()
+      }
+      img.onerror = () => {
+        // Failed to load: log once, then cache null so we don't retry every frame.
+        console.warn(`[car.js] Failed to load sprite frame: ${path}`)
+        resolve()
+      }
+      img.src = path
+    })
+  })
+
+  const allLoaded = Promise.all(promises).then(() => {
+    spriteCache.set(vehicleId, frames)
+    loadingPromises.delete(vehicleId)
+    return frames
+  })
+
+  loadingPromises.set(vehicleId, allLoaded)
+  // Return a temporary cache entry immediately so the first call doesn't block.
+  // It's all nulls until the promises resolve, so the vector chassis draws.
+  spriteCache.set(vehicleId, frames)
+  return frames
+}
+
+// Select which sprite frame to draw based on steer/lean (-1..1). Returns one
+// of 'straight', 'slightLeft', 'slightRight', 'hardLeft', 'hardRight'. The
+// same buckets drive both the player (g.steer) and every rival (o.lean).
+function selectSpriteFrame(steerOrLean) {
+  const abs = Math.abs(steerOrLean)
+  if (abs < CAR.sprite.slightThreshold) return 'straight'
+  if (abs < CAR.sprite.hardThreshold) {
+    return steerOrLean < 0 ? 'slightLeft' : 'slightRight'
+  }
+  return steerOrLean < 0 ? 'hardLeft' : 'hardRight'
+}
 
 // The screen point of a vehicle's creature-silhouette rider, given that
 // vehicle's ground-contact point (sx, groundY) and its rendered width. Used
@@ -144,7 +209,7 @@ export function drawCar(ctx, width, height, state, colors, fx) {
     canopy: colors.canopy,
     creature: colors.creature,
     intakeGlowRGB: colors.intakeGlowRGB,
-  })
+  }, steer)
   drawCombatAura(ctx, carWidth, carHeight, fx, colors.intakeGlowRGB, time)
 
   ctx.restore()
@@ -155,8 +220,28 @@ export function drawCar(ctx, width, height, state, colors, fx) {
 // translated/rotated ctx so (0,0) is the car's pivot; `palette` supplies the
 // per-racer tint (see COLORS.carHull/... for the player, OPPONENT_PALETTES
 // for rivals) while canopy/creature stay a shared default until real
-// rider/creature art lands.
-export function drawChassis(ctx, carWidth, carHeight, time, palette) {
+// rider/creature art lands. `steerOrLean` is the -1..1 steer (player) or
+// lean (rival) value used to select a sprite frame; if the frame is loaded,
+// it draws instead of the vector fallback (same size, no code change).
+export function drawChassis(ctx, carWidth, carHeight, time, palette, steerOrLean = 0) {
+  // Try to draw a sprite frame first. If available, the sprite is scaled to
+  // match the rendered carWidth so swapping between sprite and vector is
+  // visually identical. Sprite draws centered, bottom-aligned at (0, 0) —
+  // the same pivot the vector chassis uses.
+  const frames = loadVehicleSprites('placeholder')
+  const frameKey = selectSpriteFrame(steerOrLean)
+  const img = frames[frameKey]
+  if (img && img.complete && img.naturalWidth > 0) {
+    const scale = carWidth / CAR.sprite.naturalFrameWidth
+    const drawWidth = CAR.sprite.naturalFrameWidth * scale
+    const drawHeight = CAR.sprite.naturalFrameHeight * scale
+    // Bottom-center aligned: x = -drawWidth/2, y = -drawHeight (since pivot is at chassis bottom)
+    ctx.drawImage(img, -drawWidth / 2, -drawHeight, drawWidth, drawHeight)
+    return
+  }
+
+  // Fallback: vector-drawn chassis (unchanged from before). Kept so the
+  // pipeline can be wired and tested before art is ready.
   let hull = ctx.createLinearGradient(-carWidth / 2, 0, carWidth / 2, 0)
   hull.addColorStop(0, palette.hull[0])
   hull.addColorStop(0.5, palette.hull[1])
@@ -233,7 +318,7 @@ export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clip
   const pivotY = sy - carHeight * CAR.chassisBottomFraction - carHeight * lift
   ctx.translate(sx, pivotY)
   ctx.rotate(lean * CAR.steerRotationFactor + (fx ? fx.wobbleAngle : 0))
-  drawChassis(ctx, carWidth, carHeight, time, palette)
+  drawChassis(ctx, carWidth, carHeight, time, palette, lean)
   drawCombatAura(ctx, carWidth, carHeight, fx, palette.intakeGlowRGB, time)
   ctx.restore()
 }
