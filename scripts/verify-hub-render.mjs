@@ -272,7 +272,7 @@ async function main() {
     console.log('  chunk transition: HOME has no east neighbor, skipping edge test')
   }
 
-  // 7. Camera clamps at both corners.
+  // 7. Camera clamps at both corners (tested on current chunk after transition).
   const world = await page.evaluate(() => window.__ECHO_HUB_TEST__.getWorld())
   const view = await page.evaluate(() => window.__ECHO_HUB_TEST__.getState())
   const cams = await page.evaluate((w) => {
@@ -283,9 +283,24 @@ async function main() {
   const expX = Math.max(0, world.w - view.viewW)
   const expY = Math.max(0, world.h - view.viewH)
   if (!approx(cams.br.x, expX) || !approx(cams.br.y, expY)) throw new Error(`camera bottom-right ${JSON.stringify(cams.br)}, expected (${expX},${expY})`)
-  console.log(`  camera: clamps (0,0) at top-left and (${expX},${expY}) at bottom-right`)
+  console.log(`  camera: clamps (0,0) at top-left and (${expX},${expY}) at bottom-right on ${view.mapId}`)
 
-  // 8. Position persists across reload.
+  // 8. Position persists across reload (tested on HOME only - the hub always starts on HOME,
+  //    so saved positions on other chunks are not restored per the spawn-on-HOME requirement).
+  //    Walk back to HOME if we're on a neighbor chunk.
+  if (view.mapId !== HOME.mapId) {
+    // Walk back to HOME (reverse the east transition by walking west)
+    await page.evaluate(() => {
+      const H = window.__ECHO_HUB_TEST__
+      H.simulateMove(-100, 0, 3000) // Walk west for 3 seconds
+    })
+    await page.waitForTimeout(100)
+    const afterReturn = await page.evaluate(() => window.__ECHO_HUB_TEST__.getState())
+    if (afterReturn.mapId !== HOME.mapId) {
+      throw new Error(`failed to return to HOME, still on ${afterReturn.mapId}`)
+    }
+  }
+  
   const target = { x: 10.5 * 48, y: 9.5 * 48 }
   await page.evaluate((t) => { const H = window.__ECHO_HUB_TEST__; H.setPos(t.x, t.y); H.save() }, target)
   await page.reload({ waitUntil: 'networkidle' })

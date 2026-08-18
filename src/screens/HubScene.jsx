@@ -136,6 +136,12 @@ export default function HubScene() {
       : false
   })
 
+  // In-session LRU cache for critter state across chunks (last 3 chunks: current + 2 previous).
+  // Keyed by mapId, stores cloned critter arrays so returning to a recently-visited chunk
+  // restores the same wanderers at their last positions. Not persisted to localStorage.
+  const critterCacheRef = useRef(new Map())
+  const critterCacheOrderRef = useRef([]) // Track access order for LRU eviction
+
   // Persistent hub entries (work from anywhere on the hub, not just the zones).
   // Origin is set so each sub-screen returns to the hub even after a hard reload.
   function quickRace() {
@@ -172,80 +178,95 @@ export default function HubScene() {
     // Composite the look ONCE on scene entry (not per frame).
     ensureComposite(avatar)
 
-    // Ambient wildlife: fixed population from the map, each with its own wander
-    // state. Preload every used sheet once.
-    // Build critter population: slime palette mix + ~1 villager per chunk (if >=2 spawns)
-    const rawCritters = createCritters(chunk)
-    const critters = rawCritters.map((c, i) => {
-      // Assign variety: slimes get palette variants, and some spawns become villagers
-      const slimeTypes = ['slime', 'slimeAmber', 'slimeGreen', 'slimePink', 'pumpkin']
-      const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier']
-      
-      // If this chunk has 2+ spawns, convert one to a villager/soldier (the first one)
-      if (rawCritters.length >= 2 && i === 0) {
-        c.type = villagerTypes[Math.floor(Math.random() * villagerTypes.length)]
-      } else {
-        // Round-robin slime palette variants + pumpkin
-        c.type = slimeTypes[i % slimeTypes.length]
-      }
-      return c
-    })
+    // Ambient wildlife: check cache first, create fresh if not cached.
+    // Cache is keyed by mapId and stores full critter state (positions, facing, timers, etc).
+    let critters
+    const cache = critterCacheRef.current
+    const order = critterCacheOrderRef.current
+    const cachedCritters = cache.get(player.mapId)
     
-    // Try to add 1 extra villager/soldier per chunk on a walkable tile far from zones/spawn/other critters
-    if (rawCritters.length > 0) {
-      const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier']
-      const TW = tilePx()
-      const world = worldSize(chunk)
-      const zonePad = HUB.critter.zonePad
+    if (cachedCritters) {
+      // Restore from cache: clone the array so updates don't mutate the cached version
+      critters = cachedCritters.map(c => ({ ...c }))
       
-      // Try to find a good spot for an extra villager
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const tx = Math.floor(Math.random() * (chunk.w - 4)) + 2
-        const ty = Math.floor(Math.random() * (chunk.h - 4)) + 2
-        const p = tileCenter(tx, ty)
+      // Update access order for LRU (this chunk was just accessed)
+      const idx = order.indexOf(player.mapId)
+      if (idx >= 0) order.splice(idx, 1)
+      order.push(player.mapId)
+    } else {
+      // Create fresh critters: slime palette mix + ~1 villager per chunk (if >=2 spawns)
+      const rawCritters = createCritters(chunk)
+      critters = rawCritters.map((c, i) => {
+        // Assign variety: slimes get palette variants, and some spawns become villagers
+        const slimeTypes = ['slime', 'slimeAmber', 'slimeGreen', 'slimePink', 'pumpkin']
+        const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier']
         
-        // Check walkability
-        if (!isWalkable(chunk, p.x, p.y)) continue
-        
-        // Check not too close to zones
-        let tooClose = false
-        for (const z of zones) {
-          if (Math.hypot(p.x - z.x, p.y - z.y) < z.radius + zonePad + 100) {
-            tooClose = true
-            break
-          }
+        // If this chunk has 2+ spawns, convert one to a villager/soldier (the first one)
+        if (rawCritters.length >= 2 && i === 0) {
+          c.type = villagerTypes[Math.floor(Math.random() * villagerTypes.length)]
+        } else {
+          // Round-robin slime palette variants + pumpkin
+          c.type = slimeTypes[i % slimeTypes.length]
         }
-        if (tooClose) continue
+        return c
+      })
+      
+      // Try to add 1 extra villager/soldier per chunk on a walkable tile far from zones/spawn/other critters
+      if (rawCritters.length > 0) {
+        const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier']
+        const TW = tilePx()
+        const world = worldSize(chunk)
+        const zonePad = HUB.critter.zonePad
         
-        // Check not too close to other critters or spawn
-        const spawn = tileCenter(chunk.spawn.tx, chunk.spawn.ty)
-        if (Math.hypot(p.x - spawn.x, p.y - spawn.y) < 150) continue
-        
-        let nearCritter = false
-        for (const other of critters) {
-          if (Math.hypot(p.x - other.x, p.y - other.y) < 100) {
-            nearCritter = true
-            break
+        // Try to find a good spot for an extra villager
+        for (let attempt = 0; attempt < 20; attempt++) {
+          const tx = Math.floor(Math.random() * (chunk.w - 4)) + 2
+          const ty = Math.floor(Math.random() * (chunk.h - 4)) + 2
+          const p = tileCenter(tx, ty)
+          
+          // Check walkability
+          if (!isWalkable(chunk, p.x, p.y)) continue
+          
+          // Check not too close to zones
+          let tooClose = false
+          for (const z of zones) {
+            if (Math.hypot(p.x - z.x, p.y - z.y) < z.radius + zonePad + 100) {
+              tooClose = true
+              break
+            }
           }
+          if (tooClose) continue
+          
+          // Check not too close to other critters or spawn
+          const spawn = tileCenter(chunk.spawn.tx, chunk.spawn.ty)
+          if (Math.hypot(p.x - spawn.x, p.y - spawn.y) < 150) continue
+          
+          let nearCritter = false
+          for (const other of critters) {
+            if (Math.hypot(p.x - other.x, p.y - other.y) < 100) {
+              nearCritter = true
+              break
+            }
+          }
+          if (nearCritter) continue
+          
+          // Good spot! Add a villager
+          const sheet = CRITTER_SHEETS[villagerTypes[Math.floor(Math.random() * villagerTypes.length)]]
+          critters.push({
+            type: villagerTypes[Math.floor(Math.random() * villagerTypes.length)],
+            x: p.x,
+            y: p.y,
+            state: 'idle',
+            tgtX: p.x,
+            tgtY: p.y,
+            timer: Math.random() * 2000 + 1000,
+            animFrame: 0,
+            animTime: 0,
+            facing: 'down',
+            moving: false,
+          })
+          break
         }
-        if (nearCritter) continue
-        
-        // Good spot! Add a villager
-        const sheet = CRITTER_SHEETS[villagerTypes[Math.floor(Math.random() * villagerTypes.length)]]
-        critters.push({
-          type: villagerTypes[Math.floor(Math.random() * villagerTypes.length)],
-          x: p.x,
-          y: p.y,
-          state: 'idle',
-          tgtX: p.x,
-          tgtY: p.y,
-          timer: Math.random() * 2000 + 1000,
-          animFrame: 0,
-          animTime: 0,
-          facing: 'down',
-          moving: false,
-        })
-        break
       }
     }
     
@@ -336,6 +357,24 @@ export default function HubScene() {
         const newMapId = `hub-${newCol}-${newRow}`
         const newChunk = getChunk(newMapId)
         if (newChunk) {
+          // Snapshot current chunk's critters into cache before leaving
+          const cache = critterCacheRef.current
+          const order = critterCacheOrderRef.current
+          
+          // Clone the critters array to preserve current state
+          cache.set(player.mapId, critters.map(c => ({ ...c })))
+          
+          // Update access order for LRU (remove if exists, add to end)
+          const idx = order.indexOf(player.mapId)
+          if (idx >= 0) order.splice(idx, 1)
+          order.push(player.mapId)
+          
+          // Evict oldest if cache exceeds 3 entries (current + 2 previous)
+          if (order.length > 3) {
+            const evictMapId = order.shift()
+            cache.delete(evictMapId)
+          }
+          
           player.mapId = newMapId
           player.x = newX
           player.y = newY
