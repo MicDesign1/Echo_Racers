@@ -1081,8 +1081,8 @@ export default function RaceTrack() {
             ref={joyBaseRef}
             className="touch-joy-base"
             style={{
-              left: `${CONTROLS.joystick.marginX}px`,
-              bottom: `${CONTROLS.joystick.marginY}px`,
+              left: `max(${CONTROLS.joystick.marginX}px, env(safe-area-inset-left))`,
+              bottom: `max(${CONTROLS.joystick.marginY}px, env(safe-area-inset-bottom))`,
               width: `${CONTROLS.joystick.baseSize}px`,
               height: `${CONTROLS.joystick.baseSize}px`,
             }}
@@ -1099,11 +1099,19 @@ export default function RaceTrack() {
           <div
             className="touch-throttle"
             style={{
-              right: `${CONTROLS.buttons.marginX}px`,
-              bottom: `${CONTROLS.buttons.marginY}px`,
+              right: `max(${CONTROLS.buttons.marginX}px, env(safe-area-inset-right))`,
+              bottom: `max(${CONTROLS.buttons.marginY}px, env(safe-area-inset-bottom))`,
               gap: `${CONTROLS.buttons.gap}px`,
+              flexDirection: 'column',
             }}
           >
+            <div
+              ref={boostBtnRef}
+              className="touch-btn touch-btn-boost"
+              style={{ width: `${CONTROLS.boost.size}px`, height: `${CONTROLS.boost.size}px` }}
+            >
+              Boost
+            </div>
             {CONTROLS.touchScheme === 'autoAccel' || RACE.alwaysAccel ? (
               <div
                 ref={brakeBtnRef}
@@ -1137,19 +1145,6 @@ export default function RaceTrack() {
                 </div>
               </>
             )}
-          </div>
-          <div
-            ref={boostBtnRef}
-            className="touch-btn touch-btn-boost"
-            style={{
-              position: 'absolute',
-              right: `${CONTROLS.boost.marginX}px`,
-              top: `${CONTROLS.boost.marginY}px`,
-              width: `${CONTROLS.boost.size}px`,
-              height: `${CONTROLS.boost.size}px`,
-            }}
-          >
-            Boost
           </div>
         </div>
       )}

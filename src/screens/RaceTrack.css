@@ -150,6 +150,12 @@
   font-size: 0.85rem;
 }
 
+.touch-btn-boost {
+  background: radial-gradient(circle at 50% 40%, var(--resonance-glow), var(--aged-gold));
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .countdown-overlay {
   position: absolute;
   inset: 0;
