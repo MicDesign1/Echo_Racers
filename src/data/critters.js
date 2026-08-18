@@ -138,7 +138,7 @@ export const CRITTER_SHEETS = {
     kind: 'soldier',
     // Cainos Tiny RPG: idle 6 frames / walk 8 frames, 100x100 cells with padding
     // Sprite content ~32px in 100px cell, so drawScale tuned to match Mana Seed villagers
-    src: '/sprites/hub/critters/soldier-walk.png', // TODO: also needs soldier-idle.png
+    src: '/sprites/hub/critters/soldier-walk.png',
     idleSrc: '/sprites/hub/critters/soldier-idle.png',
     frameSize: 100,
     idleFrames: 6,
@@ -147,5 +147,44 @@ export const CRITTER_SHEETS = {
     yOffset: 30, // adjust so feet sit on ground (sprite has lots of vertical padding)
     flipWhenLeft: true, // 3q side-view, flip for left
     speed: 50,
+  },
+  // CraftPix tiny-hero blob people: idle (128×32 = 4 frames) + walk (192×32 = 6 frames).
+  // Side-view like pumpkin/soldier, flip when left. Credit: craftpix.net/file-licenses/
+  // craftpix-net-622999 idle+walk only (no attack/hurt/death).
+  blobPink: {
+    kind: 'blob',
+    idleSrc: '/sprites/hub/critters/craftpix/pink-idle.png',
+    src: '/sprites/hub/critters/craftpix/pink-walk.png',
+    frameWidth: 32,
+    frameHeight: 32,
+    idleFrames: 4, // idle sheet 128×32
+    walkFrames: 6, // walk sheet 192×32
+    get drawScale() { return HUB.npcSprite.drawScale },
+    yOffset: 0,
+    flipWhenLeft: true,
+  },
+  blobOwlet: {
+    kind: 'blob',
+    idleSrc: '/sprites/hub/critters/craftpix/owlet-idle.png',
+    src: '/sprites/hub/critters/craftpix/owlet-walk.png',
+    frameWidth: 32,
+    frameHeight: 32,
+    idleFrames: 4,
+    walkFrames: 6,
+    get drawScale() { return HUB.npcSprite.drawScale },
+    yOffset: 0,
+    flipWhenLeft: true,
+  },
+  blobDude: {
+    kind: 'blob',
+    idleSrc: '/sprites/hub/critters/craftpix/dude-idle.png',
+    src: '/sprites/hub/critters/craftpix/dude-walk.png',
+    frameWidth: 32,
+    frameHeight: 32,
+    idleFrames: 4,
+    walkFrames: 6,
+    get drawScale() { return HUB.npcSprite.drawScale },
+    yOffset: 0,
+    flipWhenLeft: true,
   },
 }
