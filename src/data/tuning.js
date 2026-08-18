@@ -69,6 +69,12 @@ export const RACE = {
     return Math.max(1, Math.min(RACE.maxRivalCount, activeRaceConfig().rivalCount))
   },
 
+  // Always-accelerating gameplay (OutRun-style): the car accelerates on its
+  // own, no throttle-hold required. Kids can play with steering + drift +
+  // boost only. Brake still works to slow down. Set false to restore the
+  // original hold-to-accelerate feel (escape hatch for tuning).
+  alwaysAccel: true,
+
   lapCount: 3,
   maxSpeed: 220 * 60,
   accel: 2600,
@@ -120,6 +126,41 @@ export const DRIFT = {
   boostDuration: 0.8, // seconds
   boostAccelFactor: 0.7,
   settleEaseRate: 6, // how fast driftAngle relaxes back to 0 off-drift
+}
+
+// Charge boost — a meter that fills over time and can be dumped for an
+// instant speed burst. Repeatable resource (not once-per-race). Player
+// triggers with a key/button; meter empties and refills naturally. Thrilling
+// but never punishing — capped so it doesn't launch the car out of the
+// pseudo-3D projection.
+export const BOOST = {
+  // Meter fill rate and capacity (seconds to fill from 0 to max).
+  chargeRate: 0.12, // charge units/sec (0..1 full meter)
+  chargeMax: 1.0, // full meter capacity
+  // Activation: consume the meter and enter a burst. Partial charge allowed
+  // (weaker effect); full charge reads as a big thrill on screen.
+  minActivateCharge: 0.15, // minimum meter to activate (can't spam empty)
+  burstDuration: 1.8, // seconds the burst lasts once activated
+  burstAccelFactor: 1.6, // accel multiplier during the burst
+  burstMaxSpeedBonus: 0.28, // fraction of maxSpeed added as a temporary ceiling lift
+  // Decay: after the burst ends, the meter is empty and starts refilling
+  // immediately (no cooldown penalty — encourages frequent use).
+  
+  // Track pickups — instant boost items placed on the track (independent of
+  // the charge meter). Run over one, get an immediate burst. Respawn control
+  // per tuning so kids aren't punished for missing one.
+  pickup: {
+    burstDuration: 1.4, // seconds (shorter than a manual dump, but immediate)
+    burstAccelFactor: 1.5,
+    burstMaxSpeedBonus: 0.24,
+    // Respawn: pickups re-appear after this many seconds (per-pickup timer,
+    // so missing one doesn't lock it out forever — wholesome, not punishing).
+    respawnTime: 18, // seconds after collection before it reappears
+    // Visual: roadside-sprite style (projected, scales with distance).
+    spriteWidth: 0.28, // fraction of the road half-width
+    spriteHeight: 0.32, // fraction of spriteWidth (aspect ratio)
+    glowPulseRate: 0.003, // rad/ms for a gentle attracting pulse
+  },
 }
 
 // AI rival racers, drawn with the same placeholder chassis as the player,
@@ -456,6 +497,17 @@ export const HUD = {
   // Small always-on audio indicator (speaker glyph, with a slash when
   // muted), tucked below the speed panel. Toggled with the M key.
   mute: { x: 20, y: 84, size: 15 },
+
+  // Boost meter — fills over time, player dumps it for a speed burst.
+  // Positioned below the mute indicator, left side. Shows fill level as a
+  // horizontal bar + a short state label (Ready / Charging / Boosting).
+  boost: {
+    x: 12, y: 110, w: 150, h: 42, r: 8,
+    barInset: 10, // px inside the panel for the fill bar
+    barHeight: 12, // bar thickness
+    font: 'bold 13px Georgia',
+    labelOffset: { x: 10, y: 14 }, // state label position
+  },
 }
 
 export const RESULTS = {
@@ -494,14 +546,25 @@ export const CONTROLS = {
 
   // Right-thumb throttle + drift cluster, anchored bottom-right. In 'manual'
   // all three buttons show (accel is the largest, reached by the resting
-  // thumb); in 'autoAccel' only the combined brake+drift button shows.
+  // thumb); in 'autoAccel' only the combined brake+drift button shows. With
+  // alwaysAccel true (the new default), the accelerate button is hidden and
+  // only brake+drift remain (the car accelerates on its own).
   buttons: {
     marginX: 26, // px in from the right edge
     marginY: 30, // px up from the bottom edge
     gap: 16, // px between adjacent buttons
-    accelSize: 100, // accelerate button diameter (manual)
-    brakeSize: 84, // brake button diameter (manual) / combined button (autoAccel)
-    driftSize: 84, // drift button diameter (manual)
+    accelSize: 100, // accelerate button diameter (manual, when shown)
+    brakeSize: 84, // brake button diameter
+    driftSize: 84, // drift button diameter
+  },
+
+  // Boost button, anchored top-right. Separate from the throttle cluster so
+  // it's reachable by either thumb without fumbling. Dumps the charge meter
+  // for an instant speed burst (see BOOST).
+  boost: {
+    marginX: 26, // px in from the right edge
+    marginY: 26, // px down from the top edge
+    size: 84, // button diameter
   },
 }
 

@@ -54,6 +54,10 @@ export const COLORS = {
   hudBorder: '#8B6914',
   hudText: '#FFF8E7',
   hudTextDim: '#C49A3C',
+  // Explicit aliases for boost meter fill gradient (match art direction).
+  brass: '#8B6914',
+  agedGold: '#C49A3C',
+  resonanceGlowBright: '#FFE296', // brighter variant for active boost
 }
 
 // AI rival hull tints — stay within the art direction's all-metal Warden

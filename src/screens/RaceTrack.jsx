@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ROAD, RACE, DRIFT, PARALLAX, RESULTS, OPPONENTS, COMBAT, CONTROLS, DIFFICULTY, AIR, activeTrackId } from '../data/tuning.js'
+import { ROAD, RACE, DRIFT, PARALLAX, RESULTS, OPPONENTS, COMBAT, CONTROLS, DIFFICULTY, AIR, BOOST, activeTrackId } from '../data/tuning.js'
 import { activeTrack, TRACKS } from '../data/tracks.js'
 import { trackLength, seg, loadTrack } from '../engine/track.js'
 import { project, renderRoadSegment, renderLaneStripe, renderFinishCheckers } from '../engine/projection.js'
 import { drawParallax } from '../engine/background.js'
-import { drawRoadsideSprite, drawFinishBanner } from '../engine/roadside.js'
+import { drawRoadsideSprite, drawFinishBanner, drawBoostPickup } from '../engine/roadside.js'
 import { drawCar, drawOpponentCar, getCreatureAnchor } from '../engine/car.js'
 import { createOpponents, updateOpponents, getOpponentScreenPlacement, computePlayerDepth, computePlayerPlace, startGridSlot } from '../engine/opponents.js'
 import { updateAirtime, airLiftFraction, createAirState } from '../engine/airtime.js'
 import { updateCombat, wobbleAngle } from '../engine/combat.js'
 import { drawAttackBolt, drawPlayerHitEdge } from '../engine/combatfx.js'
+import { createBoostState, tryActivateBoost, updateBoost, resetBoost, createPickupStates, checkPickupCollection, updatePickups } from '../engine/boost.js'
 import * as audio from '../engine/audio.js'
 import { drawHud, formatTime, ordinal } from '../engine/hud.js'
 import { COLORS, OPPONENT_PALETTES, linearGradient } from '../engine/colors.js'
@@ -90,16 +91,20 @@ function combatFx(attackCooldown, wobble, hitFlash) {
 // Fresh per-race state — used both for the initial mount and for "Race
 // Again" (which must reset positions, opponents, and timers as cleanly as
 // a first load). bestLapTime is populated separately from persisted saves
-// right after creation, since that record outlives any single race.
+// right after creation, since that record outlives any single race. Pickup
+// states are created from the active track's pickup list (empty array if
+// the track has no pickups).
 function createInitialGameState() {
   const playerSlot = startGridSlot(0)
+  const track = activeTrack()
   return {
     pos: playerSlot.pos,
     speed: 0,
     playerX: playerSlot.x,
     steer: 0,
     driftAngle: 0,
-    boost: 0,
+    boost: 0, // legacy drift-exit boost timer (still used)
+    boostState: createBoostState(), // new charge-meter boost system
     bgSkew: 0,
     lapTime: 0,
     lastLapTime: null,
@@ -132,6 +137,11 @@ function createInitialGameState() {
     // Hill-crest air time (engine/airtime.js) — identical fields/rules to
     // every rival's own, so the player launches off the same crests.
     ...createAirState(),
+    // Track boost pickups (see engine/boost.js, data/tracks.js). Each pickup
+    // has a per-race respawn timer; the active track's pickup positions come
+    // from track.pickups (empty array if the track has no pickups).
+    pickups: track.pickups || [],
+    pickupStates: createPickupStates(track.pickups),
     opponents: createOpponents(),
   }
 }
@@ -147,13 +157,14 @@ export default function RaceTrack() {
   const accelBtnRef = useRef(null)
   const brakeBtnRef = useRef(null)
   const driftBtnRef = useRef(null)
-  const keysRef = useRef({ up: false, down: false, left: false, right: false, drift: false })
+  const boostBtnRef = useRef(null)
+  const keysRef = useRef({ up: false, down: false, left: false, right: false, drift: false, boost: false })
   // Analog touch input, read alongside keysRef every frame. `steer` is a
   // continuous -1..+1 from the joystick (steerActive gates it in so a
-  // centered/absent stick never fights the keyboard); up/down/drift mirror
-  // the keyboard flags for the throttle cluster. Mutated by pointer
-  // handlers, never triggers a re-render (same pattern as gameRef).
-  const touchRef = useRef({ steer: 0, steerActive: false, up: false, down: false, drift: false })
+  // centered/absent stick never fights the keyboard); up/down/drift/boost
+  // mirror the keyboard flags for the buttons. Mutated by pointer handlers,
+  // never triggers a re-render (same pattern as gameRef).
+  const touchRef = useRef({ steer: 0, steerActive: false, up: false, down: false, drift: false, boost: false })
   // Show on-screen controls only on touch/coarse-pointer devices (or when
   // forced via ?touch=1 for hand-testing on desktop). Never in verify mode,
   // so the render/combat regression scripts stay byte-identical. Desktop
@@ -203,10 +214,10 @@ export default function RaceTrack() {
       bannerTimeoutRef.current = setTimeout(() => setBanner(null), RESULTS.bannerDurationMs)
     }
 
-    // "Race Again": a full reset (positions, opponents, timers) rather than
-    // patching individual fields, so it can never leave a stray field from
-    // the finished race behind. Re-resolves the track too (harmless no-op
-    // if the selection hasn't changed, correct if it somehow has).
+    // "Race Again": a full reset (positions, opponents, timers, boost, pickups)
+    // rather than patching individual fields, so it can never leave a stray
+    // field from the finished race behind. Re-resolves the track too (harmless
+    // no-op if the selection hasn't changed, correct if it somehow has).
     function resetRace() {
       clearTimeout(bannerTimeoutRef.current)
       setBanner(null)
@@ -244,6 +255,7 @@ export default function RaceTrack() {
         case 'ArrowLeft': case 'KeyA': return 'left'
         case 'ArrowRight': case 'KeyD': return 'right'
         case 'Space': case 'ShiftLeft': case 'ShiftRight': return 'drift'
+        case 'KeyE': return 'boost'
         default: return null
       }
     }
@@ -333,12 +345,13 @@ export default function RaceTrack() {
       const airAccelLock = g.airborne ? AIR.accelLockFactor : 1
       const airSteerLock = g.airborne ? AIR.steerLockFactor : 1
 
-      // Throttle: keyboard OR touch. The touch buttons set the same flags,
-      // so 'autoAccel' just holds touch.up true (its combined button drops
-      // it while braking). Keyboard order is preserved (accel wins ties).
+      // Throttle: always-accel by default (RACE.alwaysAccel), or manual hold-to-
+      // accelerate when that flag is false (escape hatch for tuning). Brake still
+      // works to slow down. Keyboard and touch use the same paths.
       const accelInput = keys.up || touch.up
       const brakeInput = keys.down || touch.down
-      if (accelInput) {
+      const shouldAccel = RACE.alwaysAccel ? !brakeInput : accelInput
+      if (shouldAccel) {
         g.speed += RACE.accel * airAccelLock * dt * (RACE.accelLowSpeedBoost - RACE.accelSpeedTaper * spct)
       } else if (brakeInput) {
         g.speed -= RACE.brakeDecel * airAccelLock * dt
@@ -346,11 +359,35 @@ export default function RaceTrack() {
         g.speed -= RACE.friction * dt
       }
 
+      // Boost system: charge meter + manual activation + track pickups.
+      const boostEffects = updateBoost(g.boostState, dt)
+      if (boostEffects.accelFactor > 1.0) {
+        // Boost burst active: multiply accel and temporarily lift max speed.
+        g.speed += RACE.accel * airAccelLock * dt * (boostEffects.accelFactor - 1.0)
+      }
+      const boostMaxSpeed = RACE.maxSpeed * (1 + boostEffects.maxSpeedBonus)
+
+      // Boost activation: keyboard E or touch button.
+      if (keys.boost || touch.boost) {
+        tryActivateBoost(g.boostState, 'manual')
+        // Clear the flag so it doesn't re-fire next frame (edge-triggered).
+        keys.boost = false
+        touch.boost = false
+      }
+
+      // Track pickup collection: check if the player ran over an available pickup.
+      const collected = checkPickupCollection(g.pos, g.playerX, g.pickups, g.pickupStates, trackLength)
+      if (collected >= 0) {
+        tryActivateBoost(g.boostState, 'pickup')
+        g.pickupStates[collected].respawnTimer = BOOST.pickup.respawnTime
+      }
+      updatePickups(g.pickupStates, dt)
+
       const offRoad = Math.abs(g.playerX) > RACE.offRoadThreshold
       if (offRoad && g.speed > RACE.offRoadMaxSpeed) {
         g.speed -= RACE.offRoadDecel * dt
       }
-      g.speed = Math.max(0, Math.min(RACE.maxSpeed, g.speed))
+      g.speed = Math.max(0, Math.min(boostMaxSpeed, g.speed))
 
       // Steering feeds a single analog target. The joystick provides a
       // proportional -1..+1 (half-tilt = gentle) and, while held, overrides
@@ -521,6 +558,15 @@ export default function RaceTrack() {
             drawRoadsideSprite(ctx, sx, slot.s1y, slot.s1w, slot.clip, width, height, sprite, trackColors, time)
           }
         }
+        // Boost pickups: check if any pickups fall on this segment and draw them.
+        for (let i = 0; i < g.pickups.length; i++) {
+          const pickup = g.pickups[i]
+          if (pickup.segment === slot.segIndex) {
+            const available = g.pickupStates[i].respawnTimer <= 0
+            const sx = slot.s1x + slot.s1w * pickup.offset
+            drawBoostPickup(ctx, sx, slot.s1y, slot.s1w, slot.clip, width, height, trackColors, time, available)
+          }
+        }
         for (const { o, place } of beforePlayer) {
           if (place.n0 !== n) continue
           drawOpponentCar(
@@ -626,6 +672,7 @@ export default function RaceTrack() {
         lapCount: RACE.lapCount,
         place: RACE.mode === 'race' ? computePlayerPlace(g, trackLength) : null,
         muted: audio.isMuted(),
+        boost: g.boostState,
       }, trackColors)
 
       const vignette = ctx.createRadialGradient(
@@ -706,14 +753,16 @@ export default function RaceTrack() {
     rafId = requestAnimationFrame(frame)
 
     if (verifyMode) {
+      window.gameRef = gameRef // expose gameRef for boost verification
       window.__ECHO_RACE_TEST__ = {
         setScenario({ playerPos, playerX = 0, speed = 0, rivals }) {
           window.__ECHO_RACE_TEST_OVERRIDE__ = { pos: playerPos, playerX, speed, rivals }
         },
         clearScenario() { window.__ECHO_RACE_TEST_OVERRIDE__ = null },
-        freeze() { keysRef.current = { up: false, down: false, left: false, right: false, drift: false } },
+        freeze() { keysRef.current = { up: false, down: false, left: false, right: false, drift: false, boost: false } },
         holdUp(on = true) { keysRef.current.up = on },
         holdDown(on = true) { keysRef.current.down = on },
+        fireBoost() { keysRef.current.boost = true },
         // Combat verification hooks. setOverride pins positions WITHOUT
         // forcing speed (unlike setScenario, which defaults speed to 0), so
         // a combat speed penalty actually persists and can be measured.
@@ -956,7 +1005,12 @@ export default function RaceTrack() {
       })
     }
 
-    if (CONTROLS.touchScheme === 'autoAccel') {
+    // With alwaysAccel true (the new default), touch scheme is effectively
+    // autoAccel: the car accelerates on its own. The old 'autoAccel' vs
+    // 'manual' flag still gates which buttons show (for the escape hatch
+    // where RACE.alwaysAccel is flipped false), but the input wiring is the
+    // same either way — brake stops the auto-accel.
+    if (CONTROLS.touchScheme === 'autoAccel' || RACE.alwaysAccel) {
       // One combined brake+drift button; releasing resumes auto-accelerate.
       wireButton(brakeBtnRef.current,
         () => { touch.down = true; touch.drift = true; touch.up = false },
@@ -966,6 +1020,11 @@ export default function RaceTrack() {
       wireButton(brakeBtnRef.current, () => { touch.down = true }, () => { touch.down = false })
       wireButton(driftBtnRef.current, () => { touch.drift = true }, () => { touch.drift = false })
     }
+
+    // Boost button (separate from throttle cluster, reachable by either thumb).
+    wireButton(boostBtnRef.current,
+      () => { touch.boost = true },
+      () => { touch.boost = false })
 
     if (forceTouch) {
       window.__ECHO_TOUCH__ = () => ({
@@ -983,7 +1042,7 @@ export default function RaceTrack() {
       for (const c of cleanups) c()
       if (forceTouch) delete window.__ECHO_TOUCH__
       // Leave no input latched if the controls unmount mid-press.
-      touchRef.current = { steer: 0, steerActive: false, up: false, down: false, drift: false }
+      touchRef.current = { steer: 0, steerActive: false, up: false, down: false, drift: false, boost: false }
     }
   }, [showTouch])
 
@@ -1045,7 +1104,7 @@ export default function RaceTrack() {
               gap: `${CONTROLS.buttons.gap}px`,
             }}
           >
-            {CONTROLS.touchScheme === 'autoAccel' ? (
+            {CONTROLS.touchScheme === 'autoAccel' || RACE.alwaysAccel ? (
               <div
                 ref={brakeBtnRef}
                 className="touch-btn touch-btn-brake"
@@ -1078,6 +1137,19 @@ export default function RaceTrack() {
                 </div>
               </>
             )}
+          </div>
+          <div
+            ref={boostBtnRef}
+            className="touch-btn touch-btn-boost"
+            style={{
+              position: 'absolute',
+              right: `${CONTROLS.boost.marginX}px`,
+              top: `${CONTROLS.boost.marginY}px`,
+              width: `${CONTROLS.boost.size}px`,
+              height: `${CONTROLS.boost.size}px`,
+            }}
+          >
+            Boost
           </div>
         </div>
       )}
