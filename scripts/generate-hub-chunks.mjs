@@ -302,13 +302,21 @@ function generateHomeChunk() {
 function generateNewChunk(col, row) {
   const chunk = createChunk(W, H)
   const isOuterRing = col === 0 || col === GRID_SIZE - 1 || row === 0 || row === GRID_SIZE - 1
+  
+  // HOME's immediate east/west neighbors (hub-1-4 and hub-3-4) need walkable
+  // forest on their shared edge with HOME, since those are HOME's real exits.
+  // HOME has south water, so these neighbors also have south water (continuing
+  // the beach), but their west/east edges connecting to HOME are open forest.
+  const isHomeWestNeighbor = (col === HOME_COL - 1 && row === HOME_ROW) // hub-1-4
+  const isHomeEastNeighbor = (col === HOME_COL + 1 && row === HOME_ROW) // hub-3-4
 
   if (isOuterRing) {
-    // Outer ring: add shoreline on outer edges
+    // Outer ring: add shoreline on outer edges ONLY
+    // For HOME's neighbors, skip the edge that connects to HOME
     if (row === 0) addCliffWithWater(chunk, 'north')
     if (row === GRID_SIZE - 1) addCliffWithWater(chunk, 'south')
-    if (col === 0) addCliffWithWater(chunk, 'west')
-    if (col === GRID_SIZE - 1) addCliffWithWater(chunk, 'east')
+    if (col === 0 && !isHomeWestNeighbor) addCliffWithWater(chunk, 'west')
+    if (col === GRID_SIZE - 1 && !isHomeEastNeighbor) addCliffWithWater(chunk, 'east')
 
     // Scatter trees inland (avoiding water/cliff areas)
     const treeCount = 12

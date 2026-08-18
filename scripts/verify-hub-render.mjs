@@ -236,39 +236,40 @@ async function main() {
   if (water.endY >= water.cliffTop) throw new Error(`collision: player crossed into the cliff/water (endY ${water.endY.toFixed(1)} >= ${water.cliffTop})`)
   console.log(`  collision: stopped at the shoreline (endY=${water.endY.toFixed(1)}, cliffTop=${water.cliffTop})`)
   
-  // 6b. Chunk transition: walk off the north edge of HOME, verify the player
-  // transitions to the north neighbor and repositions at the entering edge.
+  // 6b. Chunk transition: walk off the EAST edge of HOME (the open forest side),
+  // verify the player transitions to the east neighbor and repositions at the entering edge.
   const HOME = HUB_CHUNKS.find((c) => c.mapId === HUB_HOME_ID)
-  if (HOME && HOME.neighbors && HOME.neighbors.north) {
+  if (HOME && HOME.neighbors && HOME.neighbors.east) {
     const transition = await page.evaluate(async (homeId) => {
       const H = window.__ECHO_HUB_TEST__
-      // Start at top-center of HOME, walk up
+      // Start at mid-height on the right edge of HOME, walk right
       const startInfo = H.getMapInfo()
       if (startInfo.mapId !== homeId) throw new Error(`not on HOME (${startInfo.mapId})`)
-      H.setPos(startInfo.w * 24, 2 * 48) // top-center, a bit below the edge
+      const TW = startInfo.tilePx
+      H.setPos((startInfo.w - 2) * TW, 7 * TW) // near right edge, mid-height (walkable area)
       const before = H.getState()
       const beforeMapId = before.mapId
-      const beforeY = before.y
-      // Walk up for 3 seconds
-      const after = H.simulateMove(0, -1, 3000)
+      const beforeX = before.x
+      // Walk right for 3 seconds
+      const after = H.simulateMove(1, 0, 3000)
       const afterInfo = H.getMapInfo()
-      return { beforeMapId, beforeY, afterMapId: after.mapId, afterY: after.y, afterInfoMapId: afterInfo.mapId }
+      return { beforeMapId, beforeX, afterMapId: after.mapId, afterX: after.x, afterInfoMapId: afterInfo.mapId }
     }, HUB_HOME_ID)
     if (transition.afterMapId === transition.beforeMapId) {
-      throw new Error(`chunk transition: walked up but did not leave HOME (still ${transition.afterMapId})`)
+      throw new Error(`chunk transition: walked right but did not leave HOME (still ${transition.afterMapId})`)
     }
     if (transition.afterMapId !== transition.afterInfoMapId) {
       throw new Error(`chunk transition: player mapId (${transition.afterMapId}) != loaded chunk (${transition.afterInfoMapId})`)
     }
-    if (transition.afterMapId !== HOME.neighbors.north) {
-      throw new Error(`chunk transition: expected north neighbor ${HOME.neighbors.north}, got ${transition.afterMapId}`)
+    if (transition.afterMapId !== HOME.neighbors.east) {
+      throw new Error(`chunk transition: expected east neighbor ${HOME.neighbors.east}, got ${transition.afterMapId}`)
     }
-    if (transition.afterY < transition.beforeY) {
-      throw new Error(`chunk transition: y should wrap to bottom of new chunk, got ${transition.afterY.toFixed(1)} < ${transition.beforeY.toFixed(1)}`)
+    if (transition.afterX > transition.beforeX) {
+      throw new Error(`chunk transition: x should wrap to left of new chunk, got ${transition.afterX.toFixed(1)} > ${transition.beforeX.toFixed(1)}`)
     }
-    console.log(`  chunk transition: walked north from ${HOME.mapId} -> ${transition.afterMapId}, y ${transition.beforeY.toFixed(1)} -> ${transition.afterY.toFixed(1)}`)
+    console.log(`  chunk transition: walked east from ${HOME.mapId} -> ${transition.afterMapId}, x ${transition.beforeX.toFixed(1)} -> ${transition.afterX.toFixed(1)}`)
   } else {
-    console.log('  chunk transition: HOME has no north neighbor, skipping edge test')
+    console.log('  chunk transition: HOME has no east neighbor, skipping edge test')
   }
 
   // 7. Camera clamps at both corners.
