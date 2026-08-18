@@ -67,20 +67,21 @@ export function updateCritters(list, dt, map, zones) {
   for (const c of list) {
     const sheet = CRITTER_SHEETS[c.type]
     
-    // Animation: slimes always bob (idle or moving), NPCs walk when moving
-    if (sheet?.kind === 'slime') {
-      // Gentle bob plays continuously (idle and moving both read as calm).
+    // Animation: slimes/pumpkins always bob (idle or moving), NPCs/soldiers walk when moving
+    if (sheet?.kind === 'slime' || sheet?.kind === 'pumpkin') {
+      // Gentle bob/hop plays continuously (idle and moving both read as calm).
       c.animTime += dt * 1000
       while (c.animTime >= C.animFrameMs) {
         c.animTime -= C.animFrameMs
         c.animFrame = (c.animFrame + 1) % (sheet.idleFrames || 1)
       }
-    } else if (sheet?.kind === 'npc') {
-      // NPCs cycle walk frames only when moving
+    } else if (sheet?.kind === 'npc' || sheet?.kind === 'soldier') {
+      // NPCs/soldiers cycle walk frames only when moving
       if (c.moving) {
         c.animTime += dt * 1000
-        while (c.animTime >= C.animFrameMs) {
-          c.animTime -= C.animFrameMs
+        const frameMs = sheet.kind === 'soldier' ? 200 : C.animFrameMs
+        while (c.animTime >= frameMs) {
+          c.animTime -= frameMs
           c.animFrame = (c.animFrame + 1) % (sheet.walkFrames || 4)
         }
       } else {
@@ -114,13 +115,22 @@ export function updateCritters(list, dt, map, zones) {
         c.moving = false
       } else {
         c.moving = true
-        // For NPCs, update facing based on dominant movement direction
-        if (sheet?.kind === 'npc') {
-          if (Math.abs(dx) > Math.abs(dy)) {
+        // For NPCs/soldiers/pumpkins, update facing based on dominant movement direction
+        if (sheet?.kind === 'npc' || sheet?.kind === 'soldier') {
+          // Soldier only faces left/right (3q side-view)
+          if (sheet.kind === 'soldier') {
             c.facing = dx > 0 ? 'right' : 'left'
           } else {
-            c.facing = dy > 0 ? 'down' : 'up'
+            // NPC has 4-direction
+            if (Math.abs(dx) > Math.abs(dy)) {
+              c.facing = dx > 0 ? 'right' : 'left'
+            } else {
+              c.facing = dy > 0 ? 'down' : 'up'
+            }
           }
+        } else if (sheet?.kind === 'pumpkin') {
+          // Pumpkin tracks facing for flip
+          c.facing = dx > 0 ? 'right' : 'left'
         }
         
         // Use per-type speed if available, else fallback to critter default

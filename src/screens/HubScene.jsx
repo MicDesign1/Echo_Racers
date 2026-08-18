@@ -178,22 +178,22 @@ export default function HubScene() {
     const rawCritters = createCritters(chunk)
     const critters = rawCritters.map((c, i) => {
       // Assign variety: slimes get palette variants, and some spawns become villagers
-      const slimeTypes = ['slime', 'slimeAmber', 'slimeGreen', 'slimePink']
-      const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB']
+      const slimeTypes = ['slime', 'slimeAmber', 'slimeGreen', 'slimePink', 'pumpkin']
+      const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier']
       
-      // If this chunk has 2+ spawns, convert one to a villager (the first one)
+      // If this chunk has 2+ spawns, convert one to a villager/soldier (the first one)
       if (rawCritters.length >= 2 && i === 0) {
         c.type = villagerTypes[Math.floor(Math.random() * villagerTypes.length)]
       } else {
-        // Round-robin slime palette variants
+        // Round-robin slime palette variants + pumpkin
         c.type = slimeTypes[i % slimeTypes.length]
       }
       return c
     })
     
-    // Try to add 1 extra villager per chunk on a walkable tile far from zones/spawn/other critters
+    // Try to add 1 extra villager/soldier per chunk on a walkable tile far from zones/spawn/other critters
     if (rawCritters.length > 0) {
-      const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB']
+      const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier']
       const TW = tilePx()
       const world = worldSize(chunk)
       const zonePad = HUB.critter.zonePad
@@ -530,7 +530,8 @@ export default function HubScene() {
       ctx.drawImage(sheet, sx, sy, S.frameSize, S.frameSize, dx, dy, dw, dh)
     }
 
-    // Critter: slimes use gentle-bob with hue-rotate, NPCs use facing/walk.
+    // Critter: slimes use gentle-bob with hue-rotate, NPCs use facing/walk,
+    // pumpkin uses hop with horizontal flip, soldier uses idle/walk sheets with flip.
     function drawCritter(c) {
       const sh = CRITTER_SHEETS[c.type]
       if (!sh) return
@@ -559,6 +560,23 @@ export default function HubScene() {
         } else {
           ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
         }
+      } else if (sh.kind === 'pumpkin') {
+        // Pumpkin: side-view hop, flip when facing left
+        sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fs
+        sy = sh.idleRow * fs
+        dw = fs * sh.drawScale
+        dh = dw
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+        
+        if (sh.flipWhenLeft && c.facing === 'left') {
+          ctx.save()
+          ctx.scale(-1, 1)
+          ctx.drawImage(img, sx, sy, fs, fs, -dx - dw, dy, dw, dh)
+          ctx.restore()
+        } else {
+          ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+        }
       } else if (sh.kind === 'npc') {
         // NPC: facing-based walk (row per facing, cycle frames when moving)
         const row = sh.rowForFacing[c.facing]
@@ -570,6 +588,27 @@ export default function HubScene() {
         dx = Math.round(c.x - cam.x - dw / 2)
         dy = Math.round(c.y - cam.y - dh)
         ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+      } else if (sh.kind === 'soldier') {
+        // Soldier: separate idle/walk sheets, 3q side-view, flip for left
+        const srcImg = c.moving ? img : getCritterImg(sh.idleSrc)
+        if (!(srcImg.complete && srcImg.naturalWidth > 0)) return
+        
+        const col = c.animFrame
+        sx = col * fs
+        sy = 0
+        dw = fs * sh.drawScale
+        dh = dw
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+        
+        if (sh.flipWhenLeft && c.facing === 'left') {
+          ctx.save()
+          ctx.scale(-1, 1)
+          ctx.drawImage(srcImg, sx, sy, fs, fs, -dx - dw, dy, dw, dh)
+          ctx.restore()
+        } else {
+          ctx.drawImage(srcImg, sx, sy, fs, fs, dx, dy, dw, dh)
+        }
       }
     }
 

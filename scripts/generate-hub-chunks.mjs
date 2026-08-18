@@ -97,9 +97,10 @@ function canStampTree(chunk, tx, ty) {
       }
     }
   }
-  // Trunk check (with buffer)
+  // Trunk/shadow check: 5-wide bottom (with buffer) to include drip shadow edges
+  // HOME also stamps A(11,5/6) left and A(15,5/6) right = the drip shadow
   for (let dr = 1 - buffer; dr <= 2 + buffer; dr++) {
-    for (let dc = -1 - buffer; dc <= 1 + buffer; dc++) {
+    for (let dc = -2 - buffer; dc <= 2 + buffer; dc++) {
       const x = tx + dc
       const y = ty + dr
       if (x < 0 || x >= w || y < 0 || y >= h) return false
@@ -112,16 +113,17 @@ function canStampTree(chunk, tx, ty) {
       }
       for (let layer = 0; layer < chunk.decorUnder.length; layer++) {
         const existing = chunk.decorUnder[layer][y * w + x]
-        if (existing >= 92 && existing <= 110 && [92,93,94,108,109,110].includes(existing)) return false
+        // Check for full trunk range: 91-95, 107-111 (includes shadow edges)
+        if (existing >= 91 && existing <= 111 && [91,92,93,94,95,107,108,109,110,111].includes(existing)) return false
       }
     }
   }
   return true
 }
 
-// Stamp a tree (canopy in decorOver, trunk in decorUnder)
-// Canopy: 5x5 at A(11+dc, 0..4), trunk: 3x2 at A(12+dc, 5..6)
-// Trunk positioned mostly BELOW canopy to match HOME (minimal overlap)
+// Stamp a tree (canopy in decorOver, trunk/shadow in decorUnder)
+// Canopy: 5x5 at A(11+dc, 0..4), trunk/shadow: 5x2 at A(11+dc, 5..6)
+// Bottom is 5-wide to include left/right drip shadow (A(11,5/6) and A(15,5/6)) like HOME
 function stampTree(chunk, tx, ty) {
   if (!canStampTree(chunk, tx, ty)) return false
   
@@ -137,14 +139,15 @@ function stampTree(chunk, tx, ty) {
       }
     }
   }
-  // Trunk: 3x2 at (tx-1, ty+1) through (tx+1, ty+2)
-  // One row below canopy bottom to match HOME's layout
+  // Trunk/shadow: 5x2 at (tx-2, ty+1) through (tx+2, ty+2)
+  // Same x range as canopy. Middle 3 cols are trunk (A(12..14, 5..6)),
+  // outer cols are drip shadow (A(11,5/6) left, A(15,5/6) right)
   for (let dr = 0; dr < 2; dr++) {
-    for (let dc = 0; dc < 3; dc++) {
-      const x = tx - 1 + dc
+    for (let dc = 0; dc < 5; dc++) {
+      const x = tx - 2 + dc
       const y = ty + 1 + dr
       if (x >= 0 && x < w && y >= 0 && y < chunk.height) {
-        decorUnder[0][y * w + x] = A(12 + dc, 5 + dr)
+        decorUnder[0][y * w + x] = A(11 + dc, 5 + dr)
       }
     }
   }
