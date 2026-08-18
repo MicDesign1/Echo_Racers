@@ -196,23 +196,26 @@ export default function HubScene() {
     } else {
       // Create fresh critters: pumpkin mix + extra villager per chunk
       const rawCritters = createCritters(chunk)
+      
+      // Shuffled pool of all wanderer types for random mix (no forced pumpkin, no one-type-per-screen)
+      const allWandererTypes = [
+        'pumpkin', 'slime', 'slimeAmber', 'slimeGreen', 'slimePink',
+        'blobPink', 'blobOwlet', 'blobDude',
+        'npcManA', 'npcManB', 'npcWomanA', 'npcWomanB',
+      ]
+      
+      // Shuffle the pool so adjacent spawns get different types
+      const shuffled = [...allWandererTypes].sort(() => Math.random() - 0.5)
+      
       critters = rawCritters.map((c, i) => {
-        // Assign variety: pumpkin every other spawn, slimes on others
-        const slimeTypes = ['slime', 'pumpkin', 'slimeAmber', 'pumpkin', 'slimeGreen', 'pumpkin', 'slimePink']
-        
-        // If this chunk has 2+ spawns, force the first one to pumpkin (so it's always visible)
-        if (rawCritters.length >= 2 && i === 0) {
-          c.type = 'pumpkin'
-        } else {
-          // Round-robin slime palette variants + pumpkin
-          c.type = slimeTypes[i % slimeTypes.length]
-        }
+        // Round-robin through the shuffled pool
+        c.type = shuffled[i % shuffled.length]
         return c
       })
       
-      // Try to add 1 extra villager per chunk on a walkable tile far from zones/spawn/other critters
+      // Try to add 1 extra wanderer per chunk on a walkable tile far from zones/spawn/other critters
       if (rawCritters.length > 0) {
-        const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB']
+        const extraWandererTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'blobPink', 'blobOwlet', 'blobDude']
         const TW = tilePx()
         const world = worldSize(chunk)
         const zonePad = HUB.critter.zonePad
@@ -249,10 +252,11 @@ export default function HubScene() {
           }
           if (nearCritter) continue
           
-          // Good spot! Add a villager
-          const sheet = CRITTER_SHEETS[villagerTypes[Math.floor(Math.random() * villagerTypes.length)]]
+          // Good spot! Add an extra wanderer
+          const chosenType = extraWandererTypes[Math.floor(Math.random() * extraWandererTypes.length)]
+          const sheet = CRITTER_SHEETS[chosenType]
           critters.push({
-            type: villagerTypes[Math.floor(Math.random() * villagerTypes.length)],
+            type: chosenType,
             x: p.x,
             y: p.y,
             state: 'idle',
@@ -272,7 +276,10 @@ export default function HubScene() {
     // Preload all sheets used by this chunk's critters
     for (const type of new Set(critters.map((c) => c.type))) {
       const sheet = CRITTER_SHEETS[type]
-      if (sheet) getCritterImg(sheet.src)
+      if (sheet) {
+        getCritterImg(sheet.src)
+        if (sheet.idleSrc) getCritterImg(sheet.idleSrc) // blob + soldier have separate idle sheets
+      }
     }
 
     let W = 0
@@ -569,7 +576,7 @@ export default function HubScene() {
     }
 
     // Critter: slimes use gentle-bob with hue-rotate, NPCs use facing/walk,
-    // pumpkin uses hop with horizontal flip, soldier uses idle/walk sheets with flip.
+    // pumpkin uses hop with horizontal flip; soldier + blob use idle/walk sheets with flip.
     function drawCritter(c) {
       const sh = CRITTER_SHEETS[c.type]
       if (!sh) return
@@ -648,6 +655,30 @@ export default function HubScene() {
           ctx.restore()
         } else {
           ctx.drawImage(srcImg, sx, sy, fs, fs, dx, dy, dw, dh)
+        }
+      } else if (sh.kind === 'blob') {
+        // Blob: separate idle/walk sheets (idle 4 frames, walk 6 frames), side-view, flip when left
+        const srcImg = c.moving ? img : getCritterImg(sh.idleSrc)
+        if (!(srcImg.complete && srcImg.naturalWidth > 0)) return
+        
+        const fw = sh.frameWidth
+        const fh = sh.frameHeight
+        const frames = c.moving ? sh.walkFrames : sh.idleFrames
+        const col = c.animFrame % frames
+        sx = col * fw
+        sy = 0
+        dw = fw * sh.drawScale
+        dh = fh * sh.drawScale
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+        
+        if (sh.flipWhenLeft && c.facing === 'left') {
+          ctx.save()
+          ctx.scale(-1, 1)
+          ctx.drawImage(srcImg, sx, sy, fw, fh, -dx - dw, dy, dw, dh)
+          ctx.restore()
+        } else {
+          ctx.drawImage(srcImg, sx, sy, fw, fh, dx, dy, dw, dh)
         }
       }
     }
