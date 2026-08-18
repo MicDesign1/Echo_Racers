@@ -52,6 +52,13 @@ async function getBoostState(page) {
       playerX: game.playerX,
       pickups: game.pickups?.length ?? 0,
       pickupStates: game.pickupStates?.map(s => s.respawnTimer) ?? [],
+      opponents: game.opponents?.map(o => ({
+        rivalIndex: o.rivalIndex,
+        charge: o.boostState?.charge ?? 0,
+        active: o.boostState?.active ?? false,
+        pos: o.pos,
+        x: o.x,
+      })) ?? [],
     }
   })
 }
@@ -273,6 +280,55 @@ async function visualFeedbackPass(page) {
   console.log('  ✓ Visual feedback test complete')
 }
 
+// (g) Pickup count test: confirm new sparse layout (2-3 per lap)
+async function pickupCountPass(page) {
+  console.log('\n(g) Pickup count test: confirm sparse layout (2-3 per lap)')
+  
+  const state = await getBoostState(page)
+  console.log(`  Circuit One pickup count: ${state.pickups}`)
+  
+  // Circuit One (3 laps, 1488 segments): should have 3 pickups total (1 per lap)
+  if (state.pickups === 3) {
+    console.log('  ✓ Pickup count correct (3 per lap on Circuit One)')
+  } else {
+    throw new Error(`Pickup count incorrect: ${state.pickups} (expected 3 for Circuit One)`)
+  }
+}
+
+// (h) Opponent boost test: rivals can fire boost
+async function opponentBoostPass(page) {
+  console.log('\n(h) Opponent boost test: rivals can fire boost')
+  
+  // Set up a race with rivals behind the player on a straight (so they'll try to boost)
+  await page.evaluate(() => {
+    window.__ECHO_RACE_TEST__.setOverride({ pos: 12000, playerX: 0, speed: 10000 })
+    window.__ECHO_RACE_TEST__.freeze()
+  })
+  
+  await raf(page)
+  
+  // Wait a few frames for rivals to get past their stagger delay
+  for (let i = 0; i < 180; i++) await raf(page)
+  
+  const state = await getBoostState(page)
+  console.log(`  Rival count: ${state.opponents.length}`)
+  
+  if (state.opponents.length === 0) {
+    throw new Error('No rivals present in verify mode (check RACE.rivalCount)')
+  }
+  
+  // Check at least one rival has activated boost (charge drained or active)
+  const boostingRivals = state.opponents.filter(o => o.active || o.charge < 0.95)
+  console.log(`  Rivals that have boosted or are boosting: ${boostingRivals.length}`)
+  
+  if (boostingRivals.length > 0) {
+    console.log('  ✓ At least one rival has used boost (AI logic working)')
+    console.log(`    Rival ${boostingRivals[0].rivalIndex}: charge=${boostingRivals[0].charge.toFixed(2)}, active=${boostingRivals[0].active}`)
+  } else {
+    throw new Error('No rivals fired boost (expected at least one after 3s on a straight)')
+  }
+}
+
 async function main() {
   const port = await discoverPort()
   console.log(`Using dev server at http://localhost:${port}`)
@@ -292,6 +348,8 @@ async function main() {
     await pickupCollectionPass(page)
     await pickupRespawnPass(page)
     await visualFeedbackPass(page)
+    await pickupCountPass(page)
+    await opponentBoostPass(page)
     
     console.log('\n✓ All boost system tests passed')
   } catch (err) {

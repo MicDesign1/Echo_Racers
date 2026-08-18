@@ -411,6 +411,17 @@ export default function RaceTrack() {
       }
       updatePickups(g.pickupStates, dt)
 
+      // Rival pickup collection: shared pads. Rivals' lane wander means they
+      // only hit pads near their path — not all pads. Same fill/respawn as player.
+      for (const o of g.opponents) {
+        const rivalCollected = checkPickupCollection(o.pos, o.x, g.pickups, g.pickupStates, trackLength)
+        if (rivalCollected >= 0) {
+          o.boostState.charge = BOOST.chargeMax
+          o.boostState.pickupFlash = BOOST.pickup.flashDuration
+          g.pickupStates[rivalCollected].respawnTimer = BOOST.pickup.respawnTime
+        }
+      }
+
       const offRoad = Math.abs(g.playerX) > RACE.offRoadThreshold
       if (offRoad && g.speed > RACE.offRoadMaxSpeed) {
         g.speed -= RACE.offRoadDecel * dt

@@ -170,12 +170,12 @@ export const BOOST = {
     glowAlpha: 0.5, // base alpha for the glow
     glowRadiusFraction: 1.1, // glow radius as a fraction of carWidth
     glowPulseRate: 0.004, // rad/ms for a gentle pulse while boosting
-    // How-to hint: shown during countdown + after GO, unmissable on desktop.
-    // Large, centered. Keyboard: "Press E to boost". Touch: "Tap Boost to activate".
+    // How-to hint: shown during countdown + ~6s after GO, unmissable on desktop.
+    // Large, lower-third plaque. Keyboard: "Press E to boost". Touch: "Tap Boost to activate".
     hintShowDuringCountdown: true, // show hint during countdown (not just after)
-    hintDuration: 5.0, // seconds after GO before auto-dismiss (or first boost press)
-    hintFadeIn: 0.3, // seconds to fade in
-    hintFadeOut: 0.4, // seconds to fade out
+    hintDuration: 6.0, // seconds after GO before auto-dismiss (or first boost press)
+    hintFadeIn: 0.3, // seconds to fade in (currently unused: always opacity 1)
+    hintFadeOut: 0.4, // seconds to fade out (currently unused: always opacity 1)
   },
 }
 
