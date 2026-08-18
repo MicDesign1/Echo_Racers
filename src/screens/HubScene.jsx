@@ -174,7 +174,82 @@ export default function HubScene() {
 
     // Ambient wildlife: fixed population from the map, each with its own wander
     // state. Preload every used sheet once.
-    const critters = createCritters(chunk)
+    // Build critter population: slime palette mix + ~1 villager per chunk (if >=2 spawns)
+    const rawCritters = createCritters(chunk)
+    const critters = rawCritters.map((c, i) => {
+      // Assign variety: slimes get palette variants, and some spawns become villagers
+      const slimeTypes = ['slime', 'slimeAmber', 'slimeGreen', 'slimePink']
+      const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB']
+      
+      // If this chunk has 2+ spawns, convert one to a villager (the first one)
+      if (rawCritters.length >= 2 && i === 0) {
+        c.type = villagerTypes[Math.floor(Math.random() * villagerTypes.length)]
+      } else {
+        // Round-robin slime palette variants
+        c.type = slimeTypes[i % slimeTypes.length]
+      }
+      return c
+    })
+    
+    // Try to add 1 extra villager per chunk on a walkable tile far from zones/spawn/other critters
+    if (rawCritters.length > 0) {
+      const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB']
+      const TW = tilePx()
+      const world = worldSize(chunk)
+      const zonePad = HUB.critter.zonePad
+      
+      // Try to find a good spot for an extra villager
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const tx = Math.floor(Math.random() * (chunk.w - 4)) + 2
+        const ty = Math.floor(Math.random() * (chunk.h - 4)) + 2
+        const p = tileCenter(tx, ty)
+        
+        // Check walkability
+        if (!isWalkable(chunk, p.x, p.y)) continue
+        
+        // Check not too close to zones
+        let tooClose = false
+        for (const z of zones) {
+          if (Math.hypot(p.x - z.x, p.y - z.y) < z.radius + zonePad + 100) {
+            tooClose = true
+            break
+          }
+        }
+        if (tooClose) continue
+        
+        // Check not too close to other critters or spawn
+        const spawn = tileCenter(chunk.spawn.tx, chunk.spawn.ty)
+        if (Math.hypot(p.x - spawn.x, p.y - spawn.y) < 150) continue
+        
+        let nearCritter = false
+        for (const other of critters) {
+          if (Math.hypot(p.x - other.x, p.y - other.y) < 100) {
+            nearCritter = true
+            break
+          }
+        }
+        if (nearCritter) continue
+        
+        // Good spot! Add a villager
+        const sheet = CRITTER_SHEETS[villagerTypes[Math.floor(Math.random() * villagerTypes.length)]]
+        critters.push({
+          type: villagerTypes[Math.floor(Math.random() * villagerTypes.length)],
+          x: p.x,
+          y: p.y,
+          state: 'idle',
+          tgtX: p.x,
+          tgtY: p.y,
+          timer: Math.random() * 2000 + 1000,
+          animFrame: 0,
+          animTime: 0,
+          facing: 'down',
+          moving: false,
+        })
+        break
+      }
+    }
+    
+    // Preload all sheets used by this chunk's critters
     for (const type of new Set(critters.map((c) => c.type))) {
       const sheet = CRITTER_SHEETS[type]
       if (sheet) getCritterImg(sheet.src)
@@ -455,20 +530,47 @@ export default function HubScene() {
       ctx.drawImage(sheet, sx, sy, S.frameSize, S.frameSize, dx, dy, dw, dh)
     }
 
-    // Critter: single gentle-bob animation, bottom-center anchored.
+    // Critter: slimes use gentle-bob with hue-rotate, NPCs use facing/walk.
     function drawCritter(c) {
       const sh = CRITTER_SHEETS[c.type]
       if (!sh) return
       const img = getCritterImg(sh.src)
       if (!(img.complete && img.naturalWidth > 0)) return
+      
       const fs = sh.frameSize
-      const sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fs
-      const sy = sh.idleRow * fs
-      const dw = fs * sh.drawScale
-      const dh = dw
-      const dx = Math.round(c.x - cam.x - dw / 2)
-      const dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
-      ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+      let sx, sy, dw, dh, dx, dy
+      
+      if (sh.kind === 'slime') {
+        // Slime: always bob (idleRow/idleCol + animFrame)
+        sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fs
+        sy = sh.idleRow * fs
+        dw = fs * sh.drawScale
+        dh = dw
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+        
+        // Apply hue-rotate for palette variants
+        if (sh.hueRotate !== 0) {
+          ctx.save()
+          ctx.filter = `hue-rotate(${sh.hueRotate}deg)`
+          ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+          ctx.restore()
+          ctx.filter = 'none'
+        } else {
+          ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+        }
+      } else if (sh.kind === 'npc') {
+        // NPC: facing-based walk (row per facing, cycle frames when moving)
+        const row = sh.rowForFacing[c.facing]
+        const col = c.moving ? c.animFrame : sh.idleCol
+        sx = col * fs
+        sy = row * fs
+        dw = fs * sh.drawScale
+        dh = dw
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh)
+        ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+      }
     }
 
     let raf = 0

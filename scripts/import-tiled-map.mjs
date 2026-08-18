@@ -276,7 +276,7 @@ function importChunk(col, row) {
     const step = Math.max(1, Math.floor(critterCandidates.length / critterCount))
     for (let n = 0; n < critterCount; n++) {
       const [x, y] = critterCandidates[(n * step) % critterCandidates.length]
-      critters.push({ type: 'slime', tx: x, ty: y })
+      critters.push({ type: 'spawn', tx: x, ty: y }) // runtime assigns actual slime/villager type
     }
   }
   

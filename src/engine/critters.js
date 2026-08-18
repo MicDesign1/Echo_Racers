@@ -45,6 +45,7 @@ function pickTarget(map, zones, c) {
 export function createCritters(map) {
   return (map.critters || []).map((c) => {
     const p = tileCenter(c.tx, c.ty)
+    const sheet = CRITTER_SHEETS[c.type]
     return {
       type: c.type,
       x: p.x,
@@ -55,6 +56,8 @@ export function createCritters(map) {
       timer: rand(HUB.critter.idleMs[0], HUB.critter.idleMs[1]),
       animFrame: 0,
       animTime: 0,
+      facing: 'down', // for NPCs; slimes ignore this
+      moving: false, // for NPCs walk animation
     }
   })
 }
@@ -63,15 +66,32 @@ export function updateCritters(list, dt, map, zones) {
   const C = HUB.critter
   for (const c of list) {
     const sheet = CRITTER_SHEETS[c.type]
-    // Gentle bob plays continuously (idle and moving both read as calm).
-    c.animTime += dt * 1000
-    while (c.animTime >= C.animFrameMs) {
-      c.animTime -= C.animFrameMs
-      c.animFrame = (c.animFrame + 1) % (sheet?.idleFrames || 1)
+    
+    // Animation: slimes always bob (idle or moving), NPCs walk when moving
+    if (sheet?.kind === 'slime') {
+      // Gentle bob plays continuously (idle and moving both read as calm).
+      c.animTime += dt * 1000
+      while (c.animTime >= C.animFrameMs) {
+        c.animTime -= C.animFrameMs
+        c.animFrame = (c.animFrame + 1) % (sheet.idleFrames || 1)
+      }
+    } else if (sheet?.kind === 'npc') {
+      // NPCs cycle walk frames only when moving
+      if (c.moving) {
+        c.animTime += dt * 1000
+        while (c.animTime >= C.animFrameMs) {
+          c.animTime -= C.animFrameMs
+          c.animFrame = (c.animFrame + 1) % (sheet.walkFrames || 4)
+        }
+      } else {
+        c.animFrame = 0 // idle is frame 0
+        c.animTime = 0
+      }
     }
 
     c.timer -= dt * 1000
     if (c.state === 'idle') {
+      c.moving = false
       if (c.timer <= 0) {
         const t = pickTarget(map, zones, c)
         if (t) {
@@ -79,6 +99,7 @@ export function updateCritters(list, dt, map, zones) {
           c.tgtY = t.y
           c.state = 'walk'
           c.timer = rand(C.walkMs[0], C.walkMs[1])
+          c.moving = true
         } else {
           c.timer = rand(C.idleMs[0], C.idleMs[1])
         }
@@ -90,8 +111,21 @@ export function updateCritters(list, dt, map, zones) {
       if (d < C.arriveDist || c.timer <= 0) {
         c.state = 'idle'
         c.timer = rand(C.idleMs[0], C.idleMs[1])
+        c.moving = false
       } else {
-        const step = Math.min(d, C.speed * dt)
+        c.moving = true
+        // For NPCs, update facing based on dominant movement direction
+        if (sheet?.kind === 'npc') {
+          if (Math.abs(dx) > Math.abs(dy)) {
+            c.facing = dx > 0 ? 'right' : 'left'
+          } else {
+            c.facing = dy > 0 ? 'down' : 'up'
+          }
+        }
+        
+        // Use per-type speed if available, else fallback to critter default
+        const speed = sheet?.speed ?? C.speed
+        const step = Math.min(d, speed * dt)
         const nx = c.x + (dx / d) * step
         const ny = c.y + (dy / d) * step
         if (feetOk(map, nx, ny)) {
@@ -101,6 +135,7 @@ export function updateCritters(list, dt, map, zones) {
           // Path blocked (e.g. a tree edge) — stop and pick a new spot next idle.
           c.state = 'idle'
           c.timer = rand(C.idleMs[0], C.idleMs[1])
+          c.moving = false
         }
       }
     }
