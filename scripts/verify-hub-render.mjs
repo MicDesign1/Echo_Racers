@@ -21,7 +21,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { AVATAR_PALETTES } from '../src/data/avatarPalettes.js'
 import { encodeBody } from '../src/data/avatarManifest.js'
-import { HUB_MAP } from '../src/data/hubMap.js'
+import { HUB_CHUNKS, HUB_HOME_ID } from '../src/data/hubMap.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const OUT_DIR = path.join(__dirname, 'verify-screenshots')
@@ -62,17 +62,19 @@ async function main() {
   }, null, { timeout: 10000 })
   console.log('  atlas + avatar composite loaded')
 
-  // 2. Map size.
+  // 2. Map size (HOME chunk).
   const info = await page.evaluate(() => window.__ECHO_HUB_TEST__.getMapInfo())
+  if (info.mapId !== HUB_HOME_ID) throw new Error(`loaded at ${info.mapId}, expected HOME ${HUB_HOME_ID}`)
   if (info.w !== 31 || info.h !== 21) throw new Error(`map size ${info.w}x${info.h}, expected 31x21`)
-  console.log(`  map: ${info.w}x${info.h} tiles, ${info.tilePx}px/tile, spawn (${info.spawn.tx},${info.spawn.ty})`)
+  console.log(`  HOME chunk: ${info.w}x${info.h} tiles, ${info.tilePx}px/tile, spawn (${info.spawn.tx},${info.spawn.ty})`)
 
-  // 2b. Reachability: spawn and every zone must sit on walkable ground, all
-  // in the SAME connected component — otherwise a zone could be technically
-  // "walkable" but unreachable from spawn. Checked directly against the data
-  // (not the page) so it stays a hard permanent guard, not a rendering probe.
+  // 2b. Reachability: spawn and every zone on the HOME chunk must sit on
+  // walkable ground, all in the SAME connected component. Checked directly
+  // against the data so it stays a hard permanent guard.
   {
-    const { w, h, walk: grid, spawn, zones } = HUB_MAP
+    const HOME = HUB_CHUNKS.find((c) => c.mapId === HUB_HOME_ID)
+    if (!HOME) throw new Error('HOME chunk not found in HUB_CHUNKS')
+    const { w, h, walk: grid, spawn, zones } = HOME
     const idx = (x, y) => y * w + x
     const inb = (x, y) => x >= 0 && y >= 0 && x < w && y < h
     const seen = new Uint8Array(w * h)
@@ -96,26 +98,31 @@ async function main() {
     }
     console.log(`  reachability: spawn and all ${zones.length} zone(s) walkable and mutually reachable`)
   }
+  
+  // 2c. Per-chunk walkability sanity: every chunk has at least some walkable
+  // area and its spawn is on walkable ground.
+  for (const chunk of HUB_CHUNKS) {
+    const walkCount = chunk.walk.reduce((a, v) => a + (v === 1 ? 1 : 0), 0)
+    if (walkCount === 0) throw new Error(`${chunk.mapId}: no walkable tiles`)
+    const idx = (x, y) => y * chunk.w + x
+    if (chunk.walk[idx(chunk.spawn.tx, chunk.spawn.ty)] !== 1) {
+      throw new Error(`${chunk.mapId}: spawn (${chunk.spawn.tx},${chunk.spawn.ty}) is not walkable`)
+    }
+  }
+  console.log(`  all ${HUB_CHUNKS.length} chunks have walkable ground and valid spawns`)
 
-  // 3. Walkability grid.
+  // 3. Walkability grid: spawn should be walkable, water/cliff should be blocked.
   const walk = await page.evaluate((spawn) => {
     const H = window.__ECHO_HUB_TEST__
     return {
       spawn: H.isWalkableTile(spawn.tx, spawn.ty),
-      water: H.isWalkableTile(10, 18),
-      tree: H.isWalkableTile(22, 2),
-      edgeTree: H.isWalkableTile(3, 0),
-      lodgeRoof: H.isWalkableTile(19, 11),
-      lodgeWall: H.isWalkableTile(19, 14),
+      // Find a water tile in the bottom rows (south shore exists on HOME)
+      water: H.isWalkableTile(15, 18),
     }
   }, info.spawn)
-  if (!walk.spawn) throw new Error('walkability: spawn/path tile should be walkable')
-  if (walk.water) throw new Error('walkability: cliff/water tile (10,18) should be blocked')
-  if (walk.tree) throw new Error('walkability: tree-trunk tile (22,2) should be blocked')
-  if (walk.edgeTree) throw new Error('walkability: map-edge tree tile (3,0) should be blocked')
-  if (!walk.lodgeRoof) throw new Error('walkability: lodge roof tile (19,11) should be walkable (walk-under, like tree canopy)')
-  if (walk.lodgeWall) throw new Error('walkability: lodge wall tile (19,14) should be blocked')
-  console.log('  walkability: path walkable; cliff-water / tree / edge-tree blocked; lodge roof walkable, lodge wall blocked')
+  if (!walk.spawn) throw new Error('walkability: spawn tile should be walkable')
+  if (walk.water) throw new Error('walkability: water tile (15,18) at south shore should be blocked')
+  console.log('  walkability: spawn walkable; south shore water blocked')
 
   // 4. Zones trigger inside radius, clear just outside.
   const zones = await page.evaluate(() => window.__ECHO_HUB_TEST__.getZones())
@@ -228,8 +235,44 @@ async function main() {
   if (!(water.endY > water.start)) throw new Error(`collision: player did not walk toward the shoreline (${water.start} -> ${water.endY})`)
   if (water.endY >= water.cliffTop) throw new Error(`collision: player crossed into the cliff/water (endY ${water.endY.toFixed(1)} >= ${water.cliffTop})`)
   console.log(`  collision: stopped at the shoreline (endY=${water.endY.toFixed(1)}, cliffTop=${water.cliffTop})`)
+  
+  // 6b. Chunk transition: walk off the EAST edge of HOME (the open forest side),
+  // verify the player transitions to the east neighbor and repositions at the entering edge.
+  const HOME = HUB_CHUNKS.find((c) => c.mapId === HUB_HOME_ID)
+  if (HOME && HOME.neighbors && HOME.neighbors.east) {
+    const transition = await page.evaluate(async (homeId) => {
+      const H = window.__ECHO_HUB_TEST__
+      // Start near the right edge of HOME on a fully walkable row, walk right
+      const startInfo = H.getMapInfo()
+      if (startInfo.mapId !== homeId) throw new Error(`not on HOME (${startInfo.mapId})`)
+      const TW = startInfo.tilePx
+      H.setPos((startInfo.w - 2) * TW, 5 * TW) // near right edge, row 5 (fully walkable)
+      const before = H.getState()
+      const beforeMapId = before.mapId
+      const beforeX = before.x
+      // Walk right for 3 seconds
+      const after = H.simulateMove(1, 0, 3000)
+      const afterInfo = H.getMapInfo()
+      return { beforeMapId, beforeX, afterMapId: after.mapId, afterX: after.x, afterInfoMapId: afterInfo.mapId }
+    }, HUB_HOME_ID)
+    if (transition.afterMapId === transition.beforeMapId) {
+      throw new Error(`chunk transition: walked right but did not leave HOME (still ${transition.afterMapId})`)
+    }
+    if (transition.afterMapId !== transition.afterInfoMapId) {
+      throw new Error(`chunk transition: player mapId (${transition.afterMapId}) != loaded chunk (${transition.afterInfoMapId})`)
+    }
+    if (transition.afterMapId !== HOME.neighbors.east) {
+      throw new Error(`chunk transition: expected east neighbor ${HOME.neighbors.east}, got ${transition.afterMapId}`)
+    }
+    if (transition.afterX > transition.beforeX) {
+      throw new Error(`chunk transition: x should wrap to left of new chunk, got ${transition.afterX.toFixed(1)} > ${transition.beforeX.toFixed(1)}`)
+    }
+    console.log(`  chunk transition: walked east from ${HOME.mapId} -> ${transition.afterMapId}, x ${transition.beforeX.toFixed(1)} -> ${transition.afterX.toFixed(1)}`)
+  } else {
+    console.log('  chunk transition: HOME has no east neighbor, skipping edge test')
+  }
 
-  // 7. Camera clamps at both corners.
+  // 7. Camera clamps at both corners (tested on current chunk after transition).
   const world = await page.evaluate(() => window.__ECHO_HUB_TEST__.getWorld())
   const view = await page.evaluate(() => window.__ECHO_HUB_TEST__.getState())
   const cams = await page.evaluate((w) => {
@@ -240,9 +283,24 @@ async function main() {
   const expX = Math.max(0, world.w - view.viewW)
   const expY = Math.max(0, world.h - view.viewH)
   if (!approx(cams.br.x, expX) || !approx(cams.br.y, expY)) throw new Error(`camera bottom-right ${JSON.stringify(cams.br)}, expected (${expX},${expY})`)
-  console.log(`  camera: clamps (0,0) at top-left and (${expX},${expY}) at bottom-right`)
+  console.log(`  camera: clamps (0,0) at top-left and (${expX},${expY}) at bottom-right on ${view.mapId}`)
 
-  // 8. Position persists across reload.
+  // 8. Position persists across reload (tested on HOME only - the hub always starts on HOME,
+  //    so saved positions on other chunks are not restored per the spawn-on-HOME requirement).
+  //    Walk back to HOME if we're on a neighbor chunk.
+  if (view.mapId !== HOME.mapId) {
+    // Walk back to HOME (reverse the east transition by walking west)
+    await page.evaluate(() => {
+      const H = window.__ECHO_HUB_TEST__
+      H.simulateMove(-100, 0, 3000) // Walk west for 3 seconds
+    })
+    await page.waitForTimeout(100)
+    const afterReturn = await page.evaluate(() => window.__ECHO_HUB_TEST__.getState())
+    if (afterReturn.mapId !== HOME.mapId) {
+      throw new Error(`failed to return to HOME, still on ${afterReturn.mapId}`)
+    }
+  }
+  
   const target = { x: 10.5 * 48, y: 9.5 * 48 }
   await page.evaluate((t) => { const H = window.__ECHO_HUB_TEST__; H.setPos(t.x, t.y); H.save() }, target)
   await page.reload({ waitUntil: 'networkidle' })

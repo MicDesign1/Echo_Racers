@@ -4,17 +4,18 @@ import { HUB, CONTROLS } from '../data/tuning.js'
 import { getHubState, setHubState, getAvatar, setOrigin } from '../data/saves.js'
 import { normalizeAvatar, isBodyStandalone } from '../data/avatarManifest.js'
 import { ensureComposite, getComposite, getBuildCount } from '../engine/avatarComposite.js'
-import { HUB_MAP } from '../data/hubMap.js'
+import { HUB_CHUNKS, HUB_HOME_ID, getChunk } from '../data/hubMap.js'
 import { CRITTER_SHEETS } from '../data/critters.js'
 import { createCritters, updateCritters } from '../engine/critters.js'
 import { tilePx, worldSize, tileCenter, isWalkable, drawLayer } from '../engine/tilemap.js'
 import './HubScene.css'
 
-// The hub is the game's home: a tiled forest the player walks around, with a
-// camera that follows and clamps to the map. Interaction zones (Races ->
-// Practice, Lodge -> Avatar) are placed in hubMap.js; terrain + walkability
-// are DATA there too. The character is a palette-composited avatar. Every
-// number lives in HUB (tuning.js) or hubMap.js — nothing is invented here.
+// The hub is the game's home: a 5×5 grid of tiled forest chunks that form one
+// island. The player walks around with a camera that clamps to the current chunk.
+// Walking off an edge JUMPS to the adjacent chunk (no seamless stitching). Zones
+// (Races -> Practice, Lodge -> Avatar) are only on the HOME chunk. Terrain +
+// walkability are DATA in hubMap.js. The character is a palette-composited avatar.
+// Every number lives in HUB (tuning.js) or hubMap.js — nothing is invented here.
 
 const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('verify')
 const forceTouch = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('touch')
@@ -49,55 +50,60 @@ function getCritterImg(src) {
   return img
 }
 
-// Interaction zones in WORLD px (tile placement + radius come from the map).
-// labelTile is a separate, purely-visual anchor (above the cave / below the
-// lodge) — distinct from the trigger position so the label can sit somewhere
-// legible without moving where the zone actually activates.
-const ZONES = HUB_MAP.zones.map((z) => {
-  const c = tileCenter(z.tx, z.ty)
-  const lc = tileCenter(z.labelTile.tx, z.labelTile.ty)
-  return { id: z.id, label: z.label, action: z.action, radius: z.radius, x: c.x, y: c.y, labelX: lc.x, labelY: lc.y }
-})
+// Interaction zones in WORLD px (computed per-chunk when loaded).
+function buildZones(chunk) {
+  return chunk.zones.map((z) => {
+    const c = tileCenter(z.tx, z.ty)
+    const lc = tileCenter(z.labelTile.tx, z.labelTile.ty)
+    return { id: z.id, label: z.label, action: z.action, radius: z.radius, x: c.x, y: c.y, labelX: lc.x, labelY: lc.y }
+  })
+}
 
 // A saved spot is only safe to restore if the player would be VISIBLE and free
 // there: on walkable ground AND not tucked under a decor-over canopy (which
 // draws over entities — a reload there would hide the character). Otherwise we
 // fall back to the open spawn, so the avatar is always visible on load.
-function isVisibleSpot(worldX, worldY) {
-  if (!isWalkable(HUB_MAP, worldX, worldY)) return false
+function isVisibleSpot(chunk, worldX, worldY) {
+  if (!isWalkable(chunk, worldX, worldY)) return false
   const TW = tilePx()
   const tx = Math.floor(worldX / TW)
   const ty = Math.floor(worldY / TW)
-  if (tx < 0 || ty < 0 || tx >= HUB_MAP.w || ty >= HUB_MAP.h) return false
-  const i = ty * HUB_MAP.w + tx
-  return HUB_MAP.decorOver.every((layer) => layer[i] == null || layer[i] < 0)
+  if (tx < 0 || ty < 0 || tx >= chunk.w || ty >= chunk.h) return false
+  const i = ty * chunk.w + tx
+  return chunk.decorOver.every((layer) => layer[i] == null || layer[i] < 0)
 }
 
-// The ONE plain, serializable hub-player state object (position/facing/anim);
-// the avatar look is a separate serializable descriptor (avatarRef).
+// The ONE plain, serializable hub-player state object (position/facing/anim +
+// mapId); the avatar look is a separate serializable descriptor (avatarRef).
 function createPlayerState() {
-  const world = worldSize(HUB_MAP)
-  const spawn = tileCenter(HUB_MAP.spawn.tx, HUB_MAP.spawn.ty)
+  const saved = getHubState()
+  // ALWAYS start on HOME (hub-2-4, the lodge+cave map) when entering the hub.
+  // Stale exploration saves should not skip the home screen.
+  const mapId = HUB_HOME_ID
+  const chunk = getChunk(mapId)
+  if (!chunk) {
+    throw new Error(`HOME chunk ${HUB_HOME_ID} not found`)
+  }
+  
+  const world = worldSize(chunk)
+  const spawn = tileCenter(chunk.spawn.tx, chunk.spawn.ty)
   let x = spawn.x
   let y = spawn.y
   let facing = 'down'
-  const saved = getHubState()
-  // A saved position only means anything for the exact map it was saved
-  // against — re-importing hub.tmj (even "same elements, moved around")
-  // can leave an old position technically walkable and uncovered on the
-  // NEW map while no longer making sense (e.g. wedged against terrain that
-  // moved next to it), so a mismatched/missing mapVersion falls back to
-  // spawn same as an out-of-bounds or blocked position would.
-  if (saved && saved.mapVersion === HUB_MAP.mapVersion && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+  
+  // Restore saved XY/facing ONLY if the save was on HOME and mapVersion matches.
+  // After the player walks off HOME, edge-jumps to neighbors still work (those
+  // positions are saved/restored during the session, just not across fresh loads).
+  if (saved && saved.mapId === HUB_HOME_ID && saved.mapVersion === chunk.mapVersion && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
     const sx = clamp(saved.x, 0, world.w)
     const sy = clamp(saved.y, 0, world.h)
-    if (isVisibleSpot(sx, sy)) {
+    if (isVisibleSpot(chunk, sx, sy)) {
       x = sx
       y = sy
       if (['down', 'up', 'left', 'right'].includes(saved.facing)) facing = saved.facing
     }
   }
-  return { x, y, facing, moving: false, animFrame: 0, animTime: 0 }
+  return { mapId, x, y, facing, moving: false, animFrame: 0, animTime: 0 }
 }
 
 export default function HubScene() {
@@ -107,6 +113,11 @@ export default function HubScene() {
   if (playerRef.current === null) playerRef.current = createPlayerState()
   const avatarRef = useRef(null)
   if (avatarRef.current === null) avatarRef.current = normalizeAvatar(getAvatar())
+  
+  // Current chunk (can change as the player walks off edges)
+  const [currentMapId, setCurrentMapId] = useState(playerRef.current.mapId)
+  const chunk = getChunk(currentMapId)
+  const zones = chunk ? buildZones(chunk) : []
 
   const keysRef = useRef({ up: false, down: false, left: false, right: false })
   const inputRef = useRef({ x: 0, y: 0, active: false }) // joystick analog vector
@@ -125,6 +136,12 @@ export default function HubScene() {
       : false
   })
 
+  // In-session LRU cache for critter state across chunks (last 3 chunks: current + 2 previous).
+  // Keyed by mapId, stores cloned critter arrays so returning to a recently-visited chunk
+  // restores the same wanderers at their last positions. Not persisted to localStorage.
+  const critterCacheRef = useRef(new Map())
+  const critterCacheOrderRef = useRef([]) // Track access order for LRU eviction
+
   // Persistent hub entries (work from anywhere on the hub, not just the zones).
   // Origin is set so each sub-screen returns to the hub even after a hard reload.
   function quickRace() {
@@ -137,13 +154,18 @@ export default function HubScene() {
   }
 
   useEffect(() => {
+    if (!chunk) return
+    
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const player = playerRef.current
     const avatar = avatarRef.current
     const atlases = getAtlases()
-    const world = worldSize(HUB_MAP)
     const cam = { x: 0, y: 0, w: 0, h: 0 }
+    
+    // Helper to get current chunk (recomputed each call from player.mapId so it's never stale after transitions)
+    const getCurrentChunk = () => getChunk(player.mapId) || chunk
+    const getWorld = () => worldSize(getCurrentChunk())
 
     // The avatar look is fixed for the life of this mount (changing it means
     // a trip to /avatar and back), so its sprite grid + timing can be
@@ -156,9 +178,98 @@ export default function HubScene() {
     // Composite the look ONCE on scene entry (not per frame).
     ensureComposite(avatar)
 
-    // Ambient wildlife: fixed population from the map, each with its own wander
-    // state. Preload every used sheet once.
-    const critters = createCritters(HUB_MAP)
+    // Ambient wildlife: check cache first, create fresh if not cached.
+    // Cache is keyed by mapId and stores full critter state (positions, facing, timers, etc).
+    let critters
+    const cache = critterCacheRef.current
+    const order = critterCacheOrderRef.current
+    const cachedCritters = cache.get(player.mapId)
+    
+    if (cachedCritters) {
+      // Restore from cache: clone the array so updates don't mutate the cached version
+      critters = cachedCritters.map(c => ({ ...c }))
+      
+      // Update access order for LRU (this chunk was just accessed)
+      const idx = order.indexOf(player.mapId)
+      if (idx >= 0) order.splice(idx, 1)
+      order.push(player.mapId)
+    } else {
+      // Create fresh critters: pumpkin mix + extra villager per chunk
+      const rawCritters = createCritters(chunk)
+      critters = rawCritters.map((c, i) => {
+        // Assign variety: pumpkin every other spawn, slimes on others
+        const slimeTypes = ['slime', 'pumpkin', 'slimeAmber', 'pumpkin', 'slimeGreen', 'pumpkin', 'slimePink']
+        
+        // If this chunk has 2+ spawns, force the first one to pumpkin (so it's always visible)
+        if (rawCritters.length >= 2 && i === 0) {
+          c.type = 'pumpkin'
+        } else {
+          // Round-robin slime palette variants + pumpkin
+          c.type = slimeTypes[i % slimeTypes.length]
+        }
+        return c
+      })
+      
+      // Try to add 1 extra villager per chunk on a walkable tile far from zones/spawn/other critters
+      if (rawCritters.length > 0) {
+        const villagerTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB']
+        const TW = tilePx()
+        const world = worldSize(chunk)
+        const zonePad = HUB.critter.zonePad
+        
+        // Try to find a good spot for an extra villager
+        for (let attempt = 0; attempt < 20; attempt++) {
+          const tx = Math.floor(Math.random() * (chunk.w - 4)) + 2
+          const ty = Math.floor(Math.random() * (chunk.h - 4)) + 2
+          const p = tileCenter(tx, ty)
+          
+          // Check walkability
+          if (!isWalkable(chunk, p.x, p.y)) continue
+          
+          // Check not too close to zones
+          let tooClose = false
+          for (const z of zones) {
+            if (Math.hypot(p.x - z.x, p.y - z.y) < z.radius + zonePad + 100) {
+              tooClose = true
+              break
+            }
+          }
+          if (tooClose) continue
+          
+          // Check not too close to other critters or spawn
+          const spawn = tileCenter(chunk.spawn.tx, chunk.spawn.ty)
+          if (Math.hypot(p.x - spawn.x, p.y - spawn.y) < 150) continue
+          
+          let nearCritter = false
+          for (const other of critters) {
+            if (Math.hypot(p.x - other.x, p.y - other.y) < 100) {
+              nearCritter = true
+              break
+            }
+          }
+          if (nearCritter) continue
+          
+          // Good spot! Add a villager
+          const sheet = CRITTER_SHEETS[villagerTypes[Math.floor(Math.random() * villagerTypes.length)]]
+          critters.push({
+            type: villagerTypes[Math.floor(Math.random() * villagerTypes.length)],
+            x: p.x,
+            y: p.y,
+            state: 'idle',
+            tgtX: p.x,
+            tgtY: p.y,
+            timer: Math.random() * 2000 + 1000,
+            animFrame: 0,
+            animTime: 0,
+            facing: 'down',
+            moving: false,
+          })
+          break
+        }
+      }
+    }
+    
+    // Preload all sheets used by this chunk's critters
     for (const type of new Set(critters.map((c) => c.type))) {
       const sheet = CRITTER_SHEETS[type]
       if (sheet) getCritterImg(sheet.src)
@@ -177,30 +288,126 @@ export default function HubScene() {
     resize()
     window.addEventListener('resize', resize)
 
-    // Feet-box walkability against the map grid (out-of-bounds reads blocked).
-    function feetOk(px, py) {
+    // Feet-box walkability against the map grid.
+    function feetOk(x, y) {
       const f = HUB.player.feet
-      const x0 = px - f.width / 2
-      const x1 = px + f.width / 2
-      const y0 = py - f.height
-      const y1 = py
-      return isWalkable(HUB_MAP, x0, y0) && isWalkable(HUB_MAP, x1, y0)
-        && isWalkable(HUB_MAP, x0, y1) && isWalkable(HUB_MAP, x1, y1)
+      const corners = [
+        [x - f.width / 2, y - f.height],
+        [x + f.width / 2, y - f.height],
+        [x - f.width / 2, y],
+        [x + f.width / 2, y]
+      ]
+      for (const [cx, cy] of corners) {
+        if (!isWalkable(getCurrentChunk(), cx, cy)) return false
+      }
+      return true
     }
 
-    // Axis-separated move so the player slides along a blocked edge instead of
-    // sticking when pushing into it diagonally.
+    // Check if player would cross a chunk edge with this move, and if so,
+    // transition to the neighbor chunk. Returns true if transitioned.
+    // Fires when the desired position would go beyond the walkable boundary (where
+    // feetOk would fail solely due to out-of-bounds, not interior obstacles).
+    function tryEdgeTransition(desiredX, desiredY) {
+      const currentChunk = getCurrentChunk()
+      const TW = tilePx()
+      const f = HUB.player.feet
+      const chunkWorldW = currentChunk.w * TW
+      const chunkWorldH = currentChunk.h * TW
+      
+      // The walkable boundary is where the feet box can still be fully inside the map
+      const maxSafeX = chunkWorldW - f.width / 2
+      const minSafeX = f.width / 2
+      const maxSafeY = chunkWorldH
+      const minSafeY = f.height
+      
+      // Extract col, row from current mapId (hub-col-row)
+      const [,col, row] = player.mapId.split('-').map(Number)
+      
+      // Check if desired position would go beyond the safe walkable boundary
+      let newCol = col
+      let newRow = row
+      let newX = desiredX
+      let newY = desiredY
+      
+      // Left edge: desiredX would go beyond the safe left boundary
+      if (desiredX < minSafeX && col > 0) {
+        newCol = col - 1
+        newX = chunkWorldW - f.width / 2 - 2
+      } 
+      // Right edge: desiredX would go beyond the safe right boundary
+      else if (desiredX > maxSafeX && col < 4) {
+        newCol = col + 1
+        newX = f.width / 2 + 2
+      }
+      
+      // Top edge: desiredY would go beyond the safe top boundary
+      if (desiredY < minSafeY && row > 0) {
+        newRow = row - 1
+        newY = chunkWorldH - 2
+      } 
+      // Bottom edge: desiredY would go beyond the safe bottom boundary
+      else if (desiredY > maxSafeY && row < 4) {
+        newRow = row + 1
+        newY = f.height + 2
+      }
+      
+      // If we would move to a new chunk, do the transition
+      if (newCol !== col || newRow !== row) {
+        const newMapId = `hub-${newCol}-${newRow}`
+        const newChunk = getChunk(newMapId)
+        if (newChunk) {
+          // Snapshot current chunk's critters into cache before leaving
+          const cache = critterCacheRef.current
+          const order = critterCacheOrderRef.current
+          
+          // Clone the critters array to preserve current state
+          cache.set(player.mapId, critters.map(c => ({ ...c })))
+          
+          // Update access order for LRU (remove if exists, add to end)
+          const idx = order.indexOf(player.mapId)
+          if (idx >= 0) order.splice(idx, 1)
+          order.push(player.mapId)
+          
+          // Evict oldest if cache exceeds 3 entries (current + 2 previous)
+          if (order.length > 3) {
+            const evictMapId = order.shift()
+            cache.delete(evictMapId)
+          }
+          
+          player.mapId = newMapId
+          player.x = newX
+          player.y = newY
+          setCurrentMapId(newMapId)
+          saveNow()
+          return true
+        }
+      }
+      return false
+    }
+
+    // Axis-separated move with edge sliding.
     function tryMove(ddx, ddy) {
       const f = HUB.player.feet
-      const nx = clamp(player.x + ddx, f.width / 2, world.w - f.width / 2)
-      const ny = clamp(player.y + ddy, f.height, world.h)
+      // Check desired position BEFORE clamping
+      const desiredX = player.x + ddx
+      const desiredY = player.y + ddy
+      
+      // Try edge transition first (using unclamped desired position)
+      // If a neighbor exists, treat leaving the map as a JUMP (not a wall)
+      if (ddx !== 0 && tryEdgeTransition(desiredX, player.y)) return
+      if (ddy !== 0 && tryEdgeTransition(player.x, desiredY)) return
+      
+      // If no transition, do normal walkability check with clamped position
+      const world = getWorld()
+      const nx = clamp(desiredX, f.width / 2, world.w - f.width / 2)
+      const ny = clamp(desiredY, f.height, world.h)
       if (ddx !== 0 && feetOk(nx, player.y)) player.x = nx
       if (ddy !== 0 && feetOk(player.x, ny)) player.y = ny
     }
 
-    function zoneAt(px, py) {
-      for (const z of ZONES) {
-        if (Math.hypot(px - z.x, py - z.y) < z.radius) return z
+    function zoneAt(x, y) {
+      for (const z of zones) {
+        if (Math.hypot(x - z.x, y - z.y) < z.radius) return z
       }
       return null
     }
@@ -235,7 +442,7 @@ export default function HubScene() {
     }
 
     function saveNow() {
-      setHubState({ x: player.x, y: player.y, facing: player.facing, mapVersion: HUB_MAP.mapVersion })
+      setHubState({ mapId: player.mapId, x: player.x, y: player.y, facing: player.facing, mapVersion: getCurrentChunk().mapVersion })
     }
     let lastSave = performance.now()
     let dirtySinceSave = false
@@ -295,7 +502,9 @@ export default function HubScene() {
     }
 
     function draw() {
-      // Camera follows the player, clamped so it never shows past the map.
+      // Camera follows the player, clamped to the current chunk only.
+      const currentChunk = getCurrentChunk()
+      const world = getWorld()
       cam.w = W
       cam.h = H
       cam.x = clamp(player.x - W / 2, 0, Math.max(0, world.w - W))
@@ -305,20 +514,20 @@ export default function HubScene() {
       ctx.fillRect(0, 0, W, H)
       ctx.imageSmoothingEnabled = false
 
-      drawLayer(ctx, HUB_MAP, HUB_MAP.ground, atlases, cam.x, cam.y, W, H)
+      drawLayer(ctx, currentChunk, currentChunk.ground, atlases, cam.x, cam.y, W, H)
       // decorUnder/decorOver are each an ARRAY of layers (not one flattened
       // array) — Tiled lets multiple tiles genuinely stack with transparency
       // at the same cell (e.g. a bush's transparent corners revealing a
       // cliff face drawn under it), which collapsing to a single winner-
       // takes-all tile per cell would silently destroy. Drawn in stacking
       // order, same as Tiled itself would composite them.
-      for (const layer of HUB_MAP.decorUnder) drawLayer(ctx, HUB_MAP, layer, atlases, cam.x, cam.y, W, H)
+      for (const layer of currentChunk.decorUnder) drawLayer(ctx, currentChunk, layer, atlases, cam.x, cam.y, W, H)
 
       // Interaction zone labels (drawn on the ground, under entities) — no
       // trigger-radius circle anymore, just legible text at each zone's
       // label anchor (above the cave, below the lodge). A stroke gives the
       // text contrast against the busy grass texture without a fill circle.
-      for (const z of ZONES) {
+      for (const z of zones) {
         const lx = z.labelX - cam.x
         const ly = z.labelY - cam.y
         ctx.font = HUB.zoneLabelFont
@@ -340,7 +549,7 @@ export default function HubScene() {
 
       // Decor-over (tree canopies, roof, cliff caps) draws AFTER entities ->
       // walk-behind. Array of layers, same reasoning as decorUnder above.
-      for (const layer of HUB_MAP.decorOver) drawLayer(ctx, HUB_MAP, layer, atlases, cam.x, cam.y, W, H)
+      for (const layer of currentChunk.decorOver) drawLayer(ctx, currentChunk, layer, atlases, cam.x, cam.y, W, H)
     }
 
     // Player: composited avatar, bottom-center anchored, camera-corrected.
@@ -359,20 +568,86 @@ export default function HubScene() {
       ctx.drawImage(sheet, sx, sy, S.frameSize, S.frameSize, dx, dy, dw, dh)
     }
 
-    // Critter: single gentle-bob animation, bottom-center anchored.
+    // Critter: slimes use gentle-bob with hue-rotate, NPCs use facing/walk,
+    // pumpkin uses hop with horizontal flip, soldier uses idle/walk sheets with flip.
     function drawCritter(c) {
       const sh = CRITTER_SHEETS[c.type]
       if (!sh) return
       const img = getCritterImg(sh.src)
       if (!(img.complete && img.naturalWidth > 0)) return
+      
       const fs = sh.frameSize
-      const sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fs
-      const sy = sh.idleRow * fs
-      const dw = fs * sh.drawScale
-      const dh = dw
-      const dx = Math.round(c.x - cam.x - dw / 2)
-      const dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
-      ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+      let sx, sy, dw, dh, dx, dy
+      
+      if (sh.kind === 'slime') {
+        // Slime: always bob (idleRow/idleCol + animFrame)
+        sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fs
+        sy = sh.idleRow * fs
+        dw = fs * sh.drawScale
+        dh = dw
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+        
+        // Apply hue-rotate for palette variants
+        if (sh.hueRotate !== 0) {
+          ctx.save()
+          ctx.filter = `hue-rotate(${sh.hueRotate}deg)`
+          ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+          ctx.restore()
+          ctx.filter = 'none'
+        } else {
+          ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+        }
+      } else if (sh.kind === 'pumpkin') {
+        // Pumpkin: side-view hop, flip when facing left
+        sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fs
+        sy = sh.idleRow * fs
+        dw = fs * sh.drawScale
+        dh = dw
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+        
+        if (sh.flipWhenLeft && c.facing === 'left') {
+          ctx.save()
+          ctx.scale(-1, 1)
+          ctx.drawImage(img, sx, sy, fs, fs, -dx - dw, dy, dw, dh)
+          ctx.restore()
+        } else {
+          ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+        }
+      } else if (sh.kind === 'npc') {
+        // NPC: facing-based walk (row per facing, cycle frames when moving)
+        const row = sh.rowForFacing[c.facing]
+        const col = c.moving ? c.animFrame : sh.idleCol
+        sx = col * fs
+        sy = row * fs
+        dw = fs * sh.drawScale
+        dh = dw
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh)
+        ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+      } else if (sh.kind === 'soldier') {
+        // Soldier: separate idle/walk sheets, 3q side-view, flip for left
+        const srcImg = c.moving ? img : getCritterImg(sh.idleSrc)
+        if (!(srcImg.complete && srcImg.naturalWidth > 0)) return
+        
+        const col = c.animFrame
+        sx = col * fs
+        sy = 0
+        dw = fs * sh.drawScale
+        dh = dw
+        dx = Math.round(c.x - cam.x - dw / 2)
+        dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
+        
+        if (sh.flipWhenLeft && c.facing === 'left') {
+          ctx.save()
+          ctx.scale(-1, 1)
+          ctx.drawImage(srcImg, sx, sy, fs, fs, -dx - dw, dy, dw, dh)
+          ctx.restore()
+        } else {
+          ctx.drawImage(srcImg, sx, sy, fs, fs, dx, dy, dw, dh)
+        }
+      }
     }
 
     let raf = 0
@@ -385,7 +660,7 @@ export default function HubScene() {
       const beforeX = player.x
       const beforeY = player.y
       stepPlayer(dt, dx, dy)
-      updateCritters(critters, dt, HUB_MAP, ZONES)
+      updateCritters(critters, dt, getCurrentChunk(), zones)
       if (player.x !== beforeX || player.y !== beforeY) dirtySinceSave = true
       if (dirtySinceSave && now - lastSave > HUB.saveThrottleMs) {
         saveNow()
@@ -400,6 +675,7 @@ export default function HubScene() {
     if (verifyMode) {
       window.__ECHO_HUB_TEST__ = {
         getState: () => ({
+          mapId: player.mapId,
           x: player.x,
           y: player.y,
           facing: player.facing,
@@ -418,28 +694,34 @@ export default function HubScene() {
           spriteWalkFrames: spriteCfg.walkFrames,
           spriteRow: player.moving ? spriteCfg.walkRow[player.facing] : spriteCfg.idleRow[player.facing],
         }),
-        getWorld: () => worldSize(HUB_MAP),
-        getMapInfo: () => ({ w: HUB_MAP.w, h: HUB_MAP.h, tilePx: tilePx(), spawn: { ...HUB_MAP.spawn } }),
-        getZones: () => ZONES.map((z) => ({ ...z })),
+        getWorld: () => getWorld(),
+        getMapInfo: () => {
+          const currentChunk = getCurrentChunk()
+          return { mapId: currentChunk.mapId, w: currentChunk.w, h: currentChunk.h, tilePx: tilePx(), spawn: { ...currentChunk.spawn } }
+        },
+        getZones: () => zones.map((z) => ({ ...z })),
         isWalkableTile: (tx, ty) => {
           const TW = tilePx()
-          return isWalkable(HUB_MAP, (tx + 0.5) * TW, (ty + 0.5) * TW)
+          return isWalkable(getCurrentChunk(), (tx + 0.5) * TW, (ty + 0.5) * TW)
         },
         getCritters: () => critters.map((c) => ({ x: c.x, y: c.y, animFrame: c.animFrame, state: c.state, type: c.type })),
         stepCritters: (ms) => {
           const steps = Math.max(1, Math.round(ms / 16))
-          for (let i = 0; i < steps; i++) updateCritters(critters, 0.016, HUB_MAP, ZONES)
+          for (let i = 0; i < steps; i++) updateCritters(critters, 0.016, getCurrentChunk(), zones)
           return critters.map((c) => ({ x: c.x, y: c.y, animFrame: c.animFrame }))
         },
-        cameraAt: (px, py) => ({
-          x: clamp(px - cam.w / 2, 0, Math.max(0, world.w - cam.w)),
-          y: clamp(py - cam.h / 2, 0, Math.max(0, world.h - cam.h)),
-        }),
+        cameraAt: (px, py) => {
+          const world = getWorld()
+          return {
+            x: clamp(px - cam.w / 2, 0, Math.max(0, world.w - cam.w)),
+            y: clamp(py - cam.h / 2, 0, Math.max(0, world.h - cam.h)),
+          }
+        },
         setPos: (x, y) => { player.x = x; player.y = y; recomputeZone() },
         simulateMove: (dx, dy, ms) => {
           const steps = Math.max(1, Math.round(ms / 16))
           for (let i = 0; i < steps; i++) stepPlayer(0.016, dx, dy)
-          return { x: player.x, y: player.y, facing: player.facing }
+          return { mapId: player.mapId, x: player.x, y: player.y, facing: player.facing }
         },
         // targetHex is optional: standalone-body sheets have no recolor ramp
         // to search for, so omitting it just checks dims + build-once/caching.
@@ -499,7 +781,7 @@ export default function HubScene() {
       saveNow()
       if (verifyMode) delete window.__ECHO_HUB_TEST__
     }
-  }, [navigate])
+  }, [navigate, currentMapId, chunk, zones])
 
   useEffect(() => {
     if (!showTouch) return
