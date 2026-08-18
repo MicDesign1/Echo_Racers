@@ -140,6 +140,61 @@ function drawMuteIndicator(ctx, colors, muted) {
   ctx.restore()
 }
 
+// Boost meter — fills over time, player dumps it for a speed burst. Shows
+// fill level as a horizontal bar + a short state label (Ready / Charging /
+// Boosting). Sized/positioned from HUD.boost. Passed the boost state object
+// from engine/boost.js (charge 0..1, active true/false).
+function drawBoostMeter(ctx, colors, boost) {
+  if (!boost) return
+  const p = HUD.boost
+  const fillPct = boost.charge // already 0..1
+
+  ctx.save()
+  ctx.fillStyle = colors.hudPanel
+  ctx.strokeStyle = colors.hudBorder
+  ctx.lineWidth = 1.5
+  roundedPanel(ctx, p.x, p.y, p.w, p.h, p.r)
+
+  // State label: Ready (charge >= minActivate), Charging (< minActivate), Boosting (active).
+  let label = 'Charging'
+  if (boost.active) {
+    label = 'Boosting'
+  } else if (boost.charge >= 0.15) { // BOOST.minActivateCharge
+    label = 'Ready'
+  }
+  ctx.fillStyle = boost.active ? colors.resonanceGlow : colors.hudText
+  ctx.font = p.font
+  ctx.fillText(label, p.x + p.labelOffset.x, p.y + p.labelOffset.y)
+
+  // Fill bar background (empty state).
+  const barX = p.x + p.barInset
+  const barY = p.y + p.h - p.barInset - p.barHeight
+  const barW = p.w - p.barInset * 2
+  ctx.fillStyle = 'rgba(40, 30, 20, 0.5)'
+  ctx.beginPath()
+  ctx.roundRect(barX, barY, barW, p.barHeight, p.barHeight / 2)
+  ctx.fill()
+
+  // Fill bar foreground (charged portion).
+  if (fillPct > 0) {
+    const fillW = barW * fillPct
+    const grad = ctx.createLinearGradient(barX, barY, barX + fillW, barY)
+    if (boost.active) {
+      grad.addColorStop(0, colors.resonanceGlow)
+      grad.addColorStop(1, colors.resonanceGlowBright)
+    } else {
+      grad.addColorStop(0, colors.brass)
+      grad.addColorStop(1, colors.agedGold)
+    }
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.roundRect(barX, barY, fillW, p.barHeight, p.barHeight / 2)
+    ctx.fill()
+  }
+
+  ctx.restore()
+}
+
 export function drawHud(ctx, width, game, colors) {
   drawSpeedPanel(ctx, colors, game)
   if (game.mode === 'race') {
@@ -148,4 +203,6 @@ export function drawHud(ctx, width, game, colors) {
     drawTimeTrialPanel(ctx, width, colors, game)
   }
   drawMuteIndicator(ctx, colors, game.muted)
+  // Boost meter always shown (both race + time-trial modes).
+  drawBoostMeter(ctx, colors, game.boost)
 }

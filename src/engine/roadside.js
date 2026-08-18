@@ -1,4 +1,4 @@
-import { ROADSIDE } from '../data/tuning.js'
+import { ROADSIDE, BOOST } from '../data/tuning.js'
 
 // Draws one roadside pillar or stone at an already-projected screen
 // position. `clipY` is the current hill-crest cutoff (the same plane the
@@ -104,5 +104,68 @@ export function drawFinishBanner(ctx, slot, sprite, canvasWidth, canvasHeight, c
   ctx.lineWidth = Math.max(1, postH * 0.05)
   ctx.stroke()
 
+  ctx.restore()
+}
+
+// Boost pickup — an instant-boost item placed on the track. Drawn as a
+// projected sprite (same system as pillars/stones) so it scales correctly
+// with distance. A glowing diamond/hexagon with a gentle pulse to attract
+// attention. `available` determines whether it's shown (false = respawning).
+export function drawBoostPickup(ctx, x, yBase, roadHalfWidthPx, clipY, canvasWidth, canvasHeight, colors, time, available) {
+  if (!available) return
+  const w = roadHalfWidthPx * BOOST.pickup.spriteWidth
+  const h = w * BOOST.pickup.spriteHeight
+  if (yBase - h > canvasHeight || yBase < 0 || h < 2) return
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(0, 0, canvasWidth, clipY)
+  ctx.clip()
+
+  const cy = yBase - h / 2
+  const pulse = 0.85 + 0.15 * Math.sin(time * BOOST.pickup.glowPulseRate)
+
+  // Outer glow (resonance light).
+  const glowRadius = w * 0.9 * pulse
+  const glow = ctx.createRadialGradient(x, cy, 0, x, cy, glowRadius)
+  glow.addColorStop(0, `rgba(${colors.resonanceGlowRGB}, 0.6)`)
+  glow.addColorStop(0.6, `rgba(${colors.resonanceGlowRGB}, 0.2)`)
+  glow.addColorStop(1, `rgba(${colors.resonanceGlowRGB}, 0)`)
+  ctx.fillStyle = glow
+  ctx.beginPath()
+  ctx.arc(x, cy, glowRadius, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Core hexagon (brass/aged-gold gradient).
+  ctx.save()
+  ctx.translate(x, cy)
+  ctx.rotate(time * 0.0005) // very slow spin for subtle motion
+  const core = ctx.createLinearGradient(-w * 0.3, -h * 0.3, w * 0.3, h * 0.3)
+  core.addColorStop(0, colors.brass)
+  core.addColorStop(0.5, colors.agedGold)
+  core.addColorStop(1, colors.brass)
+  ctx.fillStyle = core
+  ctx.beginPath()
+  const r = w * 0.35
+  for (let i = 0; i < 6; i++) {
+    const angle = (i * Math.PI * 2) / 6
+    const px = Math.cos(angle) * r
+    const py = Math.sin(angle) * r
+    if (i === 0) ctx.moveTo(px, py)
+    else ctx.lineTo(px, py)
+  }
+  ctx.closePath()
+  ctx.fill()
+
+  // Inner resonance glow.
+  const innerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.6)
+  innerGlow.addColorStop(0, `rgba(${colors.resonanceGlowRGB}, 0.8)`)
+  innerGlow.addColorStop(1, `rgba(${colors.resonanceGlowRGB}, 0)`)
+  ctx.fillStyle = innerGlow
+  ctx.beginPath()
+  ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
   ctx.restore()
 }
