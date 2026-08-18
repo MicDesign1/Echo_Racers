@@ -188,27 +188,28 @@
 
 .boost-hint-overlay {
   position: absolute;
-  top: 30%;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  z-index: 8;
+  z-index: 9;
 }
 
 .boost-hint-text {
-  padding: 8px 20px;
-  border-radius: 8px;
-  background: rgba(44, 24, 16, 0.8);
-  border: 1.5px solid var(--brass);
+  padding: 12px 28px;
+  border-radius: 10px;
+  background: rgba(44, 24, 16, 0.85);
+  border: 2px solid var(--brass);
   color: var(--cream);
   font-family: var(--font-display);
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  box-shadow: 0 0 20px rgba(242, 200, 121, 0.3);
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 28px rgba(242, 200, 121, 0.4);
   transition: opacity 0.3s ease;
 }
 

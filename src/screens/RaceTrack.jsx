@@ -188,13 +188,15 @@ export default function RaceTrack() {
   const [countdownText, setCountdownText] = useState(() => (
     RACE.mode === 'race' && !verifyMode ? RACE.countdown.beats[0] : null
   ))
-  // Boost how-to hint: shown at race start (after countdown or immediately
-  // for time-trial), tells the player how to activate boost. Platform-aware:
-  // keyboard gets "E key", touch gets "Boost button". Auto-dismisses after
-  // a few seconds or on first boost activation. Never shown in verify mode.
+  // Boost how-to hint: shown during countdown AND for ~5s after GO (playtest
+  // feedback: must be unmissable on desktop). Large, centered. Keyboard gets
+  // "Press E to boost", touch gets "Tap Boost to activate". NOT tied to
+  // showTouch — desktop with mouse still sees keyboard hint. Auto-dismisses
+  // on first boost OR ~5s after GO. Never shown in verify mode.
   const [boostHint, setBoostHint] = useState(() => {
     if (verifyMode) return null
-    return { visible: true, elapsed: 0 }
+    // Start visible if countdown exists, else show immediately (time-trial).
+    return { visible: true, postGoElapsed: 0 }
   })
   const gameRef = useRef(createInitialGameState())
 
@@ -230,7 +232,7 @@ export default function RaceTrack() {
       clearTimeout(bannerTimeoutRef.current)
       setBanner(null)
       setRaceResult(null)
-      setBoostHint(verifyMode ? null : { visible: true, elapsed: 0 })
+      setBoostHint(verifyMode ? null : { visible: true, postGoElapsed: 0 })
       currentTrack = activeTrack()
       loadTrack(currentTrack)
       RACE.lapCount = currentTrack.lapCount
@@ -387,9 +389,12 @@ export default function RaceTrack() {
       }
 
       // Track pickup collection: check if the player ran over an available pickup.
+      // Pickups now FILL the meter to max (don't auto-activate boost). The player
+      // still presses Boost to activate. Flash is visual feedback that the bar refilled.
       const collected = checkPickupCollection(g.pos, g.playerX, g.pickups, g.pickupStates, trackLength)
       if (collected >= 0) {
-        tryActivateBoost(g.boostState, 'pickup')
+        g.boostState.charge = BOOST.chargeMax // fill meter to max
+        g.boostState.pickupFlash = BOOST.pickup.flashDuration // arm the flash
         g.pickupStates[collected].respawnTimer = BOOST.pickup.respawnTime
       }
       updatePickups(g.pickupStates, dt)
@@ -487,12 +492,12 @@ export default function RaceTrack() {
       // on top of the frame's steering/lane easing.
       updateCombat(g, dt, trackLength)
 
-      // Boost hint timer: count elapsed time, auto-dismiss after the hint duration.
-      // The hint only appears post-countdown (or immediately in time-trial), so
-      // we only tick it here in the normal update branch, not during countdown.
+      // Boost hint timer: count post-GO elapsed time, auto-dismiss ~5s after GO.
+      // The hint shows during countdown (always visible there) AND after GO for
+      // ~5s, so we only tick postGoElapsed here in the normal update branch.
       if (boostHint?.visible) {
-        const next = { ...boostHint, elapsed: boostHint.elapsed + dt }
-        if (next.elapsed >= BOOST.visual.hintDuration) {
+        const next = { ...boostHint, postGoElapsed: boostHint.postGoElapsed + dt }
+        if (next.postGoElapsed >= BOOST.visual.hintDuration) {
           setBoostHint(null)
         } else {
           setBoostHint(next)
@@ -765,6 +770,7 @@ export default function RaceTrack() {
           maxSpeed: RACE.maxSpeed,
           drifting: g.drifting,
           airborne: g.airborne,
+          boosting: g.boostState.active, // pass boost state for engine pitch lift
           rivals: g.opponents.map((o) => {
             let gap = ((o.pos - g.pos) % trackLength + trackLength) % trackLength
             if (gap > trackLength / 2) gap -= trackLength
@@ -1188,21 +1194,26 @@ export default function RaceTrack() {
           </span>
         </div>
       )}
-      {boostHint?.visible && !countdownText && (
+      {boostHint?.visible && (
         <div className="boost-hint-overlay">
           <span
             className="boost-hint-text"
             style={{
               opacity: (() => {
-                const { elapsed } = boostHint
+                // Fade in/out. During countdown, fully visible. After GO, fade
+                // in for hintFadeIn, stay solid, then fade out near hintDuration.
+                const { postGoElapsed } = boostHint
                 const { hintFadeIn, hintFadeOut, hintDuration } = BOOST.visual
-                if (elapsed < hintFadeIn) return elapsed / hintFadeIn
-                if (elapsed > hintDuration - hintFadeOut) return (hintDuration - elapsed) / hintFadeOut
+                // During countdown (postGoElapsed still 0), show solid.
+                if (postGoElapsed < hintFadeIn) return postGoElapsed / hintFadeIn
+                if (postGoElapsed > hintDuration - hintFadeOut) {
+                  return (hintDuration - postGoElapsed) / hintFadeOut
+                }
                 return 1
               })()
             }}
           >
-            {showTouch ? 'Tap Boost button to activate' : 'Press E to activate boost'}
+            {showTouch ? 'Tap Boost to activate' : 'Press E to boost'}
           </span>
         </div>
       )}
