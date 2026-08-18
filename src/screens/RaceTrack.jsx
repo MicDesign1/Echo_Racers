@@ -753,14 +753,16 @@ export default function RaceTrack() {
     rafId = requestAnimationFrame(frame)
 
     if (verifyMode) {
+      window.gameRef = gameRef // expose gameRef for boost verification
       window.__ECHO_RACE_TEST__ = {
         setScenario({ playerPos, playerX = 0, speed = 0, rivals }) {
           window.__ECHO_RACE_TEST_OVERRIDE__ = { pos: playerPos, playerX, speed, rivals }
         },
         clearScenario() { window.__ECHO_RACE_TEST_OVERRIDE__ = null },
-        freeze() { keysRef.current = { up: false, down: false, left: false, right: false, drift: false } },
+        freeze() { keysRef.current = { up: false, down: false, left: false, right: false, drift: false, boost: false } },
         holdUp(on = true) { keysRef.current.up = on },
         holdDown(on = true) { keysRef.current.down = on },
+        fireBoost() { keysRef.current.boost = true },
         // Combat verification hooks. setOverride pins positions WITHOUT
         // forcing speed (unlike setScenario, which defaults speed to 0), so
         // a combat speed penalty actually persists and can be measured.

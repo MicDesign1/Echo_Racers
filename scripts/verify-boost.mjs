@@ -40,15 +40,17 @@ const raf = (page) => page.evaluate(() => new Promise((r) => requestAnimationFra
 
 async function getBoostState(page) {
   return page.evaluate(() => {
-    const g = window.__ECHO_RACE_TEST__.getRaceState()
+    // Access gameRef directly from the window (exposed by RaceTrack in verify mode)
+    const game = window.gameRef?.current
+    if (!game) throw new Error('gameRef not available')
     return {
-      charge: window.gameRef?.current?.boostState?.charge ?? 0,
-      active: window.gameRef?.current?.boostState?.active ?? false,
-      playerSpeed: g.playerSpeed,
-      playerPos: g.playerPos,
-      playerX: g.playerX,
-      pickups: window.gameRef?.current?.pickups?.length ?? 0,
-      pickupStates: window.gameRef?.current?.pickupStates?.map(s => s.respawnTimer) ?? [],
+      charge: game.boostState?.charge ?? 0,
+      active: game.boostState?.active ?? false,
+      playerSpeed: game.speed,
+      playerPos: game.pos,
+      playerX: game.playerX,
+      pickups: game.pickups?.length ?? 0,
+      pickupStates: game.pickupStates?.map(s => s.respawnTimer) ?? [],
     }
   })
 }
@@ -58,15 +60,16 @@ async function alwaysAccelPass(page) {
   console.log('\n(a) Always-accel test: car accelerates without up/W held')
   await page.evaluate(() => {
     window.__ECHO_RACE_TEST__.setMode('race')
-    window.__ECHO_RACE_TEST__.setOverride({ pos: 5000, playerX: 0, speed: 0 })
-    // Do NOT hold up — alwaysAccel should accelerate on its own
+    // Clear the override to let the game run naturally
+    window.__ECHO_RACE_TEST__.clearScenario()
+    // Make sure no keys are held (freeze sets them all false, which is what we want)
     window.__ECHO_RACE_TEST__.freeze()
   })
 
   await raf(page)
   const before = await getBoostState(page)
   
-  // Wait ~1 second of frames
+  // Wait ~1 second of frames (game should accelerate on its own)
   for (let i = 0; i < 60; i++) await raf(page)
   
   const after = await getBoostState(page)
@@ -100,8 +103,7 @@ async function boostActivationPass(page) {
 
   // Fire boost (simulate E key press)
   await page.evaluate(() => {
-    const keys = window.keysRef?.current
-    if (keys) keys.boost = true
+    window.__ECHO_RACE_TEST__.fireBoost()
   })
   await raf(page)
   
