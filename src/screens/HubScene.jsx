@@ -77,11 +77,12 @@ function isVisibleSpot(chunk, worldX, worldY) {
 // mapId); the avatar look is a separate serializable descriptor (avatarRef).
 function createPlayerState() {
   const saved = getHubState()
-  let mapId = saved?.mapId || HUB_HOME_ID
-  let chunk = getChunk(mapId)
+  // ALWAYS start on HOME (hub-2-4, the lodge+cave map) when entering the hub.
+  // Stale exploration saves should not skip the home screen.
+  const mapId = HUB_HOME_ID
+  const chunk = getChunk(mapId)
   if (!chunk) {
-    mapId = HUB_HOME_ID
-    chunk = getChunk(mapId)
+    throw new Error(`HOME chunk ${HUB_HOME_ID} not found`)
   }
   
   const world = worldSize(chunk)
@@ -90,11 +91,10 @@ function createPlayerState() {
   let y = spawn.y
   let facing = 'down'
   
-  // A saved position only means anything for the exact chunk it was saved
-  // against — re-importing a chunk (even "same elements, moved around") can
-  // leave an old position technically walkable while no longer making sense,
-  // so a mismatched mapVersion or mapId falls back to spawn.
-  if (saved && saved.mapId === mapId && saved.mapVersion === chunk.mapVersion && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+  // Restore saved XY/facing ONLY if the save was on HOME and mapVersion matches.
+  // After the player walks off HOME, edge-jumps to neighbors still work (those
+  // positions are saved/restored during the session, just not across fresh loads).
+  if (saved && saved.mapId === HUB_HOME_ID && saved.mapVersion === chunk.mapVersion && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
     const sx = clamp(saved.x, 0, world.w)
     const sy = clamp(saved.y, 0, world.h)
     if (isVisibleSpot(chunk, sx, sy)) {

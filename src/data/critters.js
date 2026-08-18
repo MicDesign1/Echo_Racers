@@ -16,6 +16,8 @@
 // villagers from the Mana Seed starter pack — NOT story NPCs, not named, not
 // Animalians. They walk with facing (4-direction) and use the standalone NPC
 // sprite grid (128x256, 4x4 of 32px frames). Same calm wander behavior as slimes.
+import { HUB } from './tuning.js'
+
 export const CRITTER_SHEETS = {
   slime: {
     kind: 'slime',
@@ -74,7 +76,9 @@ export const CRITTER_SHEETS = {
     idleCol: 0,
     // Row order: 0 down, 1 right, 2 up, 3 left
     rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
-    drawScale: 1.0, // tuned to sit near player size
+    // Same draw scale as player standalone NPC body (HUB.player.drawScale * HUB.npcSprite.sizeBoost)
+    get drawScale() { return HUB.npcSprite.drawScale },
+    yOffset: 0, // bottom-center anchor like player
     speed: 50, // px/s, a bit quicker than slime (26 px/s)
   },
   npcManB: {
@@ -85,7 +89,8 @@ export const CRITTER_SHEETS = {
     walkFrames: 4,
     idleCol: 0,
     rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
-    drawScale: 1.0,
+    get drawScale() { return HUB.npcSprite.drawScale },
+    yOffset: 0,
     speed: 50,
   },
   npcWomanA: {
@@ -96,7 +101,8 @@ export const CRITTER_SHEETS = {
     walkFrames: 4,
     idleCol: 0,
     rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
-    drawScale: 1.0,
+    get drawScale() { return HUB.npcSprite.drawScale },
+    yOffset: 0,
     speed: 50,
   },
   npcWomanB: {
@@ -107,7 +113,8 @@ export const CRITTER_SHEETS = {
     walkFrames: 4,
     idleCol: 0,
     rowForFacing: { down: 0, right: 1, up: 2, left: 3 },
-    drawScale: 1.0,
+    get drawScale() { return HUB.npcSprite.drawScale },
+    yOffset: 0,
     speed: 50,
   },
 }
