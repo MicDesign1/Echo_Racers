@@ -213,24 +213,20 @@ export const TRACKS = [
     id: 'highland-circuit-1',
     label: 'Highland Circuit',
     lapCount: 3,
-    // Hills and turns: a big climb, a hilltop sweeper, a drop, another
-    // climb, then a descending curve back to the line. Scaled 2.5x — 1550
-    // segments. The closing curve's dy is -45 (not -25): the climbs/drops
-    // above it only net to +20 by the time they reach it (+30+10-15+0+20),
-    // so the final descent needs the extra -20 to actually return to the
-    // lap's starting elevation — a closed lap's total elevation change must
-    // sum to zero, a seam mismatch this pass's finish-line banner surfaced
-    // (it rendered oddly right at the lap seam) rather than something
-    // invented for this fix.
+    // Hills and turns: dramatically steeper climbs and descents for genuine
+    // highland feel. Opening climb is 60 units over 110 segments (vs old 30
+    // over 175 — much steeper), plus two more sharp climbs and matching drops.
+    // Scaled 2.5x base length preserved at 1550 segments total. Net elevation
+    // change: +60 +15 -40 +50 -85 = 0 (closed lap verified).
     layout: [
-      { type: 'straight', length: 175 },
-      { type: 'hill', dy: 30, length: 175 },
-      { type: 'curve', dir: 'left', strength: 3.0, dy: 10, length: 250, enter: 63, leave: 63 },
-      { type: 'hill', dy: -15, length: 125 },
-      { type: 'curve', dir: 'right', strength: 3.2, length: 275, enter: 70, leave: 70 },
-      { type: 'hill', dy: 20, length: 150 },
-      { type: 'curve', dir: 'left', strength: 2.6, dy: -45, length: 225, enter: 55, leave: 55 },
-      { type: 'straight', length: 175 },
+      { type: 'straight', length: 225 },
+      { type: 'hill', dy: 60, length: 110 }, // steep opening climb
+      { type: 'curve', dir: 'left', strength: 3.0, dy: 15, length: 260, enter: 65, leave: 65 }, // hilltop sweeper, still rising
+      { type: 'hill', dy: -40, length: 110 }, // sharp descent
+      { type: 'curve', dir: 'right', strength: 3.2, length: 300, enter: 75, leave: 75 }, // valley run
+      { type: 'hill', dy: 50, length: 110 }, // second steep climb
+      { type: 'curve', dir: 'left', strength: 2.6, dy: -85, length: 235, enter: 58, leave: 58 }, // plunging descent back to line
+      { type: 'straight', length: 200 }, // run to finish
     ],
     // Grey stone highland — sage/grey-green grass, pale cool sky, stone-grey road.
     palette: {
