@@ -188,6 +188,14 @@ export default function RaceTrack() {
   const [countdownText, setCountdownText] = useState(() => (
     RACE.mode === 'race' && !verifyMode ? RACE.countdown.beats[0] : null
   ))
+  // Boost how-to hint: shown at race start (after countdown or immediately
+  // for time-trial), tells the player how to activate boost. Platform-aware:
+  // keyboard gets "E key", touch gets "Boost button". Auto-dismisses after
+  // a few seconds or on first boost activation. Never shown in verify mode.
+  const [boostHint, setBoostHint] = useState(() => {
+    if (verifyMode) return null
+    return { visible: true, elapsed: 0 }
+  })
   const gameRef = useRef(createInitialGameState())
 
   useEffect(() => {
@@ -222,6 +230,7 @@ export default function RaceTrack() {
       clearTimeout(bannerTimeoutRef.current)
       setBanner(null)
       setRaceResult(null)
+      setBoostHint(verifyMode ? null : { visible: true, elapsed: 0 })
       currentTrack = activeTrack()
       loadTrack(currentTrack)
       RACE.lapCount = currentTrack.lapCount
@@ -373,6 +382,8 @@ export default function RaceTrack() {
         // Clear the flag so it doesn't re-fire next frame (edge-triggered).
         keys.boost = false
         touch.boost = false
+        // Dismiss the boost hint on first activation (player knows how now).
+        if (boostHint?.visible) setBoostHint(null)
       }
 
       // Track pickup collection: check if the player ran over an available pickup.
@@ -475,6 +486,18 @@ export default function RaceTrack() {
       // time-trial. It's the last word each frame, so its wobble nudge sits
       // on top of the frame's steering/lane easing.
       updateCombat(g, dt, trackLength)
+
+      // Boost hint timer: count elapsed time, auto-dismiss after the hint duration.
+      // The hint only appears post-countdown (or immediately in time-trial), so
+      // we only tick it here in the normal update branch, not during countdown.
+      if (boostHint?.visible) {
+        const next = { ...boostHint, elapsed: boostHint.elapsed + dt }
+        if (next.elapsed >= BOOST.visual.hintDuration) {
+          setBoostHint(null)
+        } else {
+          setBoostHint(next)
+        }
+      }
     }
 
     const P1 = { wx: 0, wy: 0, wz: 0, sx: 0, sy: 0, sw: 0, scale: 0 }
@@ -581,6 +604,7 @@ export default function RaceTrack() {
             width,
             combatFx(o.attackCooldown, o.wobble, o.hitFlash),
             airLiftFraction(o),
+            o.boostState,
           )
         }
       }
@@ -592,7 +616,7 @@ export default function RaceTrack() {
         boosting: g.boost > 0,
         time,
         lift: airLiftFraction(g),
-      }, trackColors, combatFx(g.playerAttackCooldown, g.playerWobble, g.playerHitFlash))
+      }, trackColors, combatFx(g.playerAttackCooldown, g.playerWobble, g.playerHitFlash), g.boostState)
 
       for (const { o, place } of afterPlayer.sort((a, b) => b.place.cameraZ - a.place.cameraZ)) {
         drawOpponentCar(
@@ -607,6 +631,7 @@ export default function RaceTrack() {
           width,
           combatFx(o.attackCooldown, o.wobble, o.hitFlash),
           airLiftFraction(o),
+          o.boostState,
         )
       }
 
@@ -1160,6 +1185,24 @@ export default function RaceTrack() {
             className={`countdown-text${countdownText === 'GO!' ? ' countdown-go' : ''}`}
           >
             {countdownText}
+          </span>
+        </div>
+      )}
+      {boostHint?.visible && !countdownText && (
+        <div className="boost-hint-overlay">
+          <span
+            className="boost-hint-text"
+            style={{
+              opacity: (() => {
+                const { elapsed } = boostHint
+                const { hintFadeIn, hintFadeOut, hintDuration } = BOOST.visual
+                if (elapsed < hintFadeIn) return elapsed / hintFadeIn
+                if (elapsed > hintDuration - hintFadeOut) return (hintDuration - elapsed) / hintFadeOut
+                return 1
+              })()
+            }}
+          >
+            {showTouch ? 'Tap Boost button to activate' : 'Press E to activate boost'}
           </span>
         </div>
       )}

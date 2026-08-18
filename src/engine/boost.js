@@ -12,12 +12,14 @@ export function createBoostState() {
     elapsed: 0, // seconds elapsed since activation (0 when !active)
     duration: 0, // total duration of this burst (0 when !active)
     source: null, // 'manual' (dumped meter) or 'pickup' (collected item)
+    pickupFlash: 0, // seconds remaining on pickup collection flash (0 when none)
   }
 }
 
 // Activate a boost burst: consume the meter (if manual) and enter the burst.
 // Returns true if activated, false if already active or insufficient charge.
 // `source` is 'manual' (player/AI dumping meter) or 'pickup' (collected item).
+// When source is 'pickup', also arms the pickup flash timer for visual feedback.
 export function tryActivateBoost(boost, source = 'manual') {
   if (boost.active) return false
   if (source === 'manual' && boost.charge < BOOST.minActivateCharge) return false
@@ -33,6 +35,7 @@ export function tryActivateBoost(boost, source = 'manual') {
   // Duration/effect strength depends on source.
   if (source === 'pickup') {
     boost.duration = BOOST.pickup.burstDuration
+    boost.pickupFlash = BOOST.pickup.flashDuration // arm the flash
   } else {
     boost.duration = BOOST.burstDuration
   }
@@ -41,14 +44,19 @@ export function tryActivateBoost(boost, source = 'manual') {
 
 // Advance the boost state one frame. Charge fills passively (even during a
 // burst); active bursts tick elapsed and deactivate when duration is reached.
-// Returns the current effect multipliers (accel factor, max speed bonus) the
-// caller applies to this racer's physics.
+// Pickup flash timer counts down independently. Returns the current effect
+// multipliers (accel factor, max speed bonus) the caller applies to this racer's physics.
 export function updateBoost(boost, dt) {
   const result = { accelFactor: 1.0, maxSpeedBonus: 0.0 }
 
   // Charge fills continuously (no cooldown penalty — encourages frequent use).
   if (boost.charge < BOOST.chargeMax) {
     boost.charge = Math.min(BOOST.chargeMax, boost.charge + BOOST.chargeRate * dt)
+  }
+
+  // Pickup flash timer counts down (visual only, independent of burst state).
+  if (boost.pickupFlash > 0) {
+    boost.pickupFlash = Math.max(0, boost.pickupFlash - dt)
   }
 
   if (!boost.active) return result
@@ -82,6 +90,7 @@ export function resetBoost(boost) {
   boost.elapsed = 0
   boost.duration = 0
   boost.source = null
+  boost.pickupFlash = 0
 }
 
 // Create pickup instance state for a track's pickups. Each pickup has a

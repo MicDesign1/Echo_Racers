@@ -160,6 +160,23 @@ export const BOOST = {
     spriteWidth: 0.28, // fraction of the road half-width
     spriteHeight: 0.32, // fraction of spriteWidth (aspect ratio)
     glowPulseRate: 0.003, // rad/ms for a gentle attracting pulse
+    // Pickup collection flash — a brief, joyful burst when running over a pickup
+    // (distinct from combat damage flash: gold/resonance joy vs damage red/glow).
+    flashDuration: 0.35, // seconds the flash lasts after collection
+    flashGlowFraction: 1.2, // glow radius as a fraction of carWidth
+  },
+
+  // Visual feedback: boosting glow + how-to hint at race start.
+  visual: {
+    // Glow: soft cyan resonance light while any boost burst is active (manual or pickup).
+    glowColor: '120, 200, 220', // RGB for soft cyan (resonance tech theme)
+    glowAlpha: 0.5, // base alpha for the glow
+    glowRadiusFraction: 1.1, // glow radius as a fraction of carWidth
+    glowPulseRate: 0.004, // rad/ms for a gentle pulse while boosting
+    // How-to hint: shown at race start, tells the player how to activate boost.
+    hintDuration: 4.5, // seconds before auto-dismiss (or first boost press)
+    hintFadeIn: 0.3, // seconds to fade in
+    hintFadeOut: 0.4, // seconds to fade out
   },
 }
 
