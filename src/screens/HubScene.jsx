@@ -10,12 +10,12 @@ import { createCritters, updateCritters } from '../engine/critters.js'
 import { tilePx, worldSize, tileCenter, isWalkable, drawLayer } from '../engine/tilemap.js'
 import './HubScene.css'
 
-// The hub is the game's home: a 3×3 grid of tiled forest chunks that form one
-// island. The player walks around with a camera that follows and clamps to the
-// current chunk. Walking off an edge loads the adjacent chunk. Zones (Races ->
-// Practice, Lodge -> Avatar) are only on the HOME chunk. Terrain + walkability
-// are DATA in hubMap.js. The character is a palette-composited avatar. Every
-// number lives in HUB (tuning.js) or hubMap.js — nothing is invented here.
+// The hub is the game's home: a 5×5 grid of tiled forest chunks that form one
+// island. The player walks around with a camera that clamps to the current chunk.
+// Walking off an edge JUMPS to the adjacent chunk (no seamless stitching). Zones
+// (Races -> Practice, Lodge -> Avatar) are only on the HOME chunk. Terrain +
+// walkability are DATA in hubMap.js. The character is a palette-composited avatar.
+// Every number lives in HUB (tuning.js) or hubMap.js — nothing is invented here.
 
 const verifyMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('verify')
 const forceTouch = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('touch')
@@ -190,81 +190,96 @@ export default function HubScene() {
     resize()
     window.addEventListener('resize', resize)
 
-    // Feet-box walkability against the map grid (out-of-bounds reads blocked).
-    function feetOk(px, py) {
+    // Feet-box walkability against the map grid.
+    function feetOk(x, y) {
       const f = HUB.player.feet
-      const x0 = px - f.width / 2
-      const x1 = px + f.width / 2
-      const y0 = py - f.height
-      const y1 = py
-      return isWalkable(chunk, x0, y0) && isWalkable(chunk, x1, y0)
-        && isWalkable(chunk, x0, y1) && isWalkable(chunk, x1, y1)
+      const corners = [
+        [x - f.width / 2, y - f.height],
+        [x + f.width / 2, y - f.height],
+        [x - f.width / 2, y],
+        [x + f.width / 2, y]
+      ]
+      for (const [cx, cy] of corners) {
+        if (!isWalkable(chunk, cx, cy)) return false
+      }
+      return true
     }
 
-    // Axis-separated move so the player slides along a blocked edge instead of
-    // sticking when pushing into it diagonally. Also checks for chunk transitions.
+    // Check if player walked off the edge of the current chunk, and if so,
+    // load the neighbor chunk and place the player on the entering edge.
+    function checkEdgeTransition(x, y) {
+      const TW = tilePx()
+      const f = HUB.player.feet
+      const chunkWorldW = chunk.w * TW
+      const chunkWorldH = chunk.h * TW
+      
+      // Extract col, row from current mapId (hub-col-row)
+      const [,col, row] = player.mapId.split('-').map(Number)
+      let newCol = col
+      let newRow = row
+      let newX = x
+      let newY = y
+      
+      // Check if player crossed an edge
+      if (x < f.width / 2) {
+        // Left edge
+        if (col > 0) {
+          newCol = col - 1
+          newX = chunkWorldW - f.width / 2 - 1
+        }
+      } else if (x > chunkWorldW - f.width / 2) {
+        // Right edge
+        if (col < 4) {
+          newCol = col + 1
+          newX = f.width / 2 + 1
+        }
+      }
+      
+      if (y < f.height) {
+        // Top edge
+        if (row > 0) {
+          newRow = row - 1
+          newY = chunkWorldH - f.height - 1
+        }
+      } else if (y > chunkWorldH) {
+        // Bottom edge
+        if (row < 4) {
+          newRow = row + 1
+          newY = f.height + 1
+        }
+      }
+      
+      // If we moved to a new chunk, update state
+      if (newCol !== col || newRow !== row) {
+        const newMapId = `hub-${newCol}-${newRow}`
+        const newChunk = getChunk(newMapId)
+        if (newChunk) {
+          player.mapId = newMapId
+          player.x = newX
+          player.y = newY
+          setCurrentMapId(newMapId)
+          saveNow()
+          return true
+        }
+      }
+      return false
+    }
+
+    // Axis-separated move with edge sliding.
     function tryMove(ddx, ddy) {
       const f = HUB.player.feet
-      const TW = tilePx()
-      const margin = TW * 0.5
-      
-      // Check for edge transitions BEFORE clamping
-      if (ddx !== 0) {
-        const testX = player.x + ddx
-        if (testX < -margin && chunk.neighbors.west) {
-          const next = getChunk(chunk.neighbors.west)
-          if (next) {
-            player.x = worldSize(next).w - margin
-            player.mapId = next.mapId
-            setCurrentMapId(next.mapId)
-            saveNow()
-            return
-          }
-        } else if (testX > world.w + margin && chunk.neighbors.east) {
-          const next = getChunk(chunk.neighbors.east)
-          if (next) {
-            player.x = margin
-            player.mapId = next.mapId
-            setCurrentMapId(next.mapId)
-            saveNow()
-            return
-          }
-        }
-      }
-      
-      if (ddy !== 0) {
-        const testY = player.y + ddy
-        if (testY < -margin && chunk.neighbors.north) {
-          const next = getChunk(chunk.neighbors.north)
-          if (next) {
-            player.y = worldSize(next).h - margin
-            player.mapId = next.mapId
-            setCurrentMapId(next.mapId)
-            saveNow()
-            return
-          }
-        } else if (testY > world.h + margin && chunk.neighbors.south) {
-          const next = getChunk(chunk.neighbors.south)
-          if (next) {
-            player.y = margin
-            player.mapId = next.mapId
-            setCurrentMapId(next.mapId)
-            saveNow()
-            return
-          }
-        }
-      }
-      
-      // Normal movement within chunk (with clamping and walkability)
       const nx = clamp(player.x + ddx, f.width / 2, world.w - f.width / 2)
       const ny = clamp(player.y + ddy, f.height, world.h)
       if (ddx !== 0 && feetOk(nx, player.y)) player.x = nx
       if (ddy !== 0 && feetOk(player.x, ny)) player.y = ny
+      
+      // Check for edge transition after move
+      checkEdgeTransition(player.x, player.y)
     }
 
-    function zoneAt(px, py) {
+    function zoneAt(x, y) {
       for (const z of zones) {
-        if (Math.hypot(px - z.x, py - z.y) < z.radius) return z
+        if (Math.hypot(x - z.x, y - z.y) < z.radius) return z
       }
       return null
     }
@@ -359,7 +374,7 @@ export default function HubScene() {
     }
 
     function draw() {
-      // Camera follows the player, clamped so it never shows past the map.
+      // Camera follows the player, clamped to the current chunk only.
       cam.w = W
       cam.h = H
       cam.x = clamp(player.x - W / 2, 0, Math.max(0, world.w - W))

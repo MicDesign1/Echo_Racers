@@ -20,8 +20,8 @@ const ATLAS_CONFIG = [
   { name: 'lodge', count: 128 },
 ]
 
-const GRID_COLS = 3, GRID_ROWS = 3
-const HOME_COL = 1, HOME_ROW = 2 // center of south row
+const GRID_COLS = 5, GRID_ROWS = 5
+const HOME_COL = 2, HOME_ROW = 4 // center of south outer ring
 
 function importChunk(col, row) {
   const filename = `hub-${col}-${row}.tmj`
