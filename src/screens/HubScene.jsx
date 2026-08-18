@@ -599,21 +599,23 @@ export default function HubScene() {
           ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
         }
       } else if (sh.kind === 'pumpkin') {
-        // Pumpkin: side-view hop, flip when facing left
-        sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fs
-        sy = sh.idleRow * fs
-        dw = fs * sh.drawScale
-        dh = dw
+        // Pumpkin: side-view hop (8 frames of 16×32 each), flip when facing left
+        const fw = sh.frameWidth
+        const fh = sh.frameHeight
+        sx = (sh.idleCol + (c.animFrame % sh.idleFrames)) * fw
+        sy = sh.idleRow * fh
+        dw = fw * sh.drawScale
+        dh = fh * sh.drawScale
         dx = Math.round(c.x - cam.x - dw / 2)
         dy = Math.round(c.y - cam.y - dh + (sh.yOffset || 0))
         
         if (sh.flipWhenLeft && c.facing === 'left') {
           ctx.save()
           ctx.scale(-1, 1)
-          ctx.drawImage(img, sx, sy, fs, fs, -dx - dw, dy, dw, dh)
+          ctx.drawImage(img, sx, sy, fw, fh, -dx - dw, dy, dw, dh)
           ctx.restore()
         } else {
-          ctx.drawImage(img, sx, sy, fs, fs, dx, dy, dw, dh)
+          ctx.drawImage(img, sx, sy, fw, fh, dx, dy, dw, dh)
         }
       } else if (sh.kind === 'npc') {
         // NPC: facing-based walk (row per facing, cycle frames when moving)

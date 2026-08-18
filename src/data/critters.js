@@ -74,12 +74,13 @@ export const CRITTER_SHEETS = {
   pumpkin: {
     kind: 'pumpkin',
     src: '/sprites/hub/critters/pumpkin_dude.png',
-    frameSize: 16, // 8 frames of 16px each (128px total width)
+    frameWidth: 16,   // 8 frames of 16px wide × 32px tall (not square)
+    frameHeight: 32,
     columns: 8,
     idleRow: 0,
     idleCol: 0,
     idleFrames: 8, // side-view hop, all 8 frames play continuously
-    drawScale: 3.0, // scaled up from 16px to keep ~48px on-screen size
+    drawScale: 2.0, // scales 16×32 to 32×64 on screen, similar to villagers
     yOffset: 0,
     flipWhenLeft: true, // flip horizontally when walking left
   },
