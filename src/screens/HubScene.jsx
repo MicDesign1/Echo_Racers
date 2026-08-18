@@ -200,7 +200,7 @@ export default function HubScene() {
       // Shuffled pool of all wanderer types for random mix (no forced pumpkin, no one-type-per-screen)
       const allWandererTypes = [
         'pumpkin', 'slime', 'slimeAmber', 'slimeGreen', 'slimePink',
-        'blobPink', 'blobOwlet', 'blobDude', 'soldier',
+        'blobPink', 'blobOwlet', 'blobDude',
         'npcManA', 'npcManB', 'npcWomanA', 'npcWomanB',
       ]
       
@@ -215,7 +215,7 @@ export default function HubScene() {
       
       // Try to add 1 extra wanderer per chunk on a walkable tile far from zones/spawn/other critters
       if (rawCritters.length > 0) {
-        const extraWandererTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'soldier', 'blobPink', 'blobOwlet', 'blobDude']
+        const extraWandererTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'blobPink', 'blobOwlet', 'blobDude']
         const TW = tilePx()
         const world = worldSize(chunk)
         const zonePad = HUB.critter.zonePad
