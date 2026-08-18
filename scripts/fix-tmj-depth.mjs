@@ -38,7 +38,8 @@ function toGid(id) {
   if (id < 256) return id + 1 // forest firstgid=1
   return (id - 256) + 257 // lodge firstgid=257
 }
-const GRASS_GID = toGid(0) // plain grass, A(0,0) — used to backfill a vacated ground cell
+// Real grass is A(0,1) = 16, NOT A(0,0) = 0 (which is a HOLE)
+const GRASS_GID = toGid(16)
 
 const layers = tmj.layers.filter((l) => l.type === 'tilelayer')
 const groupOf = (name) => name === 'ground' ? 'ground' : name.startsWith('decor-under') ? 'under' : name.startsWith('decor-over') ? 'over' : null

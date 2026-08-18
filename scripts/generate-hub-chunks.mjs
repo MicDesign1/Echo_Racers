@@ -40,8 +40,10 @@ const A = (c, r) => r * 16 + c
 const L = (c, r) => 256 + r * 16 + c // lodge.png: starts at 256
 
 // Tile constants from tile-grammar.md
-const GRASS = A(0, 0)
-const GRASS2 = A(0, 3)
+// Real grass is A(0,1)=16, A(0,2)=32, A(0,3)=48 (NOT A(0,0)=0 which is a HOLE)
+const GRASS = A(0, 1) // 16
+const GRASS2 = A(0, 2) // 32
+const GRASS3 = A(0, 3) // 48
 const DIRT = A(4, 2)
 const WATER = A(13, 14)
 
@@ -54,8 +56,42 @@ function fillRect(layer, w, h, left, top, right, bottom, tile) {
   }
 }
 
+// Check if a tile ID is safe to stamp trees/decor on (grass, not water/cliff/rock)
+function isSafeGround(tileId) {
+  if (tileId === -1) return true // empty is OK
+  if (tileId === GRASS || tileId === GRASS2 || tileId === GRASS3) return true
+  if (tileId === DIRT) return true
+  if (tileId === WATER) return false
+  // Cliff family (cols 5-10, all rows) is blocking
+  const c = tileId % 16
+  const r = Math.floor(tileId / 16)
+  if (c >= 5 && c <= 10) return false // cliff/rock family
+  if (c === 4 && (r === 8 || r === 9)) return false // big boulder
+  return true // assume OK for other decor
+}
+
+// Check if a tree can be stamped at (tx, ty) without overlapping water/rock
+function canStampTree(chunk, tx, ty) {
+  const w = chunk.width
+  const h = chunk.height
+  // Check full footprint: canopy 5x5 + trunk 3x2
+  for (let dr = -4; dr <= 0; dr++) {
+    for (let dc = -2; dc <= 2; dc++) {
+      const x = tx + dc
+      const y = ty + dr
+      if (x < 0 || x >= w || y < 0 || y >= h) return false
+      const gid = chunk.ground[y * w + x]
+      if (!isSafeGround(gid)) return false
+    }
+  }
+  return true
+}
+
 // Stamp a tree (canopy in decorOver, trunk in decorUnder)
+// Canopy: 5x5 at A(11+dc, 0..4), trunk: 3x2 at A(12+dc, 5..6)
 function stampTree(chunk, tx, ty) {
+  if (!canStampTree(chunk, tx, ty)) return false
+  
   const { ground, decorUnder, decorOver } = chunk
   const w = chunk.width
   // Canopy: 5x5 at (11..15, 0..4)
@@ -78,6 +114,7 @@ function stampTree(chunk, tx, ty) {
       }
     }
   }
+  return true
 }
 
 // Add cliff + water along an edge
@@ -157,17 +194,17 @@ function addCliffWithWater(chunk, edge) {
   }
 }
 
-// Scatter decor (flowers, bushes, pebbles)
+// Scatter decor (flowers, bushes, pebbles) — only on safe ground
 function scatterDecor(chunk) {
   const w = chunk.width
   const h = chunk.height
-  const { decorUnder } = chunk
+  const { ground, decorUnder } = chunk
   const count = Math.floor((w * h) / 50)
   for (let i = 0; i < count; i++) {
     const x = Math.floor(Math.random() * (w - 2)) + 1
     const y = Math.floor(Math.random() * (h - 2)) + 1
     const idx = y * w + x
-    if (decorUnder[0][idx] === -1) {
+    if (decorUnder[0][idx] === -1 && isSafeGround(ground[idx])) {
       const roll = Math.random()
       if (roll < 0.3) {
         decorUnder[0][idx] = A(Math.floor(Math.random() * 4), 6) // flowers
@@ -180,9 +217,16 @@ function scatterDecor(chunk) {
   }
 }
 
-// Create a blank chunk with default grass ground
+// Create a blank chunk with mixed grass ground (16, 32, 48)
 function createChunk(w, h) {
-  const ground = new Array(w * h).fill(GRASS)
+  const grassTiles = [GRASS, GRASS2, GRASS3]
+  const ground = new Array(w * h).fill(0).map(() => {
+    // Mix grass tiles: 50% GRASS (16), 40% GRASS2 (32), 10% GRASS3 (48)
+    const r = Math.random()
+    if (r < 0.5) return GRASS
+    if (r < 0.9) return GRASS2
+    return GRASS3
+  })
   const decorUnder = [new Array(w * h).fill(-1), new Array(w * h).fill(-1), new Array(w * h).fill(-1)]
   const decorOver = [new Array(w * h).fill(-1), new Array(w * h).fill(-1)]
   return { width: w, height: h, ground, decorUnder, decorOver }
@@ -320,10 +364,13 @@ function generateNewChunk(col, row) {
 
     // Scatter trees inland (avoiding water/cliff areas)
     const treeCount = 12
-    for (let i = 0; i < treeCount; i++) {
+    let treesPlaced = 0
+    let attempts = 0
+    while (treesPlaced < treeCount && attempts < treeCount * 3) {
       const tx = Math.floor(Math.random() * (W - 8)) + 4
       const ty = Math.floor(Math.random() * (H - 8)) + 4
-      stampTree(chunk, tx, ty)
+      if (stampTree(chunk, tx, ty)) treesPlaced++
+      attempts++
     }
   } else {
     // Inner 3x3: no water, just forest/grass
@@ -333,12 +380,15 @@ function generateNewChunk(col, row) {
       const cx = Math.floor(Math.random() * (W - 12)) + 6
       const cy = Math.floor(Math.random() * (H - 10)) + 5
       const groveSize = 3 + Math.floor(Math.random() * 3)
-      for (let t = 0; t < groveSize; t++) {
+      let treesPlaced = 0
+      let attempts = 0
+      while (treesPlaced < groveSize && attempts < groveSize * 3) {
         const tx = cx + Math.floor(Math.random() * 8) - 4
         const ty = cy + Math.floor(Math.random() * 6) - 3
         if (tx >= 3 && tx < W - 3 && ty >= 3 && ty < H - 3) {
-          stampTree(chunk, tx, ty)
+          if (stampTree(chunk, tx, ty)) treesPlaced++
         }
+        attempts++
       }
     }
   }
