@@ -456,6 +456,23 @@ export const CAR = {
     heightFraction: 0.32, // ellipse squash, of the shadow's own width
     alpha: 0.22,
   },
+  // Sprite rendering — 5-angle sprite frames (data/vehicles.js supplies the
+  // per-craft paths). Frames are optional; if missing, the vector chassis
+  // draws instead (no crash, no blank car). steer/lean maps to one of five
+  // buckets, each picking a frame direction.
+  sprite: {
+    // Thresholds for bucketing steer/lean (-1..1) into the 5 frame angles.
+    // Tested against absolute value so left/right are symmetric.
+    slightThreshold: 0.15, // |steer| >= this reads as slight-left/right
+    hardThreshold: 0.5, // |steer| >= this reads as hard-left/right
+    // Rendered sprite size: the frame's own pixel width is fixed (512px per
+    // the art contract), but it scales to match the chassis's actual rendered
+    // carWidth so the sprite and vector fallback are visually identical when
+    // swapped. The sprite's natural 512px height is preserved (the art
+    // contract specifies 512px square frames, bottom-center aligned).
+    naturalFrameWidth: 512,
+    naturalFrameHeight: 512,
+  },
 }
 
 export const HUD = {
