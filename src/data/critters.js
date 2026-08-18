@@ -157,7 +157,7 @@ export const CRITTER_SHEETS = {
     src: '/sprites/hub/critters/craftpix/pink-walk.png',
     frameWidth: 32,
     frameHeight: 32,
-    idleFrames: 4, // idle sheet 128×32
+    idleFrames: 1, // hold idle frame 0 only
     walkFrames: 6, // walk sheet 192×32
     get drawScale() { return HUB.npcSprite.drawScale },
     yOffset: 0,
@@ -169,8 +169,8 @@ export const CRITTER_SHEETS = {
     src: '/sprites/hub/critters/craftpix/owlet-walk.png',
     frameWidth: 32,
     frameHeight: 32,
-    idleFrames: 4,
-    walkFrames: 6,
+    idleFrames: 1, // hold idle frame 0 only
+    walkFrames: 4, // owlet-walk 128×32 = 4 frames
     get drawScale() { return HUB.npcSprite.drawScale },
     yOffset: 0,
     flipWhenLeft: true,
@@ -181,7 +181,7 @@ export const CRITTER_SHEETS = {
     src: '/sprites/hub/critters/craftpix/dude-walk.png',
     frameWidth: 32,
     frameHeight: 32,
-    idleFrames: 4,
+    idleFrames: 1, // hold idle frame 0 only
     walkFrames: 6,
     get drawScale() { return HUB.npcSprite.drawScale },
     yOffset: 0,
