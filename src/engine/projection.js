@@ -29,22 +29,17 @@ function trap(ctx, x1, y1, w1, x2, y2, w2, fill) {
   ctx.fill()
 }
 
-// `roadColor` is one consistent surface color (with a barely-perceptible
-// per-segment tint baked in already) — no alternating bands. The shoulder
-// is a single soft brass band right at each road edge, in place of a harsh
-// checkered rumble strip. `parity` alternates the grass tint by draw order.
-// Grass darkens subtly with distance for depth banding.
+// `roadColor` is the base tarmac tone (with per-segment noise baked in already).
+// Add perspective grain, lane wear, and depth-based grass banding for OutRun feel.
 export function renderRoadSegment(ctx, width, s1, s2, parity, colors, roadColor) {
-  // Distance-based grass darkening: closer segments are lighter
-  const distanceFactor = Math.min(1, s1.scale * 20) // scale is ~0..0.2
+  // Distance-based grass banding: multiple layers for proper depth
+  const distanceFactor = Math.min(1, s1.scale * 20)
   const baseTone = parity ? colors.grassAlt : colors.grass
   
-  // Parse the base color and darken it with distance
   let grassColor = baseTone
   if (distanceFactor < 0.95) {
-    // Simple darkening for distant segments
-    const darken = 1 - (1 - distanceFactor) * 0.3
-    // Extract RGB from hex or rgb() string and darken
+    // Stronger banding with layered darkening
+    const darken = 1 - (1 - distanceFactor) * 0.45
     const match = baseTone.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
     if (match) {
       const r = Math.floor(parseInt(match[1], 16) * darken)
@@ -57,12 +52,34 @@ export function renderRoadSegment(ctx, width, s1, s2, parity, colors, roadColor)
   ctx.fillStyle = grassColor
   ctx.fillRect(0, s2.sy, width, s1.sy - s2.sy)
 
+  // Shoulder with subtle grit texture (darker inner edge for depth)
   const shoulder1 = s1.sw * ROAD.shoulderWidthFraction
   const shoulder2 = s2.sw * ROAD.shoulderWidthFraction
-  trap(ctx, s1.sx - s1.sw - shoulder1, s1.sy, shoulder1, s2.sx - s2.sw - shoulder2, s2.sy, shoulder2, colors.shoulder)
-  trap(ctx, s1.sx + s1.sw, s1.sy, shoulder1, s2.sx + s2.sw, s2.sy, shoulder2, colors.shoulder)
+  
+  // Shoulder gradient: darker at road edge, lighter outside
+  const shoulderLeft = ctx.createLinearGradient(s1.sx - s1.sw - shoulder1, 0, s1.sx - s1.sw, 0)
+  shoulderLeft.addColorStop(0, colors.shoulderOuter || colors.shoulder)
+  shoulderLeft.addColorStop(1, colors.shoulderInner || colors.shoulder)
+  trap(ctx, s1.sx - s1.sw - shoulder1, s1.sy, shoulder1, s2.sx - s2.sw - shoulder2, s2.sy, shoulder2, shoulderLeft)
+  
+  const shoulderRight = ctx.createLinearGradient(s1.sx + s1.sw, 0, s1.sx + s1.sw + shoulder1, 0)
+  shoulderRight.addColorStop(0, colors.shoulderInner || colors.shoulder)
+  shoulderRight.addColorStop(1, colors.shoulderOuter || colors.shoulder)
+  trap(ctx, s1.sx + s1.sw, s1.sy, shoulder1, s2.sx + s2.sw, s2.sy, shoulder2, shoulderRight)
 
+  // Road surface: base + subtle lane wear streaks
   trap(ctx, s1.sx - s1.sw, s1.sy, s1.sw * 2, s2.sx - s2.sw, s2.sy, s2.sw * 2, roadColor)
+  
+  // Lane wear: subtle darker streaks in the wheel tracks
+  if (s1.sw > 20) { // only visible when road is wide enough
+    const laneWearAlpha = Math.min(0.08, s1.scale * 0.4) // fade with distance
+    ctx.fillStyle = `rgba(0, 0, 0, ${laneWearAlpha})`
+    const leftLane = s1.sw * 0.35
+    const rightLane = s1.sw * 0.35
+    const laneWidth = s1.sw * 0.18
+    trap(ctx, s1.sx - leftLane - laneWidth/2, s1.sy, laneWidth, s2.sx - leftLane - laneWidth/2, s2.sy, laneWidth, ctx.fillStyle)
+    trap(ctx, s1.sx + rightLane - laneWidth/2, s1.sy, laneWidth, s2.sx + rightLane - laneWidth/2, s2.sy, laneWidth, ctx.fillStyle)
+  }
 }
 
 // A dashed centerline stripe, drawn as a thin trapezoid down the middle of

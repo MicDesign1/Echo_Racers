@@ -19,6 +19,8 @@ export const COLORS = {
   grass: '#5B6B43',
   grassAlt: '#57683F',
   shoulder: 'rgba(139, 105, 20, 0.55)',
+  shoulderInner: 'rgba(100, 75, 15, 0.65)', // darker at road edge
+  shoulderOuter: 'rgba(150, 115, 25, 0.45)', // lighter at grass edge
   laneStripe: 'rgba(196, 154, 60, 0.8)',
 
   // Start/finish ground marking — a checkered strip (not a solid band) so it

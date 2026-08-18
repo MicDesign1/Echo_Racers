@@ -419,20 +419,21 @@ export const PARALLAX = {
   horizonFraction: 0.55, // sky/ground split, fraction of canvas height
   // Sun/haze: a soft radial glow near the horizon
   sun: {
-    yFraction: 0.48, // center position relative to canvas height
-    xFraction: 0.72, // slightly right of center for asymmetry
-    radiusPx: 80, // core radius
-    glowRadiusPx: 280, // outer glow radius
+    yFraction: 0.47, // slightly higher for better visibility
+    xFraction: 0.70, // slightly right of center for asymmetry
+    radiusPx: 95, // larger for more atmospheric presence
+    glowRadiusPx: 320, // extended atmospheric glow
   },
-  // Multiple ridge layers for depth — three instead of two, varying in height and color
+  // Multiple ridge layers for depth — three distinct layers with varied heights
+  // for proper OutRun-style parallax depth
   ridges: [
-    { yFraction: 0.551, amp: 70, rate: 0.28, seedMul: 0.8, colorKey: 'ridgeFar' }, // farthest, slowest
-    { yFraction: 0.553, amp: 48, rate: 0.50, seedMul: 1.3, colorKey: 'ridgeMid' }, // middle layer
-    { yFraction: 0.556, amp: 34, rate: 0.75, seedMul: 1.9, colorKey: 'ridgeNear' }, // closest, fastest
+    { yFraction: 0.548, amp: 85, rate: 0.25, seedMul: 0.7, colorKey: 'ridgeFar' }, // farthest, tallest, slowest
+    { yFraction: 0.552, amp: 58, rate: 0.48, seedMul: 1.2, colorKey: 'ridgeMid' }, // middle layer
+    { yFraction: 0.557, amp: 38, rate: 0.80, seedMul: 2.1, colorKey: 'ridgeNear' }, // closest, fastest
   ],
   skewRate: 2.2, // how fast the ridge skew accumulates from curve*speedPercent
-  ridgeStepPx: 10, // sampling step along x when building ridge silhouettes (smaller = smoother)
-  ridgeWaveFreq: 0.007, // base frequency for ridge undulation
+  ridgeStepPx: 8, // finer sampling for smoother curves
+  ridgeWaveFreq: 0.006, // slightly lower freq for broader hills
   vignetteInnerRadiusFraction: 0.35,
   vignetteOuterRadiusFraction: 0.95,
 }

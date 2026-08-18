@@ -1768,11 +1768,11 @@
   },
   "shimmer": {
     "frames": 120,
-    "visibleCount": 23
+    "visibleCount": 11
   },
   "natural": {
-    "catching": "/workspace/scripts/verify-screenshots/natural-catching.png",
     "bump": "/workspace/scripts/verify-screenshots/natural-bump.png",
+    "catching": "/workspace/scripts/verify-screenshots/natural-catching.png",
     "passed": "/workspace/scripts/verify-screenshots/natural-passed.png"
   }
 }
