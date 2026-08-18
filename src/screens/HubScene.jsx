@@ -155,8 +155,11 @@ export default function HubScene() {
     const player = playerRef.current
     const avatar = avatarRef.current
     const atlases = getAtlases()
-    const world = worldSize(chunk)
     const cam = { x: 0, y: 0, w: 0, h: 0 }
+    
+    // Helper to get current chunk (recomputed each call from player.mapId so it's never stale after transitions)
+    const getCurrentChunk = () => getChunk(player.mapId) || chunk
+    const getWorld = () => worldSize(getCurrentChunk())
 
     // The avatar look is fixed for the life of this mount (changing it means
     // a trip to /avatar and back), so its sprite grid + timing can be
@@ -200,59 +203,55 @@ export default function HubScene() {
         [x + f.width / 2, y]
       ]
       for (const [cx, cy] of corners) {
-        if (!isWalkable(chunk, cx, cy)) return false
+        if (!isWalkable(getCurrentChunk(), cx, cy)) return false
       }
       return true
     }
 
-    // Check if player walked off the edge of the current chunk, and if so,
-    // load the neighbor chunk and place the player on the entering edge.
-    function checkEdgeTransition(x, y) {
+    // Check if player would cross a chunk edge with this move, and if so,
+    // transition to the neighbor chunk. Returns true if transitioned.
+    function tryEdgeTransition(desiredX, desiredY) {
+      const currentChunk = getCurrentChunk()
       const TW = tilePx()
       const f = HUB.player.feet
-      const chunkWorldW = chunk.w * TW
-      const chunkWorldH = chunk.h * TW
+      const chunkWorldW = currentChunk.w * TW
+      const chunkWorldH = currentChunk.h * TW
       
       // Extract col, row from current mapId (hub-col-row)
       const [,col, row] = player.mapId.split('-').map(Number)
+      
+      // Check if desired position would be outside current chunk bounds
       let newCol = col
       let newRow = row
-      let newX = x
-      let newY = y
+      let newX = desiredX
+      let newY = desiredY
       
-      // Check if player crossed an edge
-      if (x < f.width / 2) {
+      if (desiredX - f.width / 2 < 0 && col > 0) {
         // Left edge
-        if (col > 0) {
-          newCol = col - 1
-          newX = chunkWorldW - f.width / 2 - 1
-        }
-      } else if (x > chunkWorldW - f.width / 2) {
+        newCol = col - 1
+        newX = chunkWorldW - f.width / 2 - 2
+      } else if (desiredX + f.width / 2 > chunkWorldW && col < 4) {
         // Right edge
-        if (col < 4) {
-          newCol = col + 1
-          newX = f.width / 2 + 1
-        }
+        newCol = col + 1
+        newX = f.width / 2 + 2
       }
       
-      if (y < f.height) {
+      if (desiredY - f.height < 0 && row > 0) {
         // Top edge
-        if (row > 0) {
-          newRow = row - 1
-          newY = chunkWorldH - f.height - 1
-        }
-      } else if (y > chunkWorldH) {
+        if (verifyMode) console.log(`tryEdgeTransition: top edge detected, desiredY=${desiredY}, f.height=${f.height}, row=${row}`)
+        newRow = row - 1
+        newY = chunkWorldH - 2
+      } else if (desiredY > chunkWorldH && row < 4) {
         // Bottom edge
-        if (row < 4) {
-          newRow = row + 1
-          newY = f.height + 1
-        }
+        newRow = row + 1
+        newY = f.height + 2
       }
       
-      // If we moved to a new chunk, update state
+      // If we would move to a new chunk, do the transition
       if (newCol !== col || newRow !== row) {
         const newMapId = `hub-${newCol}-${newRow}`
         const newChunk = getChunk(newMapId)
+        if (verifyMode) console.log(`tryEdgeTransition: transitioning from ${player.mapId} to ${newMapId}, exists=${!!newChunk}`)
         if (newChunk) {
           player.mapId = newMapId
           player.x = newX
@@ -268,13 +267,24 @@ export default function HubScene() {
     // Axis-separated move with edge sliding.
     function tryMove(ddx, ddy) {
       const f = HUB.player.feet
-      const nx = clamp(player.x + ddx, f.width / 2, world.w - f.width / 2)
-      const ny = clamp(player.y + ddy, f.height, world.h)
+      // Check desired position BEFORE clamping
+      const desiredX = player.x + ddx
+      const desiredY = player.y + ddy
+      
+      if (verifyMode && ddy < 0 && player.y < 100) {
+        console.log(`tryMove: player.y=${player.y.toFixed(1)}, ddy=${ddy.toFixed(2)}, desiredY=${desiredY.toFixed(1)}, f.height=${f.height}`)
+      }
+      
+      // Try edge transition first (using unclamped desired position)
+      if (ddx !== 0 && tryEdgeTransition(desiredX, player.y)) return
+      if (ddy !== 0 && tryEdgeTransition(player.x, desiredY)) return
+      
+      // If no transition, do normal walkability check with clamped position
+      const world = getWorld()
+      const nx = clamp(desiredX, f.width / 2, world.w - f.width / 2)
+      const ny = clamp(desiredY, f.height, world.h)
       if (ddx !== 0 && feetOk(nx, player.y)) player.x = nx
       if (ddy !== 0 && feetOk(player.x, ny)) player.y = ny
-      
-      // Check for edge transition after move
-      checkEdgeTransition(player.x, player.y)
     }
 
     function zoneAt(x, y) {
@@ -314,7 +324,7 @@ export default function HubScene() {
     }
 
     function saveNow() {
-      setHubState({ mapId: player.mapId, x: player.x, y: player.y, facing: player.facing, mapVersion: chunk.mapVersion })
+      setHubState({ mapId: player.mapId, x: player.x, y: player.y, facing: player.facing, mapVersion: getCurrentChunk().mapVersion })
     }
     let lastSave = performance.now()
     let dirtySinceSave = false
@@ -375,6 +385,8 @@ export default function HubScene() {
 
     function draw() {
       // Camera follows the player, clamped to the current chunk only.
+      const currentChunk = getCurrentChunk()
+      const world = getWorld()
       cam.w = W
       cam.h = H
       cam.x = clamp(player.x - W / 2, 0, Math.max(0, world.w - W))
@@ -384,14 +396,14 @@ export default function HubScene() {
       ctx.fillRect(0, 0, W, H)
       ctx.imageSmoothingEnabled = false
 
-      drawLayer(ctx, chunk, chunk.ground, atlases, cam.x, cam.y, W, H)
+      drawLayer(ctx, currentChunk, currentChunk.ground, atlases, cam.x, cam.y, W, H)
       // decorUnder/decorOver are each an ARRAY of layers (not one flattened
       // array) — Tiled lets multiple tiles genuinely stack with transparency
       // at the same cell (e.g. a bush's transparent corners revealing a
       // cliff face drawn under it), which collapsing to a single winner-
       // takes-all tile per cell would silently destroy. Drawn in stacking
       // order, same as Tiled itself would composite them.
-      for (const layer of chunk.decorUnder) drawLayer(ctx, chunk, layer, atlases, cam.x, cam.y, W, H)
+      for (const layer of currentChunk.decorUnder) drawLayer(ctx, currentChunk, layer, atlases, cam.x, cam.y, W, H)
 
       // Interaction zone labels (drawn on the ground, under entities) — no
       // trigger-radius circle anymore, just legible text at each zone's
@@ -419,7 +431,7 @@ export default function HubScene() {
 
       // Decor-over (tree canopies, roof, cliff caps) draws AFTER entities ->
       // walk-behind. Array of layers, same reasoning as decorUnder above.
-      for (const layer of chunk.decorOver) drawLayer(ctx, chunk, layer, atlases, cam.x, cam.y, W, H)
+      for (const layer of currentChunk.decorOver) drawLayer(ctx, currentChunk, layer, atlases, cam.x, cam.y, W, H)
     }
 
     // Player: composited avatar, bottom-center anchored, camera-corrected.
@@ -464,7 +476,7 @@ export default function HubScene() {
       const beforeX = player.x
       const beforeY = player.y
       stepPlayer(dt, dx, dy)
-      updateCritters(critters, dt, chunk, zones)
+      updateCritters(critters, dt, getCurrentChunk(), zones)
       if (player.x !== beforeX || player.y !== beforeY) dirtySinceSave = true
       if (dirtySinceSave && now - lastSave > HUB.saveThrottleMs) {
         saveNow()
@@ -498,23 +510,29 @@ export default function HubScene() {
           spriteWalkFrames: spriteCfg.walkFrames,
           spriteRow: player.moving ? spriteCfg.walkRow[player.facing] : spriteCfg.idleRow[player.facing],
         }),
-        getWorld: () => worldSize(chunk),
-        getMapInfo: () => ({ mapId: chunk.mapId, w: chunk.w, h: chunk.h, tilePx: tilePx(), spawn: { ...chunk.spawn } }),
+        getWorld: () => getWorld(),
+        getMapInfo: () => {
+          const currentChunk = getCurrentChunk()
+          return { mapId: currentChunk.mapId, w: currentChunk.w, h: currentChunk.h, tilePx: tilePx(), spawn: { ...currentChunk.spawn } }
+        },
         getZones: () => zones.map((z) => ({ ...z })),
         isWalkableTile: (tx, ty) => {
           const TW = tilePx()
-          return isWalkable(chunk, (tx + 0.5) * TW, (ty + 0.5) * TW)
+          return isWalkable(getCurrentChunk(), (tx + 0.5) * TW, (ty + 0.5) * TW)
         },
         getCritters: () => critters.map((c) => ({ x: c.x, y: c.y, animFrame: c.animFrame, state: c.state, type: c.type })),
         stepCritters: (ms) => {
           const steps = Math.max(1, Math.round(ms / 16))
-          for (let i = 0; i < steps; i++) updateCritters(critters, 0.016, chunk, zones)
+          for (let i = 0; i < steps; i++) updateCritters(critters, 0.016, getCurrentChunk(), zones)
           return critters.map((c) => ({ x: c.x, y: c.y, animFrame: c.animFrame }))
         },
-        cameraAt: (px, py) => ({
-          x: clamp(px - cam.w / 2, 0, Math.max(0, world.w - cam.w)),
-          y: clamp(py - cam.h / 2, 0, Math.max(0, world.h - cam.h)),
-        }),
+        cameraAt: (px, py) => {
+          const world = getWorld()
+          return {
+            x: clamp(px - cam.w / 2, 0, Math.max(0, world.w - cam.w)),
+            y: clamp(py - cam.h / 2, 0, Math.max(0, world.h - cam.h)),
+          }
+        },
         setPos: (x, y) => { player.x = x; player.y = y; recomputeZone() },
         simulateMove: (dx, dy, ms) => {
           const steps = Math.max(1, Math.round(ms / 16))
