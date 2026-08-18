@@ -183,20 +183,26 @@ export default function RaceTrack() {
   const bannerTimeoutRef = useRef(null)
   const verifyMetricsRef = useRef(null)
   const resetRaceRef = useRef(null)
+  // Boost hint timing: use a REF, not closed-over state, so update() ticks the
+  // real elapsed time (not stale closure). setBoostHint only when visibility
+  // changes, not every frame. Track postGoElapsed (0 during countdown, ticks
+  // after GO) to implement "stay ~6s after GO" without dismissing at GO itself.
+  const boostHintRef = useRef({ visible: false, postGoElapsed: 0 })
   const [banner, setBanner] = useState(null)
   const [raceResult, setRaceResult] = useState(null)
   const [countdownText, setCountdownText] = useState(() => (
     RACE.mode === 'race' && !verifyMode ? RACE.countdown.beats[0] : null
   ))
-  // Boost how-to hint: shown during countdown AND for ~5s after GO (playtest
-  // feedback: must be unmissable on desktop). Large, centered. Keyboard gets
+  // Boost how-to hint: fully opaque and visible DURING countdown AND for ~6s
+  // after GO. NOT tied to countdownText (that caused premature vanish at GO).
+  // Large, centered below the countdown numbers (lower third). Keyboard gets
   // "Press E to boost", touch gets "Tap Boost to activate". NOT tied to
-  // showTouch — desktop with mouse still sees keyboard hint. Auto-dismisses
-  // on first boost OR ~5s after GO. Never shown in verify mode.
+  // showTouch — desktop with mouse sees keyboard hint. Auto-dismisses on first
+  // boost OR ~6s after GO. Never shown in verify mode. Timing tracked via ref.
   const [boostHint, setBoostHint] = useState(() => {
     if (verifyMode) return null
-    // Start visible if countdown exists, else show immediately (time-trial).
-    return { visible: true, postGoElapsed: 0 }
+    boostHintRef.current = { visible: true, postGoElapsed: 0 }
+    return { visible: true }
   })
   const gameRef = useRef(createInitialGameState())
 
@@ -232,7 +238,10 @@ export default function RaceTrack() {
       clearTimeout(bannerTimeoutRef.current)
       setBanner(null)
       setRaceResult(null)
-      setBoostHint(verifyMode ? null : { visible: true, postGoElapsed: 0 })
+      if (!verifyMode) {
+        boostHintRef.current = { visible: true, postGoElapsed: 0 }
+        setBoostHint({ visible: true })
+      }
       currentTrack = activeTrack()
       loadTrack(currentTrack)
       RACE.lapCount = currentTrack.lapCount
@@ -385,7 +394,10 @@ export default function RaceTrack() {
         keys.boost = false
         touch.boost = false
         // Dismiss the boost hint on first activation (player knows how now).
-        if (boostHint?.visible) setBoostHint(null)
+        if (boostHintRef.current.visible) {
+          boostHintRef.current.visible = false
+          setBoostHint(null)
+        }
       }
 
       // Track pickup collection: check if the player ran over an available pickup.
@@ -492,15 +504,13 @@ export default function RaceTrack() {
       // on top of the frame's steering/lane easing.
       updateCombat(g, dt, trackLength)
 
-      // Boost hint timer: count post-GO elapsed time, auto-dismiss ~5s after GO.
-      // The hint shows during countdown (always visible there) AND after GO for
-      // ~5s, so we only tick postGoElapsed here in the normal update branch.
-      if (boostHint?.visible) {
-        const next = { ...boostHint, postGoElapsed: boostHint.postGoElapsed + dt }
-        if (next.postGoElapsed >= BOOST.visual.hintDuration) {
+      // Boost hint timer: tick postGoElapsed in the ref (not closed-over state)
+      // so it accumulates correctly. Auto-dismiss ~6s after GO (not at GO itself).
+      if (boostHintRef.current.visible) {
+        boostHintRef.current.postGoElapsed += dt
+        if (boostHintRef.current.postGoElapsed >= BOOST.visual.hintDuration) {
+          boostHintRef.current.visible = false
           setBoostHint(null)
-        } else {
-          setBoostHint(next)
         }
       }
     }
@@ -1196,23 +1206,7 @@ export default function RaceTrack() {
       )}
       {boostHint?.visible && (
         <div className="boost-hint-overlay">
-          <span
-            className="boost-hint-text"
-            style={{
-              opacity: (() => {
-                // Fade in/out. During countdown, fully visible. After GO, fade
-                // in for hintFadeIn, stay solid, then fade out near hintDuration.
-                const { postGoElapsed } = boostHint
-                const { hintFadeIn, hintFadeOut, hintDuration } = BOOST.visual
-                // During countdown (postGoElapsed still 0), show solid.
-                if (postGoElapsed < hintFadeIn) return postGoElapsed / hintFadeIn
-                if (postGoElapsed > hintDuration - hintFadeOut) {
-                  return (hintDuration - postGoElapsed) / hintFadeOut
-                }
-                return 1
-              })()
-            }}
-          >
+          <span className="boost-hint-text">
             {showTouch ? 'Tap Boost to activate' : 'Press E to boost'}
           </span>
         </div>
