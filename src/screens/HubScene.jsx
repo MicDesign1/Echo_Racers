@@ -204,8 +204,8 @@ export default function HubScene() {
         'npcManA', 'npcManB', 'npcWomanA', 'npcWomanB',
       ]
       
-      // Add plant types if their sprite files exist (both idle and walk must be present)
-      for (const plantType of ['plant1', 'plant2', 'plant3']) {
+      // Add plant and slime types if their sprite files exist (both idle and walk must be present)
+      for (const plantType of ['plant1', 'plant2', 'plant3', 'slime1', 'slime2', 'slime3']) {
         const sh = CRITTER_SHEETS[plantType]
         if (sh) {
           const idleImg = getCritterImg(sh.idleSrc)
@@ -231,8 +231,8 @@ export default function HubScene() {
       if (rawCritters.length > 0) {
         const extraWandererTypes = ['npcManA', 'npcManB', 'npcWomanA', 'npcWomanB', 'blobPink', 'blobOwlet', 'blobDude']
         
-        // Add plant types to extra pool if available
-        for (const plantType of ['plant1', 'plant2', 'plant3']) {
+        // Add plant and slime types to extra pool if available
+        for (const plantType of ['plant1', 'plant2', 'plant3', 'slime1', 'slime2', 'slime3']) {
           if (allWandererTypes.includes(plantType)) {
             extraWandererTypes.push(plantType)
           }
@@ -711,9 +711,11 @@ export default function HubScene() {
         const fw = sh.frameWidth
         const fh = sh.frameHeight
         const row = sh.rowForFacing[c.facing] || 0
-        const col = c.moving ? (c.animFrame % sh.walkFrames) : 0
-        // Clamp col so we don't sample beyond the image width
+        const frames = c.moving ? sh.walkFrames : (sh.idleFrames || 1)
+        const col = c.animFrame % frames
+        // Clamp col and row so we don't sample beyond the image dimensions
         if (srcImg.naturalWidth > 0 && col * fw + fw > srcImg.naturalWidth) return
+        if (srcImg.naturalHeight > 0 && row * fh + fh > srcImg.naturalHeight) return
         sx = col * fw
         sy = row * fh
         dw = fw * sh.drawScale
