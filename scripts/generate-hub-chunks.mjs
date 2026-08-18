@@ -70,18 +70,50 @@ function isSafeGround(tileId) {
   return true // assume OK for other decor
 }
 
-// Check if a tree can be stamped at (tx, ty) without overlapping water/rock
+// Check if a tree can be stamped at (tx, ty) without overlapping water/rock OR other trees
 function canStampTree(chunk, tx, ty) {
   const w = chunk.width
   const h = chunk.height
-  // Check full footprint: canopy 5x5 + trunk 3x2
-  for (let dr = -4; dr <= 0; dr++) {
-    for (let dc = -2; dc <= 2; dc++) {
+  // Check full footprint + buffer: canopy 5x5 at (ty-4 to ty) + trunk 3x2 at (ty+1 to ty+2)
+  // Add 2-tile buffer around the tree to prevent dense packing
+  const buffer = 2
+  
+  // Canopy check (with buffer)
+  for (let dr = -4 - buffer; dr <= 0 + buffer; dr++) {
+    for (let dc = -2 - buffer; dc <= 2 + buffer; dc++) {
       const x = tx + dc
       const y = ty + dr
       if (x < 0 || x >= w || y < 0 || y >= h) return false
       const gid = chunk.ground[y * w + x]
       if (!isSafeGround(gid)) return false
+      // Check if there's already a tree here (canopy or trunk)
+      for (let layer = 0; layer < chunk.decorOver.length; layer++) {
+        const existing = chunk.decorOver[layer][y * w + x]
+        if (existing >= 11 && existing <= 95 && existing % 16 >= 11 && existing % 16 <= 15) return false
+      }
+      for (let layer = 0; layer < chunk.decorUnder.length; layer++) {
+        const existing = chunk.decorUnder[layer][y * w + x]
+        if (existing >= 92 && existing <= 110 && [92,93,94,108,109,110].includes(existing)) return false
+      }
+    }
+  }
+  // Trunk check (with buffer)
+  for (let dr = 1 - buffer; dr <= 2 + buffer; dr++) {
+    for (let dc = -1 - buffer; dc <= 1 + buffer; dc++) {
+      const x = tx + dc
+      const y = ty + dr
+      if (x < 0 || x >= w || y < 0 || y >= h) return false
+      const gid = chunk.ground[y * w + x]
+      if (!isSafeGround(gid)) return false
+      // Check if there's already a tree here
+      for (let layer = 0; layer < chunk.decorOver.length; layer++) {
+        const existing = chunk.decorOver[layer][y * w + x]
+        if (existing >= 11 && existing <= 95 && existing % 16 >= 11 && existing % 16 <= 15) return false
+      }
+      for (let layer = 0; layer < chunk.decorUnder.length; layer++) {
+        const existing = chunk.decorUnder[layer][y * w + x]
+        if (existing >= 92 && existing <= 110 && [92,93,94,108,109,110].includes(existing)) return false
+      }
     }
   }
   return true
@@ -89,12 +121,13 @@ function canStampTree(chunk, tx, ty) {
 
 // Stamp a tree (canopy in decorOver, trunk in decorUnder)
 // Canopy: 5x5 at A(11+dc, 0..4), trunk: 3x2 at A(12+dc, 5..6)
+// Trunk positioned mostly BELOW canopy to match HOME (minimal overlap)
 function stampTree(chunk, tx, ty) {
   if (!canStampTree(chunk, tx, ty)) return false
   
   const { ground, decorUnder, decorOver } = chunk
   const w = chunk.width
-  // Canopy: 5x5 at (11..15, 0..4)
+  // Canopy: 5x5 at (tx-2, ty-4) through (tx+2, ty)
   for (let dr = 0; dr < 5; dr++) {
     for (let dc = 0; dc < 5; dc++) {
       const x = tx - 2 + dc
@@ -104,11 +137,12 @@ function stampTree(chunk, tx, ty) {
       }
     }
   }
-  // Trunk: 3x2 at (12..14, 5..6)
+  // Trunk: 3x2 at (tx-1, ty+1) through (tx+1, ty+2)
+  // One row below canopy bottom to match HOME's layout
   for (let dr = 0; dr < 2; dr++) {
     for (let dc = 0; dc < 3; dc++) {
       const x = tx - 1 + dc
-      const y = ty - 1 + dr
+      const y = ty + 1 + dr
       if (x >= 0 && x < w && y >= 0 && y < chunk.height) {
         decorUnder[0][y * w + x] = A(12 + dc, 5 + dr)
       }
@@ -362,30 +396,30 @@ function generateNewChunk(col, row) {
     if (col === 0 && !isHomeWestNeighbor) addCliffWithWater(chunk, 'west')
     if (col === GRID_SIZE - 1 && !isHomeEastNeighbor) addCliffWithWater(chunk, 'east')
 
-    // Scatter trees inland (avoiding water/cliff areas)
-    const treeCount = 12
+    // Scatter trees inland (match HOME's density: ~9 trees per 31x21 map)
+    const treeCount = 8
     let treesPlaced = 0
     let attempts = 0
-    while (treesPlaced < treeCount && attempts < treeCount * 3) {
-      const tx = Math.floor(Math.random() * (W - 8)) + 4
-      const ty = Math.floor(Math.random() * (H - 8)) + 4
+    while (treesPlaced < treeCount && attempts < treeCount * 5) {
+      const tx = Math.floor(Math.random() * (W - 10)) + 5
+      const ty = Math.floor(Math.random() * (H - 10)) + 5
       if (stampTree(chunk, tx, ty)) treesPlaced++
       attempts++
     }
   } else {
     // Inner 3x3: no water, just forest/grass
-    // Add grass pockets and tree clusters
-    const treeGroves = 3
+    // Add sparse tree groves (match HOME's density)
+    const treeGroves = 2
     for (let g = 0; g < treeGroves; g++) {
       const cx = Math.floor(Math.random() * (W - 12)) + 6
       const cy = Math.floor(Math.random() * (H - 10)) + 5
-      const groveSize = 3 + Math.floor(Math.random() * 3)
+      const groveSize = 3 + Math.floor(Math.random() * 2) // 3-4 trees per grove
       let treesPlaced = 0
       let attempts = 0
-      while (treesPlaced < groveSize && attempts < groveSize * 3) {
-        const tx = cx + Math.floor(Math.random() * 8) - 4
-        const ty = cy + Math.floor(Math.random() * 6) - 3
-        if (tx >= 3 && tx < W - 3 && ty >= 3 && ty < H - 3) {
+      while (treesPlaced < groveSize && attempts < groveSize * 5) {
+        const tx = cx + Math.floor(Math.random() * 10) - 5
+        const ty = cy + Math.floor(Math.random() * 8) - 4
+        if (tx >= 5 && tx < W - 5 && ty >= 5 && ty < H - 5) {
           if (stampTree(chunk, tx, ty)) treesPlaced++
         }
         attempts++
