@@ -289,7 +289,8 @@ export function update(state) {
 
   const e = AUDIO.engine
   const airLift = state.airborne ? e.airPitchLiftHz : 0
-  const engFreq = e.idleFreq + (e.maxFreq - e.idleFreq) * Math.pow(spd, e.freqCurve) + airLift
+  const boostLift = state.boosting ? e.boostPitchLiftHz : 0
+  const engFreq = e.idleFreq + (e.maxFreq - e.idleFreq) * Math.pow(spd, e.freqCurve) + airLift + boostLift
   const engGain = e.idleGain + (e.maxGain - e.idleGain) * spd
   engine.osc1.frequency.setTargetAtTime(engFreq, now, glide)
   engine.osc2.frequency.setTargetAtTime(engFreq, now, glide)

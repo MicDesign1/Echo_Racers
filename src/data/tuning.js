@@ -128,31 +128,28 @@ export const DRIFT = {
   settleEaseRate: 6, // how fast driftAngle relaxes back to 0 off-drift
 }
 
-// Charge boost — a meter that fills over time and can be dumped for an
-// instant speed burst. Repeatable resource (not once-per-race). Player
-// triggers with a key/button; meter empties and refills naturally. Thrilling
-// but never punishing — capped so it doesn't launch the car out of the
-// pseudo-3D projection.
+// Charge boost — a meter that starts full and drains when activated. Repeatable
+// resource: dump the meter for a speed burst, then wait for it to refill. Player
+// triggers with a key/button; meter empties and refills naturally. Track pickups
+// instantly fill the meter. Thrilling but never punishing.
 export const BOOST = {
-  // Meter fill rate and capacity (seconds to fill from 0 to max).
-  chargeRate: 0.12, // charge units/sec (0..1 full meter)
+  // Meter fill rate and capacity (empty → full takes ~10 seconds).
+  chargeRate: 0.10, // charge units/sec (0..1 full meter; 1/0.10 = 10s refill)
   chargeMax: 1.0, // full meter capacity
-  // Activation: consume the meter and enter a burst. Partial charge allowed
-  // (weaker effect); full charge reads as a big thrill on screen.
-  minActivateCharge: 0.15, // minimum meter to activate (can't spam empty)
-  burstDuration: 1.8, // seconds the burst lasts once activated
+  // Activation: consume the meter and enter a burst. Small minimum charge
+  // prevents spamming on an empty meter.
+  minActivateCharge: 0.12, // minimum meter to activate (can't spam empty)
+  burstDuration: 2.2, // seconds the burst lasts once activated
   burstAccelFactor: 1.6, // accel multiplier during the burst
   burstMaxSpeedBonus: 0.28, // fraction of maxSpeed added as a temporary ceiling lift
-  // Decay: after the burst ends, the meter is empty and starts refilling
-  // immediately (no cooldown penalty — encourages frequent use).
+  // After the burst ends, the meter is empty and starts refilling immediately
+  // (no cooldown penalty — encourages frequent use).
   
-  // Track pickups — instant boost items placed on the track (independent of
-  // the charge meter). Run over one, get an immediate burst. Respawn control
-  // per tuning so kids aren't punished for missing one.
+  // Track pickups — instant meter-fill items placed on the track. Run over one,
+  // the boost bar fills to max instantly (player still presses Boost to activate).
+  // No auto-activate; pickups just recharge the meter. Respawn control per tuning
+  // so kids aren't punished for missing one.
   pickup: {
-    burstDuration: 1.4, // seconds (shorter than a manual dump, but immediate)
-    burstAccelFactor: 1.5,
-    burstMaxSpeedBonus: 0.24,
     // Respawn: pickups re-appear after this many seconds (per-pickup timer,
     // so missing one doesn't lock it out forever — wholesome, not punishing).
     respawnTime: 18, // seconds after collection before it reappears
@@ -160,6 +157,25 @@ export const BOOST = {
     spriteWidth: 0.28, // fraction of the road half-width
     spriteHeight: 0.32, // fraction of spriteWidth (aspect ratio)
     glowPulseRate: 0.003, // rad/ms for a gentle attracting pulse
+    // Pickup collection flash — a brief gold/resonance joy burst when collecting
+    // (reads as "bar filled" feedback, distinct from combat damage flash).
+    flashDuration: 0.35, // seconds the flash lasts after collection
+    flashGlowFraction: 1.2, // glow radius as a fraction of carWidth
+  },
+
+  // Visual feedback: boosting glow + how-to hint at race start.
+  visual: {
+    // Glow: soft cyan resonance light while boost burst is active.
+    glowColor: '120, 200, 220', // RGB for soft cyan (resonance tech theme)
+    glowAlpha: 0.5, // base alpha for the glow
+    glowRadiusFraction: 1.1, // glow radius as a fraction of carWidth
+    glowPulseRate: 0.004, // rad/ms for a gentle pulse while boosting
+    // How-to hint: shown during countdown + ~6s after GO, unmissable on desktop.
+    // Large, lower-third plaque. Keyboard: "Press E to boost". Touch: "Tap Boost to activate".
+    hintShowDuringCountdown: true, // show hint during countdown (not just after)
+    hintDuration: 6.0, // seconds after GO before auto-dismiss (or first boost press)
+    hintFadeIn: 0.3, // seconds to fade in (currently unused: always opacity 1)
+    hintFadeOut: 0.4, // seconds to fade out (currently unused: always opacity 1)
   },
 }
 
@@ -736,6 +752,9 @@ export const AUDIO = {
     // AIR/engine/airtime.js) — a cheap, wholesome "whoosh" cue reusing the
     // existing engine hum rather than a new sound.
     airPitchLiftHz: 18,
+    // Pitch lift while boost burst is active (thrilling rev, reuses the same
+    // param-glide mechanism as airPitchLiftHz).
+    boostPitchLiftHz: 28,
   },
   // Rival hums: same character, quieter, and faded by proximity so a
   // rival alongside you is audible but never drowns your own machine.
