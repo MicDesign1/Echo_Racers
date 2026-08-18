@@ -51,17 +51,45 @@ function buildSegments(trackData) {
     // track scatters the same way every run. Modulo/remainder/offsets are
     // this track's own "prop set + density" (data/tracks.js).
     const sprites = []
-    if (i % roadside.pillarModulo === roadside.pillarRemainderLeft) {
+    
+    // Pillars (brass with resonance orbs)
+    if (roadside.pillarModulo && i % roadside.pillarModulo === roadside.pillarRemainderLeft) {
       sprites.push({ offset: roadside.pillarOffsetLeft, type: 'pillar', seed: i })
     }
-    if (i % roadside.pillarModulo === roadside.pillarRemainderRight) {
+    if (roadside.pillarModulo && i % roadside.pillarModulo === roadside.pillarRemainderRight) {
       sprites.push({ offset: roadside.pillarOffsetRight, type: 'pillar', seed: i * 3 })
     }
-    if (i % roadside.stoneModuloA === roadside.stoneRemainderA) {
+    
+    // Stones (river-worn boulders)
+    if (roadside.stoneModuloA && i % roadside.stoneModuloA === roadside.stoneRemainderA) {
       sprites.push({ offset: roadside.stoneOffsetA, type: 'stone', seed: i })
     }
-    if (i % roadside.stoneModuloB === roadside.stoneRemainderB) {
+    if (roadside.stoneModuloB && i % roadside.stoneModuloB === roadside.stoneRemainderB) {
       sprites.push({ offset: roadside.stoneOffsetB, type: 'stone', seed: i * 7 })
+    }
+    
+    // Markers (verdigris copper posts)
+    if (roadside.markerModulo && i % roadside.markerModulo === roadside.markerRemainderLeft) {
+      sprites.push({ offset: roadside.markerOffsetLeft, type: 'marker', seed: i * 5 })
+    }
+    if (roadside.markerModulo && i % roadside.markerModulo === roadside.markerRemainderRight) {
+      sprites.push({ offset: roadside.markerOffsetRight, type: 'marker', seed: i * 11 })
+    }
+    
+    // Trees (distant silhouettes)
+    if (roadside.treeModulo && i % roadside.treeModulo === roadside.treeRemainderLeft) {
+      sprites.push({ offset: roadside.treeOffsetLeft, type: 'tree', seed: i * 13 })
+    }
+    if (roadside.treeModulo && i % roadside.treeModulo === roadside.treeRemainderRight) {
+      sprites.push({ offset: roadside.treeOffsetRight, type: 'tree', seed: i * 17 })
+    }
+    
+    // Arches (brass ceremonial gateways)
+    if (roadside.archModulo && i % roadside.archModulo === roadside.archRemainderLeft) {
+      sprites.push({ offset: roadside.archOffsetLeft, type: 'arch', seed: i * 19 })
+    }
+    if (roadside.archModulo && i % roadside.archModulo === roadside.archRemainderRight) {
+      sprites.push({ offset: roadside.archOffsetRight, type: 'arch', seed: i * 23 })
     }
 
     // Start/finish marker: segment 0 only, drawn via the exact same

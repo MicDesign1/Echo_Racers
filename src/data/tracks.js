@@ -43,6 +43,9 @@ export const TRACKS = [
       grassAlt: COLORS.grassAlt,
       rumble: COLORS.shoulder,
       road: ROAD_BASE,
+      ridgeFar: '#7A5528', // warmer, more amber-brown for forest feel
+      ridgeMid: '#634520',
+      ridgeNear: '#523A18',
     },
     roadside: {
       pillarModulo: 9,
@@ -52,10 +55,15 @@ export const TRACKS = [
       stoneRemainderA: 5,
       stoneModuloB: 11,
       stoneRemainderB: 8,
+      markerModulo: 17,
+      markerRemainderLeft: 6,
+      markerRemainderRight: 12,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      markerOffsetLeft: -1.8,
+      markerOffsetRight: 1.8,
     },
     // Boost pickups — instant-boost items placed on the track. Each entry is
     // a segment index and a lateral offset (lane units, same scale as playerX).
@@ -88,16 +96,19 @@ export const TRACKS = [
       { type: 'curve', dir: 'left', strength: 1.6, length: 375 },
       { type: 'straight', length: 225 },
     ],
-    // Warm golden plains — brighter/drier than Circuit One, still within
-    // the parchment-sky/natural-green art direction.
+    // Warm golden plains — brighter/drier than Circuit One, obviously distinct.
     palette: {
-      sky: [[0, '#4A2F1C'], [0.45, '#A06F28'], [0.8, '#E6BD5E'], [1, '#FFFBEF']],
-      grass: '#6B7A4A',
-      grassAlt: '#66753F',
-      rumble: 'rgba(180, 150, 70, 0.5)',
-      road: [82, 58, 34],
+      sky: [[0, '#4A2F1C'], [0.45, '#A87A30'], [0.8, '#E8C468'], [1, '#FFFDF5']],
+      grass: '#727F52', // yellower grass
+      grassAlt: '#6C7A48',
+      rumble: 'rgba(190, 160, 75, 0.5)',
+      road: [85, 62, 36],
+      ridgeFar: '#9A7538', // golden ridges
+      ridgeMid: '#82642A',
+      ridgeNear: '#6A521F',
     },
     // Fewer props (larger modulo = sparser) — an open, flowing feel.
+    // Brass arches for ceremonial gateway feel.
     roadside: {
       pillarModulo: 14,
       pillarRemainderLeft: 4,
@@ -106,10 +117,15 @@ export const TRACKS = [
       stoneRemainderA: 6,
       stoneModuloB: 17,
       stoneRemainderB: 11,
+      archModulo: 23,
+      archRemainderLeft: 8,
+      archRemainderRight: 15,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      archOffsetLeft: -2.0,
+      archOffsetRight: 2.0,
     },
     // Boost pickups — spaced for the long, flowing layout (2250 segments).
     pickups: [
@@ -150,16 +166,19 @@ export const TRACKS = [
       { type: 'curve', dir: 'right', strength: 3.8, length: 150, enter: 35, leave: 35 },
       { type: 'straight', length: 125 },
     ],
-    // Cooler, deeper forest greens — a shaded, close-in feel to match the
-    // tighter course.
+    // Dense tight woods — deeper, darker greens, shadowy atmosphere.
     palette: {
-      sky: [[0, '#2A2015'], [0.45, '#5E4A22'], [0.8, '#A98A45'], [1, '#F2E6C8']],
-      grass: '#3F5A38',
-      grassAlt: '#3A5433',
-      rumble: 'rgba(139, 105, 20, 0.6)',
-      road: [58, 42, 26],
+      sky: [[0, '#2A1F15'], [0.45, '#5E4628'], [0.8, '#9B8560'], [1, '#F5EFE0']],
+      grass: '#3F5530', // darker, denser forest green
+      grassAlt: '#3A502B',
+      rumble: 'rgba(120, 100, 50, 0.55)',
+      road: [68, 55, 40],
+      ridgeFar: '#4E5E3A', // dark wooded ridges
+      ridgeMid: '#3F4D2E',
+      ridgeNear: '#323D24',
     },
     // Denser props (smaller modulo = more frequent) — a packed, technical feel.
+    // Trees for the forest/shaded environment.
     roadside: {
       pillarModulo: 6,
       pillarRemainderLeft: 2,
@@ -168,10 +187,15 @@ export const TRACKS = [
       stoneRemainderA: 3,
       stoneModuloB: 5,
       stoneRemainderB: 1,
+      treeModulo: 8,
+      treeRemainderLeft: 0,
+      treeRemainderRight: 5,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      treeOffsetLeft: -2.5,
+      treeOffsetRight: 2.5,
     },
     // Boost pickups — tighter spacing for the short, technical circuit (1263 segments).
     pickups: [
@@ -187,34 +211,35 @@ export const TRACKS = [
     id: 'highland-circuit-1',
     label: 'Highland Circuit',
     lapCount: 3,
-    // Hills and turns: a big climb, a hilltop sweeper, a drop, another
-    // climb, then a descending curve back to the line. Scaled 2.5x — 1550
-    // segments. The closing curve's dy is -45 (not -25): the climbs/drops
-    // above it only net to +20 by the time they reach it (+30+10-15+0+20),
-    // so the final descent needs the extra -20 to actually return to the
-    // lap's starting elevation — a closed lap's total elevation change must
-    // sum to zero, a seam mismatch this pass's finish-line banner surfaced
-    // (it rendered oddly right at the lap seam) rather than something
-    // invented for this fix.
+    // Hills and turns: dramatically steeper climbs and descents for genuine
+    // highland feel. Opening climb is 60 units over 110 segments (vs old 30
+    // over 175 — much steeper), plus two more sharp climbs and matching drops.
+    // Scaled 2.5x base length preserved at 1550 segments total. Net elevation
+    // change: +60 +15 -40 +50 -85 = 0 (closed lap verified).
     layout: [
-      { type: 'straight', length: 175 },
-      { type: 'hill', dy: 30, length: 175 },
-      { type: 'curve', dir: 'left', strength: 3.0, dy: 10, length: 250, enter: 63, leave: 63 },
-      { type: 'hill', dy: -15, length: 125 },
-      { type: 'curve', dir: 'right', strength: 3.2, length: 275, enter: 70, leave: 70 },
-      { type: 'hill', dy: 20, length: 150 },
-      { type: 'curve', dir: 'left', strength: 2.6, dy: -45, length: 225, enter: 55, leave: 55 },
-      { type: 'straight', length: 175 },
+      { type: 'straight', length: 225 },
+      { type: 'hill', dy: 60, length: 110 }, // steep opening climb
+      { type: 'curve', dir: 'left', strength: 3.0, dy: 15, length: 260, enter: 65, leave: 65 }, // hilltop sweeper, still rising
+      { type: 'hill', dy: -40, length: 110 }, // sharp descent
+      { type: 'curve', dir: 'right', strength: 3.2, length: 300, enter: 75, leave: 75 }, // valley run
+      { type: 'hill', dy: 50, length: 110 }, // second steep climb
+      { type: 'curve', dir: 'left', strength: 2.6, dy: -85, length: 235, enter: 58, leave: 58 }, // plunging descent back to line
+      { type: 'straight', length: 200 }, // run to finish
     ],
     // Grey stone highland — sage/grey-green grass, pale cool sky, stone-grey road.
+    // Obviously cooler/stonier than forest or plains.
     palette: {
-      sky: [[0, '#332A22'], [0.45, '#7A6B4A'], [0.8, '#C4B98F'], [1, '#FFF8E7']],
-      grass: '#6E7360',
-      grassAlt: '#68705A',
-      rumble: 'rgba(160, 160, 140, 0.5)',
-      road: [90, 82, 70],
+      sky: [[0, '#30291F'], [0.45, '#786D50'], [0.8, '#C2BA95'], [1, '#FEFBF2']],
+      grass: '#727A68', // greyer sage
+      grassAlt: '#6C7560',
+      rumble: 'rgba(155, 155, 135, 0.5)',
+      road: [92, 85, 74],
+      ridgeFar: '#828670', // stone-grey ridges
+      ridgeMid: '#6E7158',
+      ridgeNear: '#5A5D48',
     },
     // Stone-heavy roadside (more stones than pillars) to match the highland look.
+    // Verdigris markers add weathered character.
     roadside: {
       pillarModulo: 11,
       pillarRemainderLeft: 3,
@@ -223,10 +248,15 @@ export const TRACKS = [
       stoneRemainderA: 2,
       stoneModuloB: 10,
       stoneRemainderB: 6,
+      markerModulo: 13,
+      markerRemainderLeft: 5,
+      markerRemainderRight: 9,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      markerOffsetLeft: -1.9,
+      markerOffsetRight: 1.9,
     },
     // Boost pickups — highland circuit (1550 segments).
     pickups: [
@@ -260,14 +290,17 @@ export const TRACKS = [
       { type: 'curve', dir: 'right', strength: 2.5, length: 238, enter: 60, leave: 60 },
       { type: 'straight', length: 188 },
     ],
-    // Verdigris/aquatic — a cooler, teal-tinted sky at altitude easing to
-    // the same warm parchment horizon, teal-green grass, cool stone road.
+    // Coastal feel: cooler teal-blue atmosphere, sea-green grass, obviously
+    // distinct from the warm/forest tracks. Strong teal shift for instant recognition.
     palette: {
-      sky: [[0, '#1E3A3A'], [0.45, '#3E6E68'], [0.8, '#A9C9A0'], [1, '#FFF8E7']],
-      grass: '#4C7A6A',
-      grassAlt: '#46705F',
-      rumble: 'rgba(95, 158, 160, 0.5)',
-      road: [70, 64, 60],
+      sky: [[0, '#1C3638'], [0.45, '#3A7270'], [0.8, '#A5CFAA'], [1, '#F8FCFA']],
+      grass: '#488571', // stronger teal-green
+      grassAlt: '#427B66',
+      rumble: 'rgba(90, 165, 160, 0.5)',
+      road: [68, 70, 68],
+      ridgeFar: '#5A8578', // teal ridges
+      ridgeMid: '#456E60',
+      ridgeNear: '#355A4C',
     },
     roadside: {
       pillarModulo: 12,
@@ -277,10 +310,20 @@ export const TRACKS = [
       stoneRemainderA: 4,
       stoneModuloB: 12,
       stoneRemainderB: 7,
+      markerModulo: 15,
+      markerRemainderLeft: 5,
+      markerRemainderRight: 11,
+      treeModulo: 19,
+      treeRemainderLeft: 2,
+      treeRemainderRight: 13,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      markerOffsetLeft: -1.8,
+      markerOffsetRight: 1.8,
+      treeOffsetLeft: -2.6,
+      treeOffsetRight: 2.6,
     },
     // Boost pickups — coastal circuit (1601 segments).
     pickups: [
