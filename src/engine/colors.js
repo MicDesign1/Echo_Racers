@@ -10,6 +10,7 @@ export const COLORS = {
     [1, '#FFF8E7'],
   ],
   ridgeFar: '#6E4E22',
+  ridgeMid: '#5a3e1a',
   ridgeNear: '#4E3416',
 
   // Grass alternates between two near-identical greens by draw order (not
@@ -38,6 +39,16 @@ export const COLORS = {
   orbGlow: ['rgba(255, 226, 150, 0.95)', 'rgba(230, 180, 80, 0.45)', 'rgba(230, 180, 80, 0)'],
   orbCore: '#FFE9B0',
   stone: ['#8a8272', '#565043'],
+  // Verdigris markers — weathered copper posts
+  marker: ['#3d5a52', '#5f8a7a', '#2c433c'],
+  markerCap: '#4a6559',
+  markerVerdigris: ['rgba(127, 174, 143, 0.3)', 'rgba(95, 138, 122, 0.5)'],
+  // Tree silhouettes — distant foliage shapes
+  treeTrunk: ['#4a3a28', '#38281a'],
+  treeCanopy: ['#4a5a3a', '#3a4a2a', '#2f3d22'],
+  // Brass arches — ceremonial gateway elements
+  arch: ['#6b5411', '#8B6914', '#54410d'],
+  archCap: '#9c7c1e',
 
   carHull: ['#7a5a12', '#C49A3C', '#6d4e10'],
   carFin: '#8B6914',

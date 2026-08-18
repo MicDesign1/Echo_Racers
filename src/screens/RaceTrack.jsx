@@ -204,7 +204,15 @@ export default function RaceTrack() {
     let currentTrack = activeTrack()
     loadTrack(currentTrack)
     RACE.lapCount = currentTrack.lapCount
-    let trackColors = { ...COLORS, sky: currentTrack.palette.sky, grass: currentTrack.palette.grass, grassAlt: currentTrack.palette.grassAlt, shoulder: currentTrack.palette.rumble }
+    let trackColors = { ...COLORS, 
+      sky: currentTrack.palette.sky, 
+      grass: currentTrack.palette.grass, 
+      grassAlt: currentTrack.palette.grassAlt, 
+      shoulder: currentTrack.palette.rumble,
+      ridgeFar: currentTrack.palette.ridgeFar,
+      ridgeMid: currentTrack.palette.ridgeMid,
+      ridgeNear: currentTrack.palette.ridgeNear,
+    }
 
     gameRef.current.bestLapTime = getBestTimes(activeTrackId()).bestLap
 
@@ -225,7 +233,15 @@ export default function RaceTrack() {
       currentTrack = activeTrack()
       loadTrack(currentTrack)
       RACE.lapCount = currentTrack.lapCount
-      trackColors = { ...COLORS, sky: currentTrack.palette.sky, grass: currentTrack.palette.grass, grassAlt: currentTrack.palette.grassAlt, shoulder: currentTrack.palette.rumble }
+      trackColors = { ...COLORS, 
+        sky: currentTrack.palette.sky, 
+        grass: currentTrack.palette.grass, 
+        grassAlt: currentTrack.palette.grassAlt, 
+        shoulder: currentTrack.palette.rumble,
+        ridgeFar: currentTrack.palette.ridgeFar,
+        ridgeMid: currentTrack.palette.ridgeMid,
+        ridgeNear: currentTrack.palette.ridgeNear,
+      }
       const fresh = createInitialGameState()
       fresh.bestLapTime = getBestTimes(activeTrackId()).bestLap
       gameRef.current = fresh

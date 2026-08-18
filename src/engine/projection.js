@@ -33,8 +33,28 @@ function trap(ctx, x1, y1, w1, x2, y2, w2, fill) {
 // per-segment tint baked in already) — no alternating bands. The shoulder
 // is a single soft brass band right at each road edge, in place of a harsh
 // checkered rumble strip. `parity` alternates the grass tint by draw order.
+// Grass darkens subtly with distance for depth banding.
 export function renderRoadSegment(ctx, width, s1, s2, parity, colors, roadColor) {
-  ctx.fillStyle = parity ? colors.grassAlt : colors.grass
+  // Distance-based grass darkening: closer segments are lighter
+  const distanceFactor = Math.min(1, s1.scale * 20) // scale is ~0..0.2
+  const baseTone = parity ? colors.grassAlt : colors.grass
+  
+  // Parse the base color and darken it with distance
+  let grassColor = baseTone
+  if (distanceFactor < 0.95) {
+    // Simple darkening for distant segments
+    const darken = 1 - (1 - distanceFactor) * 0.3
+    // Extract RGB from hex or rgb() string and darken
+    const match = baseTone.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+    if (match) {
+      const r = Math.floor(parseInt(match[1], 16) * darken)
+      const g = Math.floor(parseInt(match[2], 16) * darken)
+      const b = Math.floor(parseInt(match[3], 16) * darken)
+      grassColor = `rgb(${r}, ${g}, ${b})`
+    }
+  }
+  
+  ctx.fillStyle = grassColor
   ctx.fillRect(0, s2.sy, width, s1.sy - s2.sy)
 
   const shoulder1 = s1.sw * ROAD.shoulderWidthFraction

@@ -387,32 +387,52 @@ export const AIR = {
   landingDamping: 3.2, // decay rate over the settle's 0..1 progress
 }
 
-// Roadside pillars/stones are placed deterministically by segment index
-// (segment index % modulo) — the actual modulo/remainder/offset "prop set +
-// density" is per-track data (data/tracks.js); these are only the shared
-// visual constants for how a placed sprite is drawn/sized.
+// Roadside props — placed deterministically by segment index (modulo/remainder/offset
+// per-track in data/tracks.js). These are the shared visual constants for drawing/sizing.
 export const ROADSIDE = {
+  // Brass pillars with resonance orbs (original)
   pillarHeightFraction: 0.9, // of the road's projected half-width at that point
   pillarWidthFraction: 0.13,
-  stoneHeightFraction: 0.22,
-  stoneWidthFraction: 0.3,
   orbPulseRate: 0.002, // rad/ms
+  // River-worn stones (original grey blobs, now with better shaping)
+  stoneHeightFraction: 0.24,
+  stoneWidthFraction: 0.32,
+  // Short verdigris markers — weathered copper posts
+  markerHeightFraction: 0.55,
+  markerWidthFraction: 0.10,
+  markerCapFraction: 0.15, // cap height relative to marker height
+  // Tree silhouettes — distant canopy + trunk shapes
+  treeHeightFraction: 1.4,
+  treeWidthFraction: 0.45,
+  treeTrunkWidthFraction: 0.14,
+  treeTrunkHeightFraction: 0.35, // trunk height relative to tree height
+  treeCanopyOffsetFraction: 0.25, // how much canopy overlaps trunk
+  // Brass arch — ceremonial gateway elements
+  archHeightFraction: 1.1,
+  archWidthFraction: 0.28,
+  archThicknessFraction: 0.08,
+  archCapFraction: 0.12,
 }
 
-// Background hill silhouettes, drawn in screen space (not projected).
+// Background sky, horizon, and parallax ridges — drawn in screen space (not projected).
 export const PARALLAX = {
   horizonFraction: 0.55, // sky/ground split, fraction of canvas height
-  farRidgeYFraction: 0.552,
-  farRidgeAmp: 60,
-  farRidgeRate: 0.35,
-  farRidgeSeedMul: 1.0,
-  nearRidgeYFraction: 0.553,
-  nearRidgeAmp: 34,
-  nearRidgeRate: 0.7,
-  nearRidgeSeedMul: 1.7,
+  // Sun/haze: a soft radial glow near the horizon
+  sun: {
+    yFraction: 0.48, // center position relative to canvas height
+    xFraction: 0.72, // slightly right of center for asymmetry
+    radiusPx: 80, // core radius
+    glowRadiusPx: 280, // outer glow radius
+  },
+  // Multiple ridge layers for depth — three instead of two, varying in height and color
+  ridges: [
+    { yFraction: 0.551, amp: 70, rate: 0.28, seedMul: 0.8, colorKey: 'ridgeFar' }, // farthest, slowest
+    { yFraction: 0.553, amp: 48, rate: 0.50, seedMul: 1.3, colorKey: 'ridgeMid' }, // middle layer
+    { yFraction: 0.556, amp: 34, rate: 0.75, seedMul: 1.9, colorKey: 'ridgeNear' }, // closest, fastest
+  ],
   skewRate: 2.2, // how fast the ridge skew accumulates from curve*speedPercent
-  ridgeStepPx: 12, // sampling step along x when building the ridge silhouette
-  ridgeWaveFreq: 0.008,
+  ridgeStepPx: 10, // sampling step along x when building ridge silhouettes (smaller = smoother)
+  ridgeWaveFreq: 0.007, // base frequency for ridge undulation
   vignetteInnerRadiusFraction: 0.35,
   vignetteOuterRadiusFraction: 0.95,
 }

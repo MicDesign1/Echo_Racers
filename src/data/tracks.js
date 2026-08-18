@@ -43,6 +43,9 @@ export const TRACKS = [
       grassAlt: COLORS.grassAlt,
       rumble: COLORS.shoulder,
       road: ROAD_BASE,
+      ridgeFar: '#6E4E22',
+      ridgeMid: '#5a3e1a',
+      ridgeNear: '#4E3416',
     },
     roadside: {
       pillarModulo: 9,
@@ -52,10 +55,15 @@ export const TRACKS = [
       stoneRemainderA: 5,
       stoneModuloB: 11,
       stoneRemainderB: 8,
+      markerModulo: 17,
+      markerRemainderLeft: 6,
+      markerRemainderRight: 12,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      markerOffsetLeft: -1.8,
+      markerOffsetRight: 1.8,
     },
     // Boost pickups — instant-boost items placed on the track. Each entry is
     // a segment index and a lateral offset (lane units, same scale as playerX).
@@ -96,8 +104,12 @@ export const TRACKS = [
       grassAlt: '#66753F',
       rumble: 'rgba(180, 150, 70, 0.5)',
       road: [82, 58, 34],
+      ridgeFar: '#8B6A2F',
+      ridgeMid: '#755620',
+      ridgeNear: '#5E4518',
     },
     // Fewer props (larger modulo = sparser) — an open, flowing feel.
+    // Brass arches for ceremonial gateway feel.
     roadside: {
       pillarModulo: 14,
       pillarRemainderLeft: 4,
@@ -106,10 +118,15 @@ export const TRACKS = [
       stoneRemainderA: 6,
       stoneModuloB: 17,
       stoneRemainderB: 11,
+      archModulo: 23,
+      archRemainderLeft: 8,
+      archRemainderRight: 15,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      archOffsetLeft: -2.0,
+      archOffsetRight: 2.0,
     },
     // Boost pickups — spaced for the long, flowing layout (2250 segments).
     pickups: [
@@ -158,8 +175,12 @@ export const TRACKS = [
       grassAlt: '#3A5433',
       rumble: 'rgba(139, 105, 20, 0.6)',
       road: [58, 42, 26],
+      ridgeFar: '#4A5A3A',
+      ridgeMid: '#3a4528',
+      ridgeNear: '#2f3820',
     },
     // Denser props (smaller modulo = more frequent) — a packed, technical feel.
+    // Trees for the forest/shaded environment.
     roadside: {
       pillarModulo: 6,
       pillarRemainderLeft: 2,
@@ -168,10 +189,15 @@ export const TRACKS = [
       stoneRemainderA: 3,
       stoneModuloB: 5,
       stoneRemainderB: 1,
+      treeModulo: 8,
+      treeRemainderLeft: 0,
+      treeRemainderRight: 5,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      treeOffsetLeft: -2.5,
+      treeOffsetRight: 2.5,
     },
     // Boost pickups — tighter spacing for the short, technical circuit (1263 segments).
     pickups: [
@@ -213,8 +239,12 @@ export const TRACKS = [
       grassAlt: '#68705A',
       rumble: 'rgba(160, 160, 140, 0.5)',
       road: [90, 82, 70],
+      ridgeFar: '#7A7360',
+      ridgeMid: '#65604E',
+      ridgeNear: '#52503F',
     },
     // Stone-heavy roadside (more stones than pillars) to match the highland look.
+    // Verdigris markers add weathered character.
     roadside: {
       pillarModulo: 11,
       pillarRemainderLeft: 3,
@@ -223,10 +253,15 @@ export const TRACKS = [
       stoneRemainderA: 2,
       stoneModuloB: 10,
       stoneRemainderB: 6,
+      markerModulo: 13,
+      markerRemainderLeft: 5,
+      markerRemainderRight: 9,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      markerOffsetLeft: -1.9,
+      markerOffsetRight: 1.9,
     },
     // Boost pickups — highland circuit (1550 segments).
     pickups: [
@@ -268,6 +303,9 @@ export const TRACKS = [
       grassAlt: '#46705F',
       rumble: 'rgba(95, 158, 160, 0.5)',
       road: [70, 64, 60],
+      ridgeFar: '#5A7A6A',
+      ridgeMid: '#456656',
+      ridgeNear: '#365244',
     },
     roadside: {
       pillarModulo: 12,
@@ -277,10 +315,20 @@ export const TRACKS = [
       stoneRemainderA: 4,
       stoneModuloB: 12,
       stoneRemainderB: 7,
+      markerModulo: 15,
+      markerRemainderLeft: 5,
+      markerRemainderRight: 11,
+      treeModulo: 19,
+      treeRemainderLeft: 2,
+      treeRemainderRight: 13,
       pillarOffsetLeft: -1.45,
       pillarOffsetRight: 1.45,
       stoneOffsetA: -2.3,
       stoneOffsetB: 2.4,
+      markerOffsetLeft: -1.8,
+      markerOffsetRight: 1.8,
+      treeOffsetLeft: -2.6,
+      treeOffsetRight: 2.6,
     },
     // Boost pickups — coastal circuit (1601 segments).
     pickups: [
