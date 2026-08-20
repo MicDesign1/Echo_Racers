@@ -1768,11 +1768,11 @@
   },
   "shimmer": {
     "frames": 120,
-    "visibleCount": 24
+    "visibleCount": 17
   },
   "natural": {
-    "catching": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-catching.png",
-    "bump": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-bump.png",
-    "passed": "E:\\KID GAME\\Echo_Racers\\scripts\\verify-screenshots\\natural-passed.png"
+    "bump": "/workspace/scripts/verify-screenshots/natural-bump.png",
+    "catching": "/workspace/scripts/verify-screenshots/natural-catching.png",
+    "passed": "/workspace/scripts/verify-screenshots/natural-passed.png"
   }
 }

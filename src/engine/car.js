@@ -83,6 +83,66 @@ function drawCombatAura(ctx, carWidth, carHeight, fx, glowRGB, time) {
   }
 }
 
+// A vehicle's boost visual feedback: pickup collection flash (gold joy burst)
+// and boosting glow (cyan resonance light while any boost is active). Drawn
+// in the same translated/rotated frame as the chassis. `boostState` carries
+// { active, pickupFlash } from engine/boost.js. Shared by player and rivals.
+function drawBoostVisuals(ctx, carWidth, carHeight, boostState, time) {
+  if (!boostState) return
+  const cy = -carHeight * 0.34 // creature-silhouette center, matching drawChassis
+  const BOOST_VIS = {
+    pickup: {
+      flashDuration: 0.35,
+      flashGlowFraction: 1.2,
+    },
+    visual: {
+      glowColor: '120, 200, 220',
+      glowAlpha: 0.5,
+      glowRadiusFraction: 1.1,
+      glowPulseRate: 0.004,
+    }
+  }
+
+  // Pickup flash: a brief gold/resonance joy burst when collecting a pickup
+  // (distinct from damage flash: this is wholesome, exciting, not scary).
+  if (boostState.pickupFlash > 0) {
+    const flashT = 1 - (boostState.pickupFlash / BOOST_VIS.pickup.flashDuration)
+    const alpha = Math.sin(flashT * Math.PI) // fade in and out smoothly
+    const r = carWidth * BOOST_VIS.pickup.flashGlowFraction
+    const grad = ctx.createRadialGradient(0, cy, 0, 0, cy, r)
+    // Gold/aged-gold resonance joy (matching the track's brass/gold theme)
+    grad.addColorStop(0, `rgba(196, 154, 60, ${0.9 * alpha})`) // aged gold core
+    grad.addColorStop(0.5, `rgba(255, 215, 100, ${0.5 * alpha})`) // bright gold mid
+    grad.addColorStop(1, `rgba(196, 154, 60, 0)`)
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(0, cy, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+
+  // Boosting glow: soft cyan resonance light while any boost burst is active
+  // (manual dump or pickup). Pulses gently to read as thrilling, not menacing.
+  if (boostState.active) {
+    const pulse = 0.7 + 0.3 * Math.sin(time * BOOST_VIS.visual.glowPulseRate)
+    const alpha = BOOST_VIS.visual.glowAlpha * pulse
+    const r = carWidth * BOOST_VIS.visual.glowRadiusFraction
+    const grad = ctx.createRadialGradient(0, cy, 0, 0, cy, r)
+    grad.addColorStop(0, `rgba(${BOOST_VIS.visual.glowColor}, ${alpha})`)
+    grad.addColorStop(0.6, `rgba(${BOOST_VIS.visual.glowColor}, ${alpha * 0.4})`)
+    grad.addColorStop(1, `rgba(${BOOST_VIS.visual.glowColor}, 0)`)
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(0, cy, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
 // Placeholder vector-drawn chassis. This is the seam for real art: once
 // sprite frames exist (4 per side, for the lean/drift angle), replace this
 // function's body with a frame lookup keyed on `driftAngle`/`steer` and
@@ -93,7 +153,8 @@ function drawCombatAura(ctx, carWidth, carHeight, fx, glowRGB, time) {
 // FRACTION of carHeight (see engine/airtime.js airLiftFraction) — that
 // raises the chassis above its own ground shadow, which stays put at
 // groundY; the gap between the two is what reads as "left the road."
-export function drawCar(ctx, width, height, state, colors, fx) {
+// `boostState` (optional) carries boost visual feedback: { active, pickupFlash }.
+export function drawCar(ctx, width, height, state, colors, fx, boostState = null) {
   const { steer, driftAngle, speedPercent, boosting, time, lift = 0 } = state
   const { groundY, chassisWidth: carWidth } = getPlayerAnchor(width, height)
   const carHeight = carWidth * CAR.heightFraction
@@ -146,6 +207,7 @@ export function drawCar(ctx, width, height, state, colors, fx) {
     intakeGlowRGB: colors.intakeGlowRGB,
   })
   drawCombatAura(ctx, carWidth, carHeight, fx, colors.intakeGlowRGB, time)
+  drawBoostVisuals(ctx, carWidth, carHeight, boostState, time)
 
   ctx.restore()
 }
@@ -219,7 +281,8 @@ export function drawChassis(ctx, carWidth, carHeight, time, palette) {
 // identical to the player's, so a rival's hits/charge read the same way.
 // `lift` (optional, default 0) is the same hill-crest air-time offset
 // drawCar takes — a fraction of carHeight, leaving the ground shadow at sy.
-export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth, fx, lift = 0) {
+// `boostState` (optional) carries boost visual feedback: { active, pickupFlash }.
+export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clipY, canvasWidth, fx, lift = 0, boostState = null) {
   const carHeight = carWidth * CAR.heightFraction
   if (carWidth < 2 || sy - carHeight > clipY || sy < 0) return
 
@@ -235,5 +298,6 @@ export function drawOpponentCar(ctx, sx, sy, carWidth, lean, palette, time, clip
   ctx.rotate(lean * CAR.steerRotationFactor + (fx ? fx.wobbleAngle : 0))
   drawChassis(ctx, carWidth, carHeight, time, palette)
   drawCombatAura(ctx, carWidth, carHeight, fx, palette.intakeGlowRGB, time)
+  drawBoostVisuals(ctx, carWidth, carHeight, boostState, time)
   ctx.restore()
 }
