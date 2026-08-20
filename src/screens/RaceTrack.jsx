@@ -183,11 +183,27 @@ export default function RaceTrack() {
   const bannerTimeoutRef = useRef(null)
   const verifyMetricsRef = useRef(null)
   const resetRaceRef = useRef(null)
+  // Boost hint timing: use a REF, not closed-over state, so update() ticks the
+  // real elapsed time (not stale closure). setBoostHint only when visibility
+  // changes, not every frame. Track postGoElapsed (0 during countdown, ticks
+  // after GO) to implement "stay ~6s after GO" without dismissing at GO itself.
+  const boostHintRef = useRef({ visible: false, postGoElapsed: 0 })
   const [banner, setBanner] = useState(null)
   const [raceResult, setRaceResult] = useState(null)
   const [countdownText, setCountdownText] = useState(() => (
     RACE.mode === 'race' && !verifyMode ? RACE.countdown.beats[0] : null
   ))
+  // Boost how-to hint: fully opaque and visible DURING countdown AND for ~6s
+  // after GO. NOT tied to countdownText (that caused premature vanish at GO).
+  // Large, centered below the countdown numbers (lower third). Keyboard gets
+  // "Press E to boost", touch gets "Tap Boost to activate". NOT tied to
+  // showTouch — desktop with mouse sees keyboard hint. Auto-dismisses on first
+  // boost OR ~6s after GO. Never shown in verify mode. Timing tracked via ref.
+  const [boostHint, setBoostHint] = useState(() => {
+    if (verifyMode) return null
+    boostHintRef.current = { visible: true, postGoElapsed: 0 }
+    return { visible: true }
+  })
   const gameRef = useRef(createInitialGameState())
 
   useEffect(() => {
@@ -222,6 +238,10 @@ export default function RaceTrack() {
       clearTimeout(bannerTimeoutRef.current)
       setBanner(null)
       setRaceResult(null)
+      if (!verifyMode) {
+        boostHintRef.current = { visible: true, postGoElapsed: 0 }
+        setBoostHint({ visible: true })
+      }
       currentTrack = activeTrack()
       loadTrack(currentTrack)
       RACE.lapCount = currentTrack.lapCount
@@ -373,15 +393,34 @@ export default function RaceTrack() {
         // Clear the flag so it doesn't re-fire next frame (edge-triggered).
         keys.boost = false
         touch.boost = false
+        // Dismiss the boost hint on first activation (player knows how now).
+        if (boostHintRef.current.visible) {
+          boostHintRef.current.visible = false
+          setBoostHint(null)
+        }
       }
 
       // Track pickup collection: check if the player ran over an available pickup.
+      // Pickups now FILL the meter to max (don't auto-activate boost). The player
+      // still presses Boost to activate. Flash is visual feedback that the bar refilled.
       const collected = checkPickupCollection(g.pos, g.playerX, g.pickups, g.pickupStates, trackLength)
       if (collected >= 0) {
-        tryActivateBoost(g.boostState, 'pickup')
+        g.boostState.charge = BOOST.chargeMax // fill meter to max
+        g.boostState.pickupFlash = BOOST.pickup.flashDuration // arm the flash
         g.pickupStates[collected].respawnTimer = BOOST.pickup.respawnTime
       }
       updatePickups(g.pickupStates, dt)
+
+      // Rival pickup collection: shared pads. Rivals' lane wander means they
+      // only hit pads near their path — not all pads. Same fill/respawn as player.
+      for (const o of g.opponents) {
+        const rivalCollected = checkPickupCollection(o.pos, o.x, g.pickups, g.pickupStates, trackLength)
+        if (rivalCollected >= 0) {
+          o.boostState.charge = BOOST.chargeMax
+          o.boostState.pickupFlash = BOOST.pickup.flashDuration
+          g.pickupStates[rivalCollected].respawnTimer = BOOST.pickup.respawnTime
+        }
+      }
 
       const offRoad = Math.abs(g.playerX) > RACE.offRoadThreshold
       if (offRoad && g.speed > RACE.offRoadMaxSpeed) {
@@ -475,6 +514,16 @@ export default function RaceTrack() {
       // time-trial. It's the last word each frame, so its wobble nudge sits
       // on top of the frame's steering/lane easing.
       updateCombat(g, dt, trackLength)
+
+      // Boost hint timer: tick postGoElapsed in the ref (not closed-over state)
+      // so it accumulates correctly. Auto-dismiss ~6s after GO (not at GO itself).
+      if (boostHintRef.current.visible) {
+        boostHintRef.current.postGoElapsed += dt
+        if (boostHintRef.current.postGoElapsed >= BOOST.visual.hintDuration) {
+          boostHintRef.current.visible = false
+          setBoostHint(null)
+        }
+      }
     }
 
     const P1 = { wx: 0, wy: 0, wz: 0, sx: 0, sy: 0, sw: 0, scale: 0 }
@@ -581,6 +630,7 @@ export default function RaceTrack() {
             width,
             combatFx(o.attackCooldown, o.wobble, o.hitFlash),
             airLiftFraction(o),
+            o.boostState,
           )
         }
       }
@@ -592,7 +642,7 @@ export default function RaceTrack() {
         boosting: g.boost > 0,
         time,
         lift: airLiftFraction(g),
-      }, trackColors, combatFx(g.playerAttackCooldown, g.playerWobble, g.playerHitFlash))
+      }, trackColors, combatFx(g.playerAttackCooldown, g.playerWobble, g.playerHitFlash), g.boostState)
 
       for (const { o, place } of afterPlayer.sort((a, b) => b.place.cameraZ - a.place.cameraZ)) {
         drawOpponentCar(
@@ -607,6 +657,7 @@ export default function RaceTrack() {
           width,
           combatFx(o.attackCooldown, o.wobble, o.hitFlash),
           airLiftFraction(o),
+          o.boostState,
         )
       }
 
@@ -740,6 +791,7 @@ export default function RaceTrack() {
           maxSpeed: RACE.maxSpeed,
           drifting: g.drifting,
           airborne: g.airborne,
+          boosting: g.boostState.active, // pass boost state for engine pitch lift
           rivals: g.opponents.map((o) => {
             let gap = ((o.pos - g.pos) % trackLength + trackLength) % trackLength
             if (gap > trackLength / 2) gap -= trackLength
@@ -1160,6 +1212,13 @@ export default function RaceTrack() {
             className={`countdown-text${countdownText === 'GO!' ? ' countdown-go' : ''}`}
           >
             {countdownText}
+          </span>
+        </div>
+      )}
+      {boostHint?.visible && (
+        <div className="boost-hint-overlay">
+          <span className="boost-hint-text">
+            {showTouch ? 'Tap Boost to activate' : 'Press E to boost'}
           </span>
         </div>
       )}

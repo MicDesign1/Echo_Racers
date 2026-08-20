@@ -62,12 +62,9 @@ export const TRACKS = [
     // Spread roughly evenly across the lap, favoring straights + post-challenge
     // spots (wholesome, not punishing). See BOOST.pickup in tuning.js.
     pickups: [
-      { segment: 100, offset: 0.3 },
-      { segment: 350, offset: -0.4 },
-      { segment: 580, offset: 0 },
-      { segment: 820, offset: 0.5 },
-      { segment: 1100, offset: -0.3 },
-      { segment: 1350, offset: 0.2 },
+      { segment: 350, offset: -0.4 },  // after left sweeper
+      { segment: 820, offset: 0.5 },   // straight after hilltop curve
+      { segment: 1350, offset: 0.2 },  // final straight
     ],
   },
   {
@@ -113,13 +110,9 @@ export const TRACKS = [
     },
     // Boost pickups — spaced for the long, flowing layout (2250 segments).
     pickups: [
-      { segment: 180, offset: 0.2 },
-      { segment: 480, offset: -0.3 },
-      { segment: 820, offset: 0.4 },
-      { segment: 1180, offset: 0 },
-      { segment: 1550, offset: -0.4 },
-      { segment: 1920, offset: 0.3 },
-      { segment: 2100, offset: -0.2 },
+      { segment: 480, offset: -0.3 },   // after first curve
+      { segment: 1180, offset: 0.4 },   // mid-lap straight
+      { segment: 1920, offset: -0.2 },  // final approach
     ],
   },
   {
@@ -175,12 +168,8 @@ export const TRACKS = [
     },
     // Boost pickups — tighter spacing for the short, technical circuit (1263 segments).
     pickups: [
-      { segment: 80, offset: 0 },
-      { segment: 280, offset: 0.4 },
-      { segment: 480, offset: -0.3 },
-      { segment: 720, offset: 0.2 },
-      { segment: 980, offset: -0.4 },
-      { segment: 1180, offset: 0.3 },
+      { segment: 280, offset: 0.4 },    // after first right curve
+      { segment: 1050, offset: -0.3 },  // final straight
     ],
   },
   {
@@ -230,12 +219,8 @@ export const TRACKS = [
     },
     // Boost pickups — highland circuit (1550 segments).
     pickups: [
-      { segment: 120, offset: 0.2 },
-      { segment: 380, offset: -0.3 },
-      { segment: 650, offset: 0.4 },
-      { segment: 920, offset: 0 },
-      { segment: 1180, offset: -0.4 },
-      { segment: 1420, offset: 0.3 },
+      { segment: 380, offset: -0.3 },   // after big climb
+      { segment: 1180, offset: 0.4 },   // after second climb
     ],
   },
   {
@@ -284,12 +269,8 @@ export const TRACKS = [
     },
     // Boost pickups — coastal circuit (1601 segments).
     pickups: [
-      { segment: 140, offset: 0.3 },
-      { segment: 420, offset: -0.2 },
-      { segment: 700, offset: 0.4 },
-      { segment: 980, offset: 0 },
-      { segment: 1240, offset: -0.4 },
-      { segment: 1480, offset: 0.3 },
+      { segment: 420, offset: -0.2 },   // after first curve
+      { segment: 1240, offset: 0.4 },   // final approach
     ],
   },
 ]

@@ -1,7 +1,8 @@
-import { ROAD, RACE, OPPONENTS, AIR, activeDifficulty } from '../data/tuning.js'
+import { ROAD, RACE, OPPONENTS, AIR, BOOST, activeDifficulty } from '../data/tuning.js'
 import { seg } from './track.js'
 import { getPlayerAnchor } from './car.js'
 import { updateAirtime, createAirState } from './airtime.js'
+import { createBoostState, updateBoost, tryActivateBoost } from './boost.js'
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
@@ -68,6 +69,12 @@ export function createOpponents() {
       // Hill-crest air time (see engine/airtime.js) — identical fields/rules
       // to the player's own, so rivals launch off the same crests.
       ...createAirState(),
+      // Boost state (see engine/boost.js) — symmetric with the player: each
+      // rival gets its own meter (starts full), can activate bursts, can
+      // collect track pickups. AI fires boost on straights/low curve or when
+      // behind, with a per-rival stagger so they don't all dump at GO.
+      boostState: createBoostState(),
+      boostStagger: i * 0.3, // seconds of initial delay before first boost
     }
   })
 }
@@ -102,9 +109,35 @@ export function updateOpponents(g, dt, trackLength) {
     const accelLock = o.airborne ? AIR.accelLockFactor : 1
     const steerLock = o.airborne ? AIR.steerLockFactor : 1
 
+    // Boost state: update the meter (refills passively) and check if this
+    // rival should fire. AI fires mostly on straights / low curve, or when
+    // clearly behind the player, with a per-rival stagger so they don't all
+    // dump at GO. Never in a tight hairpin, never with low charge.
+    const boostEffects = updateBoost(o.boostState, dt)
+    if (o.boostStagger > 0) {
+      o.boostStagger -= dt
+    } else if (!o.boostState.active && o.boostState.charge >= BOOST.minActivateCharge) {
+      const segIndex = Math.floor(o.pos / ROAD.segmentLength)
+      const curve = Math.abs(seg(segIndex).curve)
+      const gapToPlayer = wrapDelta(g.pos, o.pos, trackLength)
+      // Fire if: (1) on a straight/gentle curve, OR (2) clearly behind player
+      const onStraight = curve < 1.5 // low curve = safe to boost
+      const behindPlayer = gapToPlayer > 800 // far behind = catch up
+      if (onStraight || behindPlayer) {
+        tryActivateBoost(o.boostState, 'manual')
+      }
+    }
+
     const targetSpeed = targetSpeedFor(o, g.pos, trackLength)
-    if (o.speed < targetSpeed) o.speed = Math.min(targetSpeed, o.speed + OPPONENTS.accel * accelLock * dt)
-    else o.speed = Math.max(targetSpeed, o.speed - OPPONENTS.brake * accelLock * dt)
+    let finalSpeed = targetSpeed
+    // Apply boost effects to this rival's speed (same multipliers as player).
+    if (boostEffects.accelFactor > 1.0) {
+      finalSpeed += OPPONENTS.accel * accelLock * dt * (boostEffects.accelFactor - 1.0)
+    }
+    const boostMaxSpeed = RACE.maxSpeed * (1 + boostEffects.maxSpeedBonus)
+    if (o.speed < finalSpeed) o.speed = Math.min(finalSpeed, o.speed + OPPONENTS.accel * accelLock * dt)
+    else o.speed = Math.max(finalSpeed, o.speed - OPPONENTS.brake * accelLock * dt)
+    o.speed = Math.max(0, Math.min(boostMaxSpeed, o.speed))
 
     o.wanderPhase += dt
     const wander = Math.sin(o.wanderPhase * OPPONENTS.laneWanderRate * Math.PI * 2 + o.rivalIndex * 2.4) * OPPONENTS.laneWanderAmplitude
